@@ -70,6 +70,21 @@ header .user-info{font-size:12px;color:var(--text2);margin-right:8px}header .log
 .inline-kb-btn:active{transform:scale(0.96)}
 
 /* Input */
+#fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:var(--primary);color:#fff;border:none;font-size:28px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.4);z-index:100;display:flex;align-items:center;justify-content:center;transition:transform .2s}
+#fab:hover{transform:scale(1.1)}
+#fab:active{transform:scale(0.95)}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:200;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--surface);border-radius:16px;padding:24px;width:320px;max-width:90vw}
+.modal h3{margin-bottom:16px;font-size:18px}
+.modal input,.modal select{width:100%;padding:10px 14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg);color:var(--text);margin-bottom:12px;font-size:15px;box-sizing:border-box}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
+.modal-btns button{padding:10px 20px;border-radius:var(--radius);border:none;cursor:pointer;font-size:14px}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-cancel{background:transparent;color:var(--text2);border:1px solid var(--border) !important}
+
 #input-bar{display:none;padding:8px 12px;background:var(--surface);border-top:1px solid var(--border);gap:8px;align-items:flex-end}
 #input-bar textarea{flex:1;padding:10px 14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg);color:var(--text);resize:none;min-height:42px;max-height:120px;font-size:15px;line-height:1.4}
 #input-bar button{padding:10px 16px;border-radius:var(--radius);border:none;background:var(--accent);color:#162645;cursor:pointer;font-size:15px}
@@ -246,6 +261,7 @@ function showBotList() {
   currentChat = null;
   currentChannel = null;
   localStorage.removeItem('pusk_last_view');
+  $('fab').style.display = 'flex';
   $('bot-list').style.display = 'block';
   $('chat').style.display = 'none';
   $('input-bar').style.display = 'none';
@@ -254,6 +270,7 @@ function showBotList() {
 }
 
 async function openChat(botId, botName) {
+  $('fab').style.display = 'none';
   localStorage.setItem('pusk_last_view', JSON.stringify({type:'chat',id:botId,name:botName}));
   const chat = await api('POST', `/api/bots/${botId}/start`);
   currentChat = chat.id;
@@ -327,6 +344,7 @@ async function toggleSub(event, channelID, subscribed) {
 }
 
 async function openChannel(channelID, channelName) {
+  $('fab').style.display = 'none';
   localStorage.setItem('pusk_last_view', JSON.stringify({type:'channel',id:channelID,name:channelName}));
   currentChannel = channelID;
   currentChat = null;
@@ -473,6 +491,57 @@ function md(text) {
   return h;
 }
 
+
+// Create modal
+function showCreateModal() {
+  $('create-modal').classList.add('show');
+  $('create-name').value = '';
+  $('create-desc').value = '';
+  $('create-token').value = '';
+  $('create-error').textContent = '';
+  $('create-success').textContent = '';
+  updateCreateForm();
+  $('create-name').focus();
+}
+function hideModal() { $('create-modal').classList.remove('show'); }
+function updateCreateForm() {
+  const type = $('create-type').value;
+  $('modal-title').textContent = type === 'channel' ? 'New Channel' : 'New Bot';
+  $('create-token-row').style.display = type === 'bot' ? 'block' : 'none';
+  $('create-name').placeholder = type === 'channel' ? 'Channel name (e.g. alerts)' : 'Bot name (e.g. MonitorBot)';
+  $('create-desc').placeholder = type === 'channel' ? 'Description' : 'Webhook URL (optional)';
+}
+async function doCreate() {
+  const type = $('create-type').value;
+  const name = $('create-name').value.trim();
+  if (!name) { $('create-error').textContent = 'Name required'; return; }
+  $('create-error').textContent = '';
+  $('create-success').textContent = '';
+
+  if (type === 'channel') {
+    // Need a bot token to create channel — use first bot or admin
+    const desc = $('create-desc').value.trim();
+    const r = await api('POST', '/admin/channel', {name, description: desc});
+    if (r && r.ok) {
+      $('create-success').textContent = 'Channel #' + name + ' created!';
+      setTimeout(() => { hideModal(); loadBots(); }, 1000);
+    } else {
+      $('create-error').textContent = r.error || r.description || 'Failed';
+    }
+  } else {
+    const tok = $('create-token').value.trim() || name.toLowerCase().replace(/[^a-z0-9]/g,'-') + '-' + Math.random().toString(36).substring(2,8);
+    const webhook = $('create-desc').value.trim();
+    const r = await api('POST', '/admin/bots', {token: tok, name});
+    if (r && r.id) {
+      if (webhook) await api('POST', '/bot/' + tok + '/setWebhook', {url: webhook});
+      $('create-success').textContent = 'Bot ' + name + ' created! Token: ' + tok;
+      setTimeout(() => { hideModal(); loadBots(); }, 1500);
+    } else {
+      $('create-error').textContent = r.error || 'Failed';
+    }
+  }
+}
+
 // Init
 if (token) showApp();
 // Register Service Worker for push notifications
@@ -508,5 +577,29 @@ function urlBase64ToUint8Array(base64String) {
 }
  
 </script>
+
+<!-- FAB + Create Modal -->
+<button id="fab" onclick="showCreateModal()" title="Create">+</button>
+
+<div class="modal-overlay" id="create-modal" onclick="if(event.target===this)hideModal()">
+  <div class="modal">
+    <h3 id="modal-title">Create</h3>
+    <select id="create-type" onchange="updateCreateForm()">
+      <option value="channel">Channel</option>
+      <option value="bot">Bot</option>
+    </select>
+    <input id="create-name" placeholder="Name">
+    <input id="create-desc" placeholder="Description (optional)">
+    <div id="create-token-row" style="display:none">
+      <input id="create-token" placeholder="Bot token (for API calls)">
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="hideModal()">Cancel</button>
+      <button class="btn-primary" onclick="doCreate()">Create</button>
+    </div>
+    <div id="create-error" style="color:#e05d44;font-size:13px;margin-top:8px"></div>
+    <div id="create-success" style="color:#3db887;font-size:13px;margin-top:8px"></div>
+  </div>
+</div>
 </body>
 </html>
