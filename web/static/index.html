@@ -34,6 +34,16 @@ header .logout{cursor:pointer;font-size:12px;color:var(--text2)}
 .bot-item:hover{border-color:var(--accent)}
 .bot-avatar{width:40px;height:40px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:18px}
 .bot-name{font-weight:600}
+.section-title{padding:12px 16px 4px;font-size:12px;text-transform:uppercase;color:var(--text2);letter-spacing:1px}
+.ch-item{padding:12px 16px;margin:4px 8px;background:var(--surface);border-radius:var(--radius);cursor:pointer;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border)}
+.ch-item:hover{border-color:var(--primary)}
+.ch-info{display:flex;align-items:center;gap:10px}
+.ch-icon{font-size:18px}
+.ch-name{font-weight:600;font-size:14px}
+.ch-desc{font-size:12px;color:var(--text2)}
+.sub-btn{padding:4px 12px;border-radius:8px;border:1px solid var(--primary);background:transparent;color:var(--accent);cursor:pointer;font-size:12px}
+.sub-btn.active{background:var(--primary);color:#fff}
+.sub-btn:hover{opacity:0.8}
 
 /* Chat */
 #chat{display:none;flex-direction:column;flex:1;overflow:hidden}
@@ -144,19 +154,45 @@ async function showApp() {
 async function loadBots() {
   showBotList();
   const bots = await api('GET', '/api/bots');
+  const channels = await api('GET', '/api/channels');
   const el = $('bot-list');
   el.innerHTML = '';
-  if (!bots || !bots.length) { el.innerHTML = '<p style="padding:20px;color:var(--text2)">Нет ботов</p>'; return; }
-  bots.forEach(b => {
-    el.innerHTML += `<div class="bot-item" onclick="openChat(${b.id},'${esc(b.name)}')">
-      <div class="bot-avatar">${b.icon_url ? `<img src="${b.icon_url}" style="width:40px;height:40px;border-radius:50%">` : b.name[0].toUpperCase()}</div>
-      <div><div class="bot-name">${esc(b.name)}</div></div>
-    </div>`;
-  });
+
+  // Channels section
+  if (channels && channels.length) {
+    el.innerHTML += '<div class="section-title">Channels</div>';
+    channels.forEach(ch => {
+      const subClass = ch.subscribed ? 'sub-btn active' : 'sub-btn';
+      const subText = ch.subscribed ? 'Subscribed' : 'Subscribe';
+      el.innerHTML += `<div class="ch-item">
+        <div class="ch-info" onclick="openChannel(${ch.id},'${esc(ch.name)}')">
+          <span class="ch-icon">#</span>
+          <div><div class="ch-name">${esc(ch.name)}</div><div class="ch-desc">${esc(ch.description||'')}</div></div>
+        </div>
+        <button class="${subClass}" onclick="toggleSub(event,${ch.id},${ch.subscribed})" id="sub-${ch.id}">${subText}</button>
+      </div>`;
+    });
+  }
+
+  // Bots section
+  if (bots && bots.length) {
+    el.innerHTML += '<div class="section-title">Bots</div>';
+    bots.forEach(b => {
+      el.innerHTML += `<div class="bot-item" onclick="openChat(${b.id},'${esc(b.name)}')">
+        <div class="bot-avatar">${b.icon_url ? `<img src="${b.icon_url}" style="width:40px;height:40px;border-radius:50%">` : b.name[0].toUpperCase()}</div>
+        <div><div class="bot-name">${esc(b.name)}</div></div>
+      </div>`;
+    });
+  }
+
+  if ((!bots || !bots.length) && (!channels || !channels.length)) {
+    el.innerHTML = '<p style="padding:20px;color:var(--text2)">No bots or channels yet</p>';
+  }
 }
 
 function showBotList() {
   currentChat = null;
+  currentChannel = null;
   $('bot-list').style.display = 'block';
   $('chat').style.display = 'none';
   $('input-bar').style.display = 'none';
@@ -224,6 +260,41 @@ function appendMsg(m) {
   el.innerHTML += html;
 }
 
+let currentChannel = null;
+
+async function toggleSub(event, channelID, subscribed) {
+  event.stopPropagation();
+  if (subscribed) {
+    await api('POST', `/api/channels/${channelID}/unsubscribe`);
+  } else {
+    await api('POST', `/api/channels/${channelID}/subscribe`);
+  }
+  await loadBots();
+}
+
+async function openChannel(channelID, channelName) {
+  currentChannel = channelID;
+  currentChat = null;
+  $('bot-list').style.display = 'none';
+  $('chat').style.display = 'flex';
+  $('input-bar').style.display = 'none';
+  $('back-btn').style.display = 'inline';
+  $('header-title').textContent = '# ' + channelName;
+  await loadChannelMessages(channelID);
+  scrollDown();
+}
+
+async function loadChannelMessages(channelID) {
+  const msgs = await api('GET', `/api/channels/${channelID}/messages`);
+  const el = $('messages');
+  el.innerHTML = '';
+  if (!msgs || !msgs.length) { el.innerHTML = '<p style="padding:20px;text-align:center;color:var(--text2)">No messages yet</p>'; return; }
+  msgs.reverse().forEach(m => {
+    m.sender = 'bot';
+    appendMsg(m);
+  });
+}
+
 async function sendMsg() {
   const input = $('msg-input');
   const text = input.value.trim();
@@ -260,6 +331,12 @@ function connectWS() {
     const evt = JSON.parse(e.data);
     if (evt.type === 'new_message' && evt.chat_id === currentChat) {
       const d = JSON.parse(evt.payload);
+      appendMsg(d.message);
+      scrollDown();
+    }
+    if (evt.type === 'channel_message' && evt.chat_id === currentChannel) {
+      const d = JSON.parse(evt.payload);
+      d.message.sender = 'bot';
       appendMsg(d.message);
       scrollDown();
     }

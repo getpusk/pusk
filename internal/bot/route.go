@@ -50,6 +50,10 @@ func (h *Handler) dispatch(w http.ResponseWriter, r *http.Request) {
 		h.setWebhook(w, r)
 	case "getMe":
 		h.getMe(w, r)
+	case "createChannel":
+		h.createChannel(w, r)
+	case "sendChannel":
+		h.sendChannel(w, r)
 	default:
 		jsonResp(w, 400, APIResponse{OK: false, Error: "unknown method: " + method})
 	}

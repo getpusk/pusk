@@ -39,6 +39,10 @@ func (a *ClientAPI) Route(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/bots/{botID}/start", a.startChat)
 	mux.HandleFunc("GET /api/ws", a.websocket)
 	mux.HandleFunc("GET /api/health", a.health)
+	mux.HandleFunc("GET /api/channels", a.listChannels)
+	mux.HandleFunc("POST /api/channels/{channelID}/subscribe", a.subscribe)
+	mux.HandleFunc("POST /api/channels/{channelID}/unsubscribe", a.unsubscribe)
+	mux.HandleFunc("GET /api/channels/{channelID}/messages", a.channelMessages)
 }
 
 func (a *ClientAPI) auth(w http.ResponseWriter, r *http.Request) {
@@ -216,6 +220,67 @@ func (a *ClientAPI) health(w http.ResponseWriter, r *http.Request) {
 		"online":  a.hub.Online(),
 		"version": "0.1.0",
 	})
+}
+
+
+func (a *ClientAPI) listChannels(w http.ResponseWriter, r *http.Request) {
+	userID := getUserID(r)
+	channels, err := a.store.ListChannels()
+	if err != nil {
+		http.Error(w, `{"error":"`+err.Error()+`"}`, 500)
+		return
+	}
+	type channelInfo struct {
+		ID          int64  `json:"id"`
+		Name        string `json:"name"`
+		Description string `json:"description,omitempty"`
+		Subscribed  bool   `json:"subscribed"`
+	}
+	result := make([]channelInfo, 0, len(channels))
+	for _, ch := range channels {
+		result = append(result, channelInfo{
+			ID: ch.ID, Name: ch.Name, Description: ch.Description,
+			Subscribed: a.store.IsSubscribed(ch.ID, userID),
+		})
+	}
+	json.NewEncoder(w).Encode(result)
+}
+
+func (a *ClientAPI) subscribe(w http.ResponseWriter, r *http.Request) {
+	userID := getUserID(r)
+	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
+	if err := a.store.Subscribe(channelID, userID); err != nil {
+		http.Error(w, `{"error":"`+err.Error()+`"}`, 500)
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+}
+
+func (a *ClientAPI) unsubscribe(w http.ResponseWriter, r *http.Request) {
+	userID := getUserID(r)
+	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
+	if err := a.store.Unsubscribe(channelID, userID); err != nil {
+		http.Error(w, `{"error":"`+err.Error()+`"}`, 500)
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+}
+
+func (a *ClientAPI) channelMessages(w http.ResponseWriter, r *http.Request) {
+	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
+	limit := 50
+	if l := r.URL.Query().Get("limit"); l != "" {
+		limit, _ = strconv.Atoi(l)
+	}
+	msgs, err := a.store.ChannelMessages(channelID, limit)
+	if err != nil {
+		http.Error(w, `{"error":"`+err.Error()+`"}`, 500)
+		return
+	}
+	if msgs == nil {
+		msgs = []store.ChannelMessage{}
+	}
+	json.NewEncoder(w).Encode(msgs)
 }
 
 // ── Internal ──
