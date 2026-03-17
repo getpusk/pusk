@@ -37,6 +37,7 @@ func (s *Store) migrate() error {
 			token      TEXT UNIQUE NOT NULL,
 			name       TEXT NOT NULL,
 			webhook_url TEXT,
+			icon_url   TEXT,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		);
 
@@ -102,10 +103,12 @@ type Bot struct {
 	Token      string `json:"token"`
 	Name       string `json:"name"`
 	WebhookURL string `json:"webhook_url,omitempty"`
+	IconURL    string `json:"icon_url,omitempty"`
 }
 
 func (s *Store) CreateBot(token, name string) (*Bot, error) {
 	res, err := s.db.Exec("INSERT INTO bots (token, name) VALUES (?, ?)", token, name)
+
 	if err != nil {
 		return nil, err
 	}
@@ -115,8 +118,8 @@ func (s *Store) CreateBot(token, name string) (*Bot, error) {
 
 func (s *Store) BotByToken(token string) (*Bot, error) {
 	b := &Bot{}
-	err := s.db.QueryRow("SELECT id, token, name, COALESCE(webhook_url,'') FROM bots WHERE token=?", token).
-		Scan(&b.ID, &b.Token, &b.Name, &b.WebhookURL)
+	err := s.db.QueryRow("SELECT id, token, name, COALESCE(webhook_url,''), COALESCE(icon_url,'') FROM bots WHERE token=?", token).
+		Scan(&b.ID, &b.Token, &b.Name, &b.WebhookURL, &b.IconURL)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +132,7 @@ func (s *Store) SetWebhook(botID int64, url string) error {
 }
 
 func (s *Store) ListBots() ([]Bot, error) {
-	rows, err := s.db.Query("SELECT id, token, name, COALESCE(webhook_url,'') FROM bots")
+	rows, err := s.db.Query("SELECT id, token, name, COALESCE(webhook_url,''), COALESCE(icon_url,'') FROM bots")
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +140,7 @@ func (s *Store) ListBots() ([]Bot, error) {
 	var bots []Bot
 	for rows.Next() {
 		var b Bot
-		rows.Scan(&b.ID, &b.Token, &b.Name, &b.WebhookURL)
+		rows.Scan(&b.ID, &b.Token, &b.Name, &b.WebhookURL, &b.IconURL)
 		bots = append(bots, b)
 	}
 	return bots, nil
@@ -311,7 +314,7 @@ func (s *Store) ChatBotID(chatID int64) (int64, error) {
 func (s *Store) BotByID(id int64) (*Bot, error) {
 	b := &Bot{}
 	err := s.db.QueryRow("SELECT id, token, name, COALESCE(webhook_url,\x27\x27) FROM bots WHERE id=?", id).
-		Scan(&b.ID, &b.Token, &b.Name, &b.WebhookURL)
+		Scan(&b.ID, &b.Token, &b.Name, &b.WebhookURL, &b.IconURL)
 	if err != nil {
 		return nil, err
 	}
