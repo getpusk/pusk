@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="theme-color" content="#1a1a2e">
+<title>Pusk</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#1a1a2e;--surface:#16213e;--primary:#0f3460;--accent:#e94560;--text:#eee;--text2:#999;--border:#2a2a4a;--msg-bot:#1e2a45;--msg-user:#0f3460;--radius:12px}
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+input,button,textarea{font-family:inherit;font-size:inherit}
+
+/* Auth */
+#auth{display:flex;align-items:center;justify-content:center;height:100dvh;flex-direction:column;gap:16px}
+#auth h1{font-size:2em;color:var(--accent)}
+#auth input{padding:12px 16px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);color:var(--text);width:260px;font-size:16px}
+#auth button{padding:12px 32px;border-radius:var(--radius);border:none;background:var(--accent);color:#fff;cursor:pointer;font-size:16px;font-weight:600}
+#auth button:hover{opacity:0.9}
+#auth .error{color:var(--accent);font-size:14px}
+
+/* App layout */
+#app{display:none;height:100dvh;flex-direction:column}
+header{background:var(--surface);padding:12px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border)}
+header h2{font-size:16px;flex:1}
+header .back{cursor:pointer;font-size:20px;display:none}
+header .status{font-size:12px;color:var(--text2)}
+header .logout{cursor:pointer;font-size:12px;color:var(--text2)}
+
+/* Bot list */
+#bot-list{flex:1;overflow-y:auto;padding:8px}
+.bot-item{padding:14px 16px;margin:4px 8px;background:var(--surface);border-radius:var(--radius);cursor:pointer;display:flex;align-items:center;gap:12px;border:1px solid var(--border)}
+.bot-item:hover{border-color:var(--accent)}
+.bot-avatar{width:40px;height:40px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:18px}
+.bot-name{font-weight:600}
+
+/* Chat */
+#chat{display:none;flex-direction:column;flex:1;overflow:hidden}
+#messages{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px}
+.msg{max-width:80%;padding:10px 14px;border-radius:var(--radius);word-wrap:break-word;line-height:1.4}
+.msg.bot{background:var(--msg-bot);align-self:flex-start;border-bottom-left-radius:4px}
+.msg.user{background:var(--msg-user);align-self:flex-end;border-bottom-right-radius:4px}
+.msg .time{font-size:11px;color:var(--text2);margin-top:4px}
+.msg .text{white-space:pre-wrap}
+
+/* Inline keyboard */
+.inline-kb{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.inline-kb-row{display:flex;gap:4px}
+.inline-kb-btn{flex:1;padding:8px 12px;border-radius:8px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-size:13px;text-align:center;transition:all .15s}
+.inline-kb-btn:hover{background:var(--accent);color:#fff}
+.inline-kb-btn:active{transform:scale(0.96)}
+
+/* Input */
+#input-bar{display:none;padding:8px 12px;background:var(--surface);border-top:1px solid var(--border);gap:8px;align-items:flex-end}
+#input-bar textarea{flex:1;padding:10px 14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg);color:var(--text);resize:none;min-height:42px;max-height:120px;font-size:15px;line-height:1.4}
+#input-bar button{padding:10px 16px;border-radius:var(--radius);border:none;background:var(--accent);color:#fff;cursor:pointer;font-size:15px}
+</style>
+</head>
+<body>
+
+<!-- Auth screen -->
+<div id="auth">
+  <h1>Pusk</h1>
+  <p style="color:var(--text2)">Бот-платформа</p>
+  <input id="a-user" placeholder="Имя пользователя" autocomplete="username">
+  <input id="a-pin" type="password" placeholder="PIN" autocomplete="current-password">
+  <button onclick="login()">Войти</button>
+  <button onclick="register()" style="background:var(--primary)">Регистрация</button>
+  <div id="a-error" class="error"></div>
+</div>
+
+<!-- App -->
+<div id="app">
+  <header>
+    <span class="back" id="back-btn" onclick="showBotList()">←</span>
+    <h2 id="header-title">Боты</h2>
+    <span class="status" id="ws-status">●</span>
+    <span class="logout" onclick="logout()">Выйти</span>
+  </header>
+
+  <div id="bot-list"></div>
+
+  <div id="chat">
+    <div id="messages"></div>
+  </div>
+
+  <div id="input-bar">
+    <textarea id="msg-input" rows="1" placeholder="Сообщение..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}"></textarea>
+    <button onclick="sendMsg()">→</button>
+  </div>
+</div>
+
+<script>
+const API = '';
+let token = localStorage.getItem('pusk_token');
+let userId = localStorage.getItem('pusk_user_id');
+let currentChat = null;
+let ws = null;
+
+// ── Auth ──
+async function login() {
+  const u = $('a-user').value, p = $('a-pin').value;
+  const r = await api('POST', '/api/auth', {username:u, pin:p});
+  if (r.error) { $('a-error').textContent = r.error; return; }
+  saveAuth(r);
+}
+
+async function register() {
+  const u = $('a-user').value, p = $('a-pin').value;
+  const r = await api('POST', '/api/register', {username:u, pin:p, display_name:u});
+  if (r.error) { $('a-error').textContent = r.error; return; }
+  saveAuth(r);
+}
+
+function saveAuth(r) {
+  token = r.token; userId = r.user_id;
+  localStorage.setItem('pusk_token', token);
+  localStorage.setItem('pusk_user_id', userId);
+  showApp();
+}
+
+function logout() {
+  token = null; userId = null;
+  localStorage.removeItem('pusk_token');
+  localStorage.removeItem('pusk_user_id');
+  if (ws) ws.close();
+  $('auth').style.display = 'flex';
+  $('app').style.display = 'none';
+}
+
+// ── App ──
+async function showApp() {
+  $('auth').style.display = 'none';
+  $('app').style.display = 'flex';
+  connectWS();
+  await loadBots();
+}
+
+async function loadBots() {
+  showBotList();
+  const bots = await api('GET', '/api/bots');
+  const el = $('bot-list');
+  el.innerHTML = '';
+  if (!bots || !bots.length) { el.innerHTML = '<p style="padding:20px;color:var(--text2)">Нет ботов</p>'; return; }
+  bots.forEach(b => {
+    el.innerHTML += `<div class="bot-item" onclick="openChat(${b.id},'${esc(b.name)}')">
+      <div class="bot-avatar">${b.name[0].toUpperCase()}</div>
+      <div><div class="bot-name">${esc(b.name)}</div></div>
+    </div>`;
+  });
+}
+
+function showBotList() {
+  currentChat = null;
+  $('bot-list').style.display = 'block';
+  $('chat').style.display = 'none';
+  $('input-bar').style.display = 'none';
+  $('back-btn').style.display = 'none';
+  $('header-title').textContent = 'Боты';
+}
+
+async function openChat(botId, botName) {
+  const chat = await api('POST', `/api/bots/${botId}/start`);
+  currentChat = chat.id;
+  $('bot-list').style.display = 'none';
+  $('chat').style.display = 'flex';
+  $('input-bar').style.display = 'flex';
+  $('back-btn').style.display = 'inline';
+  $('header-title').textContent = botName;
+  await loadMessages(chat.id);
+  scrollDown();
+}
+
+async function loadMessages(chatId) {
+  const msgs = await api('GET', `/api/chats/${chatId}/messages`);
+  const el = $('messages');
+  el.innerHTML = '';
+  if (!msgs || !msgs.length) return;
+  // Messages come DESC, reverse
+  msgs.reverse().forEach(m => appendMsg(m));
+}
+
+function appendMsg(m) {
+  const el = $('messages');
+  const cls = m.sender === 'bot' ? 'bot' : 'user';
+  const time = m.date ? new Date(m.date).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'}) : '';
+  
+  let html = `<div class="msg ${cls}" id="msg-${m.message_id}">`;
+  
+  // File
+  if (m.file_id) {
+    if (m.file_type === 'photo') html += `<img src="/file/${m.file_id}" style="max-width:100%;border-radius:8px;margin-bottom:6px">`;
+    else if (m.file_type === 'voice') html += `<audio controls src="/file/${m.file_id}" style="width:100%;margin-bottom:6px"></audio>`;
+    else if (m.file_type === 'video') html += `<video controls src="/file/${m.file_id}" style="max-width:100%;border-radius:8px;margin-bottom:6px"></video>`;
+    else html += `<a href="/file/${m.file_id}" target="_blank" style="color:var(--accent)">📎 Файл</a><br>`;
+  }
+  
+  html += `<div class="text">${esc(m.text || '')}</div>`;
+  
+  // Inline keyboard
+  if (m.reply_markup) {
+    try {
+      const kb = typeof m.reply_markup === 'string' ? JSON.parse(m.reply_markup) : m.reply_markup;
+      if (kb.inline_keyboard) {
+        html += '<div class="inline-kb">';
+        kb.inline_keyboard.forEach(row => {
+          html += '<div class="inline-kb-row">';
+          row.forEach(btn => {
+            html += `<button class="inline-kb-btn" onclick="cbClick('${esc(btn.callback_data)}',${m.message_id})">${esc(btn.text)}</button>`;
+          });
+          html += '</div>';
+        });
+        html += '</div>';
+      }
+    } catch(e) {}
+  }
+  
+  html += `<div class="time">${time}</div></div>`;
+  el.innerHTML += html;
+}
+
+async function sendMsg() {
+  const input = $('msg-input');
+  const text = input.value.trim();
+  if (!text || !currentChat) return;
+  input.value = '';
+  
+  // Optimistic UI
+  appendMsg({sender:'user', text, date: new Date().toISOString(), message_id: Date.now()});
+  scrollDown();
+  
+  await api('POST', `/api/chats/${currentChat}/send`, {text});
+}
+
+async function cbClick(data, msgId) {
+  if (!currentChat) return;
+  await api('POST', `/api/chats/${currentChat}/callback`, {data, message_id: msgId});
+}
+
+// ── WebSocket ──
+function connectWS() {
+  if (!token) return;
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${proto}//${location.host}/api/ws?token=${token}`);
+  ws.onopen = () => { $('ws-status').style.color = '#4caf50'; };
+  ws.onclose = () => { $('ws-status').style.color = '#f44336'; setTimeout(connectWS, 3000); };
+  ws.onmessage = (e) => {
+    const evt = JSON.parse(e.data);
+    if (evt.type === 'new_message' && evt.chat_id === currentChat) {
+      const d = JSON.parse(evt.payload);
+      appendMsg(d.message);
+      scrollDown();
+    }
+    if (evt.type === 'edit_message' && evt.chat_id === currentChat) {
+      const msg = JSON.parse(evt.payload);
+      const el = document.getElementById(`msg-${msg.message_id}`);
+      if (el) el.remove();
+      appendMsg(msg);
+      scrollDown();
+    }
+  };
+}
+
+// ── Helpers ──
+function $(id) { return document.getElementById(id); }
+function esc(s) { if(!s) return ''; const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+function scrollDown() { const el=$('messages'); setTimeout(()=>el.scrollTop=el.scrollHeight, 50); }
+async function api(method, path, body) {
+  const opts = {method, headers:{'Content-Type':'application/json'}};
+  if (token) opts.headers['Authorization'] = token;
+  if (body) opts.body = JSON.stringify(body);
+  try {
+    const r = await fetch(API+path, opts);
+    return await r.json();
+  } catch(e) { return {error: e.message}; }
+}
+
+// Init
+if (token) showApp(); 
+</script>
+</body>
+</html>
