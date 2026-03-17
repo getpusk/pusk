@@ -92,6 +92,35 @@ func (s *Store) migrate() error {
 		CREATE INDEX IF NOT EXISTS idx_messages_chat ON messages(chat_id, created_at DESC);
 		CREATE INDEX IF NOT EXISTS idx_chats_user ON chats(user_id);
 		CREATE INDEX IF NOT EXISTS idx_chats_bot ON chats(bot_id);
+
+		CREATE TABLE IF NOT EXISTS channels (
+			id          INTEGER PRIMARY KEY AUTOINCREMENT,
+			bot_id      INTEGER NOT NULL REFERENCES bots(id),
+			name        TEXT NOT NULL,
+			description TEXT,
+			created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(bot_id, name)
+		);
+
+		CREATE TABLE IF NOT EXISTS channel_subscribers (
+			channel_id  INTEGER REFERENCES channels(id),
+			user_id     INTEGER REFERENCES users(id),
+			subscribed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (channel_id, user_id)
+		);
+
+		CREATE TABLE IF NOT EXISTS channel_messages (
+			id           INTEGER PRIMARY KEY AUTOINCREMENT,
+			channel_id   INTEGER NOT NULL REFERENCES channels(id),
+			text         TEXT,
+			reply_markup TEXT,
+			file_id      TEXT,
+			file_type    TEXT,
+			created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_channel_msgs ON channel_messages(channel_id, created_at DESC);
+		CREATE INDEX IF NOT EXISTS idx_channel_subs ON channel_subscribers(user_id);
 	`)
 	return err
 }
@@ -319,4 +348,143 @@ func (s *Store) BotByID(id int64) (*Bot, error) {
 		return nil, err
 	}
 	return b, nil
+}
+
+// ── Channels ──
+
+type Channel struct {
+	ID          int64  `json:"id"`
+	BotID       int64  `json:"bot_id"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+}
+
+type ChannelMessage struct {
+	ID          int64  `json:"message_id"`
+	ChannelID   int64  `json:"channel_id"`
+	Text        string `json:"text,omitempty"`
+	ReplyMarkup string `json:"reply_markup,omitempty"`
+	FileID      string `json:"file_id,omitempty"`
+	FileType    string `json:"file_type,omitempty"`
+	CreatedAt   string `json:"date"`
+}
+
+func (s *Store) CreateChannel(botID int64, name, description string) (*Channel, error) {
+	res, err := s.db.Exec("INSERT INTO channels (bot_id, name, description) VALUES (?, ?, ?)",
+		botID, name, description)
+	if err != nil {
+		return nil, err
+	}
+	id, _ := res.LastInsertId()
+	return &Channel{ID: id, BotID: botID, Name: name, Description: description}, nil
+}
+
+func (s *Store) ChannelByName(botID int64, name string) (*Channel, error) {
+	ch := &Channel{}
+	err := s.db.QueryRow("SELECT id, bot_id, name, COALESCE(description,'') FROM channels WHERE bot_id=? AND name=?",
+		botID, name).Scan(&ch.ID, &ch.BotID, &ch.Name, &ch.Description)
+	return ch, err
+}
+
+func (s *Store) ChannelByID(id int64) (*Channel, error) {
+	ch := &Channel{}
+	err := s.db.QueryRow("SELECT id, bot_id, name, COALESCE(description,'') FROM channels WHERE id=?",
+		id).Scan(&ch.ID, &ch.BotID, &ch.Name, &ch.Description)
+	return ch, err
+}
+
+func (s *Store) ListChannels() ([]Channel, error) {
+	rows, err := s.db.Query("SELECT id, bot_id, name, COALESCE(description,'') FROM channels")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var chs []Channel
+	for rows.Next() {
+		var ch Channel
+		rows.Scan(&ch.ID, &ch.BotID, &ch.Name, &ch.Description)
+		chs = append(chs, ch)
+	}
+	return chs, nil
+}
+
+func (s *Store) Subscribe(channelID, userID int64) error {
+	_, err := s.db.Exec("INSERT OR IGNORE INTO channel_subscribers (channel_id, user_id) VALUES (?, ?)",
+		channelID, userID)
+	return err
+}
+
+func (s *Store) Unsubscribe(channelID, userID int64) error {
+	_, err := s.db.Exec("DELETE FROM channel_subscribers WHERE channel_id=? AND user_id=?",
+		channelID, userID)
+	return err
+}
+
+func (s *Store) ChannelSubscribers(channelID int64) ([]int64, error) {
+	rows, err := s.db.Query("SELECT user_id FROM channel_subscribers WHERE channel_id=?", channelID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		rows.Scan(&id)
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
+func (s *Store) UserSubscriptions(userID int64) ([]Channel, error) {
+	rows, err := s.db.Query(`SELECT c.id, c.bot_id, c.name, COALESCE(c.description,'')
+		FROM channels c JOIN channel_subscribers cs ON c.id = cs.channel_id
+		WHERE cs.user_id = ?`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var chs []Channel
+	for rows.Next() {
+		var ch Channel
+		rows.Scan(&ch.ID, &ch.BotID, &ch.Name, &ch.Description)
+		chs = append(chs, ch)
+	}
+	return chs, nil
+}
+
+func (s *Store) IsSubscribed(channelID, userID int64) bool {
+	var count int
+	s.db.QueryRow("SELECT COUNT(*) FROM channel_subscribers WHERE channel_id=? AND user_id=?",
+		channelID, userID).Scan(&count)
+	return count > 0
+}
+
+func (s *Store) SaveChannelMessage(channelID int64, text, replyMarkup, fileID, fileType string) (*ChannelMessage, error) {
+	now := time.Now().UTC().Format(time.RFC3339)
+	res, err := s.db.Exec(
+		"INSERT INTO channel_messages (channel_id, text, reply_markup, file_id, file_type, created_at) VALUES (?,?,?,?,?,?)",
+		channelID, text, replyMarkup, fileID, fileType, now)
+	if err != nil {
+		return nil, err
+	}
+	id, _ := res.LastInsertId()
+	return &ChannelMessage{ID: id, ChannelID: channelID, Text: text, ReplyMarkup: replyMarkup,
+		FileID: fileID, FileType: fileType, CreatedAt: now}, nil
+}
+
+func (s *Store) ChannelMessages(channelID int64, limit int) ([]ChannelMessage, error) {
+	rows, err := s.db.Query(
+		"SELECT id, channel_id, COALESCE(text,''), COALESCE(reply_markup,''), COALESCE(file_id,''), COALESCE(file_type,''), created_at FROM channel_messages WHERE channel_id=? ORDER BY created_at DESC LIMIT ?",
+		channelID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var msgs []ChannelMessage
+	for rows.Next() {
+		var m ChannelMessage
+		rows.Scan(&m.ID, &m.ChannelID, &m.Text, &m.ReplyMarkup, &m.FileID, &m.FileType, &m.CreatedAt)
+		msgs = append(msgs, m)
+	}
+	return msgs, nil
 }

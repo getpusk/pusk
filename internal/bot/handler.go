@@ -323,3 +323,83 @@ func (h *Handler) pushEditToChat(chatID int64, bot *store.Bot, msg *store.Messag
 	payload, _ := json.Marshal(msg)
 	h.hub.SendToUser(userID, ws.Event{Type: "edit_message", ChatID: chatID, Payload: payload})
 }
+// ── Channel handlers ──
+
+type CreateChannelRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+}
+
+type SendChannelRequest struct {
+	Channel     string          `json:"channel"`
+	Text        string          `json:"text"`
+	ReplyMarkup json.RawMessage `json:"reply_markup,omitempty"`
+}
+
+func (h *Handler) createChannel(w http.ResponseWriter, r *http.Request) {
+	bot, err := h.authBot(r)
+	if err != nil {
+		jsonResp(w, 401, APIResponse{OK: false, Error: "Unauthorized"})
+		return
+	}
+
+	var req CreateChannelRequest
+	if err := decodeBody(r, &req); err != nil {
+		jsonResp(w, 400, APIResponse{OK: false, Error: err.Error()})
+		return
+	}
+
+	ch, err := h.store.CreateChannel(bot.ID, req.Name, req.Description)
+	if err != nil {
+		jsonResp(w, 500, APIResponse{OK: false, Error: err.Error()})
+		return
+	}
+
+	log.Printf("[channel] created: %s (bot: %s)", ch.Name, bot.Name)
+	jsonResp(w, 200, APIResponse{OK: true, Result: ch})
+}
+
+func (h *Handler) sendChannel(w http.ResponseWriter, r *http.Request) {
+	bot, err := h.authBot(r)
+	if err != nil {
+		jsonResp(w, 401, APIResponse{OK: false, Error: "Unauthorized"})
+		return
+	}
+
+	var req SendChannelRequest
+	if err := decodeBody(r, &req); err != nil {
+		jsonResp(w, 400, APIResponse{OK: false, Error: err.Error()})
+		return
+	}
+
+	ch, err := h.store.ChannelByName(bot.ID, req.Channel)
+	if err != nil {
+		jsonResp(w, 404, APIResponse{OK: false, Error: "channel not found: " + req.Channel})
+		return
+	}
+
+	markup := ""
+	if req.ReplyMarkup != nil {
+		markup = string(req.ReplyMarkup)
+	}
+
+	msg, err := h.store.SaveChannelMessage(ch.ID, req.Text, markup, "", "")
+	if err != nil {
+		jsonResp(w, 500, APIResponse{OK: false, Error: err.Error()})
+		return
+	}
+
+	// Push to all subscribers via WebSocket
+	subs, _ := h.store.ChannelSubscribers(ch.ID)
+	payload, _ := json.Marshal(map[string]interface{}{
+		"message":      msg,
+		"channel_name": ch.Name,
+		"bot_name":     bot.Name,
+	})
+	for _, userID := range subs {
+		h.hub.SendToUser(userID, ws.Event{Type: "channel_message", ChatID: ch.ID, Payload: payload})
+	}
+
+	log.Printf("[channel] %s: sent to %d subscribers", ch.Name, len(subs))
+	jsonResp(w, 200, APIResponse{OK: true, Result: msg})
+}
