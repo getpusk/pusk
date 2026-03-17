@@ -59,17 +59,20 @@ header .user-info{font-size:12px;color:var(--text2);margin-right:8px}header .log
 
 /* Chat */
 #chat{display:none;flex-direction:column;flex:1;overflow:hidden}
-#messages{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px;background-image:url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='p' width='40' height='40' patternUnits='userSpaceOnUse'%3E%3Ccircle cx='20' cy='20' r='1' fill='%25231d2a3a'/%3E%3Cpath d='M0 20h8M32 20h8M20 0v8M20 32v8' stroke='%25231d2a3a' stroke-width='.5'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='200' height='200' fill='url(%23p)'/%3E%3C/svg%3E")}
-.msg{max-width:80%;padding:10px 14px;border-radius:var(--radius);word-wrap:break-word;line-height:1.4;position:relative}
-.msg.bot{background:var(--msg-bot);align-self:flex-start;border-bottom-left-radius:4px;margin-left:36px;position:relative}
-.msg-ava{position:absolute;left:-36px;top:0;width:28px;height:28px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff}
-.msg.user{background:var(--msg-user);align-self:flex-end;border-bottom-right-radius:4px}
-.msg .time{font-size:11px;color:var(--text2);margin-top:4px}
-.msg .del-btn{display:none;position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.4);border:none;color:#708499;cursor:pointer;border-radius:50%;width:22px;height:22px;font-size:12px;line-height:22px;text-align:center}
+#messages{flex:1;overflow-y:auto;padding:8px 16px;display:flex;flex-direction:column;gap:0;background-image:url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='p' width='40' height='40' patternUnits='userSpaceOnUse'%3E%3Ccircle cx='20' cy='20' r='1' fill='%25231d2a3a'/%3E%3Cpath d='M0 20h8M32 20h8M20 0v8M20 32v8' stroke='%25231d2a3a' stroke-width='.5'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='200' height='200' fill='url(%23p)'/%3E%3C/svg%3E")}
+.msg{padding:6px 14px;word-wrap:break-word;line-height:1.4;position:relative;margin-left:36px}
+.msg.bot{background:transparent;align-self:stretch;margin-left:36px;position:relative;padding:6px 14px}
+.msg-ava{position:absolute;left:-36px;top:2px;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff}
+.msg.user{background:transparent;align-self:stretch;margin-left:36px;position:relative;padding:6px 14px}
+.msg .time{display:none}
+.msg .del-btn{display:none;position:absolute;top:2px;right:8px;background:rgba(0,0,0,0.4);border:none;color:#708499;cursor:pointer;border-radius:50%;width:22px;height:22px;font-size:12px;line-height:22px;text-align:center}
 .msg:hover .del-btn{display:block}
 .msg .del-btn:hover{color:#e05d44;background:rgba(224,93,68,0.2)}
 .msg .text{white-space:pre-wrap}
-.msg-label{font-size:11px;font-weight:600;color:var(--accent);margin-bottom:2px}
+.msg-label{font-size:13px;font-weight:700;margin-bottom:2px}
+.msg-label .ml-name{color:var(--accent)}
+.msg-label .ml-time{color:var(--text2);font-size:11px;font-weight:400;margin-left:8px}
+.msg-separator{border-top:1px solid var(--border);margin:8px 0 4px 36px}
 
 /* Inline keyboard */
 .inline-kb{display:flex;flex-direction:column;gap:4px;margin-top:8px}
@@ -268,7 +271,7 @@ async function loadBots() {
             ${preview ? `<div class="preview-text">${esc(preview)} <span style="opacity:0.5">${previewTime}</span></div>` : `<div class="ch-desc">${esc(ch.description||'')}</div>`}
           </div>
         </div>
-        <button class="${subClass}" onclick="toggleSub(event,${ch.id},${ch.subscribed})" id="sub-${ch.id}">${subText}</button>
+        <button class="${subClass}" onclick="toggleSub(event,${ch.id},)" id="sub-${ch.id}">${subText}</button>
       </div>`;
     }
   }
@@ -338,17 +341,16 @@ async function loadMessages(chatId) {
 function appendMsg(m) {
   const el = $('messages');
   const cls = m.sender === 'bot' ? 'bot' : 'user';
-  const time = m.date ? formatTime(m.date) : '';
   
+  // Mattermost layout: all left, avatar + name
+  const senderName = cls === 'bot'
+    ? (m.bot_name || $('header-title').textContent.replace('# ','') || 'Bot')
+    : (localStorage.getItem('pusk_username') || 'User');
+  const timeStr = m.date ? formatTime(m.date) : '';
+
   let html = `<div class="msg ${cls}" id="msg-${m.message_id}">`;
-  // User messages: no avatar (Telegram style)
-  if (cls === 'bot') {
-    const bname = m.bot_name || $('header-title').textContent.replace('# ','') || 'B';
-    html += `<div class="msg-ava" style="background:${nameColor(bname)}">${bname[0].toUpperCase()}</div>`;
-    if (currentChannel) {
-      html += `<div class="msg-label">${esc(bname)}</div>`;
-    }
-  }
+  html += `<div class="msg-ava" style="background:${nameColor(senderName)}">${senderName[0].toUpperCase()}</div>`;
+  html += `<div class="msg-label"><span class="ml-name">${esc(senderName)}</span><span class="ml-time">${timeStr}</span></div>`;
   
   // File
   if (m.file_id) {
@@ -378,16 +380,17 @@ function appendMsg(m) {
     } catch(e) {}
   }
   
-  html += `<div class="time">${time}</div><button class="del-btn" onclick="delMsg(${m.message_id},this)" title="Delete">x</button></div>`;
+  html += `<button class="del-btn" onclick="delMsg(${m.message_id},this)" title="Delete">x</button></div>`;
   el.innerHTML += html;
 }
 
 let currentChannel = null;
 
-async function toggleSub(event, channelID, subscribed) {
+async function toggleSub(event, channelID) {
   event.stopPropagation();
   const btn = event.target;
-  btn.disabled = true;
+  const subscribed = btn.classList.contains('active');
+  btn.style.opacity = '0.5';
   if (subscribed) {
     await api('POST', `/api/channels/${channelID}/unsubscribe`);
     btn.textContent = 'Подписка';
@@ -397,7 +400,7 @@ async function toggleSub(event, channelID, subscribed) {
     btn.textContent = 'Подписан';
     btn.className = 'sub-btn active';
   }
-  btn.disabled = false;
+  btn.style.opacity = '1';
 }
 
 async function openChannel(channelID, channelName) {
