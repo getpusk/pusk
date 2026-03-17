@@ -100,6 +100,8 @@ header .user-info{font-size:12px;color:var(--text2);margin-right:8px}header .log
   <input id="a-pin" type="password" placeholder="PIN" autocomplete="current-password">
   <button onclick="login()">Войти</button>
   <button onclick="register()" style="background:var(--primary)">Регистрация</button>
+  <div style="margin-top:8px;opacity:0.4;font-size:12px">or</div>
+  <button onclick="tryDemo()" style="background:transparent;border:1px solid var(--border);color:var(--text2)">Try Demo</button>
   <div id="a-error" class="error"></div>
 </div>
 
@@ -132,6 +134,20 @@ let currentChat = null;
 let ws = null;
 
 // ── Auth ──
+
+async function tryDemo() {
+  console.log('[pusk] trying demo login as guest');
+  const r = await api('POST', '/api/auth', {username:'guest', pin:'guest'});
+  if (r.error || !r.token) {
+    // guest might not exist yet — try register
+    const r2 = await api('POST', '/api/register', {username:'guest', pin:'guest', display_name:'Guest'});
+    if (r2.token) { saveAuth(r2); return; }
+    $('a-error').textContent = 'Demo unavailable';
+    return;
+  }
+  saveAuth(r);
+}
+
 async function login() {
   const u = $('a-user').value.trim(), p = $('a-pin').value.trim();
   if (!u || !p) { $('a-error').textContent = 'Enter username and PIN'; return; }
