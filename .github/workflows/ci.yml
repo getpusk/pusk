@@ -19,5 +19,13 @@ jobs:
         uses: dominikh/staticcheck-action@v1
         with:
           version: latest
-      - name: gofmt check
+      - name: gofmt
         run: test -z "$(gofmt -l .)"
+      - name: JS function integrity
+        run: |
+          for fn in appendMsg sendMsg loadBots openChat openChannel connectWS cbClick delMsg toggleSub tryDemo login register showApp logout; do
+            grep -q "function $fn\|async function $fn" web/static/index.html || { echo "MISSING: $fn"; exit 1; }
+          done
+      - name: No hardcoded secrets in frontend
+        run: |
+          ! grep -rn 'monitor-bot-token' web/static/ --include='*.html' --include='*.js' || { echo 'Hardcoded token found'; exit 1; }
