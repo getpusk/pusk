@@ -51,9 +51,9 @@ header .user-info{font-size:12px;color:var(--text2);margin-right:8px}header .log
 .ch-icon{font-size:18px}
 .ch-name{font-weight:600;font-size:14px}
 .ch-desc{font-size:12px;color:var(--text2)}
-.preview-text{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+.preview-text{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .preview-time{font-size:11px;color:var(--text2);white-space:nowrap;margin-left:8px}
-.sub-btn{padding:4px 12px;border-radius:8px;border:1px solid var(--primary);background:transparent;color:var(--accent);cursor:pointer;font-size:12px}
+.sub-btn{padding:4px 12px;border-radius:8px;border:1px solid var(--primary);background:transparent;color:var(--accent);cursor:pointer;font-size:12px;white-space:nowrap;min-width:80px;text-align:center;flex-shrink:0}
 .sub-btn.active{background:var(--primary);color:#fff}
 .sub-btn:hover{opacity:0.8}
 
@@ -386,12 +386,18 @@ let currentChannel = null;
 
 async function toggleSub(event, channelID, subscribed) {
   event.stopPropagation();
+  const btn = event.target;
+  btn.disabled = true;
   if (subscribed) {
     await api('POST', `/api/channels/${channelID}/unsubscribe`);
+    btn.textContent = 'Подписка';
+    btn.className = 'sub-btn';
   } else {
     await api('POST', `/api/channels/${channelID}/subscribe`);
+    btn.textContent = 'Подписан';
+    btn.className = 'sub-btn active';
   }
-  await loadBots();
+  btn.disabled = false;
 }
 
 async function openChannel(channelID, channelName) {
