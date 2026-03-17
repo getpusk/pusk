@@ -388,8 +388,35 @@ function md(text) {
 // Init
 if (token) showApp();
 // Register Service Worker for push notifications
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
+if ('serviceWorker' in navigator && 'PushManager' in window) {
+  navigator.serviceWorker.register('/sw.js').then(async (reg) => {
+    try {
+      const resp = await fetch('/api/push/vapid');
+      const {key} = await resp.json();
+      if (!key) return;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userNotificationOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(key)
+        });
+      }
+      await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json', 'Authorization': token},
+        body: JSON.stringify(sub.toJSON())
+      });
+    } catch(e) { console.log('Push setup:', e); }
+  }).catch(() => {});
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  const arr = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; ++i) arr[i] = raw.charCodeAt(i);
+  return arr;
 }
  
 </script>

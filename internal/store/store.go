@@ -121,6 +121,15 @@ func (s *Store) migrate() error {
 
 		CREATE INDEX IF NOT EXISTS idx_channel_msgs ON channel_messages(channel_id, created_at DESC);
 		CREATE INDEX IF NOT EXISTS idx_channel_subs ON channel_subscribers(user_id);
+
+		CREATE TABLE IF NOT EXISTS push_subscriptions (
+			id       INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id  INTEGER NOT NULL REFERENCES users(id),
+			endpoint TEXT NOT NULL UNIQUE,
+			p256dh   TEXT NOT NULL,
+			auth     TEXT NOT NULL,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);
 	`)
 	return err
 }
@@ -487,4 +496,41 @@ func (s *Store) ChannelMessages(channelID int64, limit int) ([]ChannelMessage, e
 		msgs = append(msgs, m)
 	}
 	return msgs, nil
+}
+
+// ── Push Subscriptions ──
+
+type PushSubscription struct {
+	ID       int64  `json:"id"`
+	UserID   int64  `json:"user_id"`
+	Endpoint string `json:"endpoint"`
+	P256dh   string `json:"p256dh"`
+	Auth     string `json:"auth"`
+}
+
+func (s *Store) SavePushSubscription(userID int64, endpoint, p256dh, auth string) error {
+	_, err := s.db.Exec(`INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?)
+		ON CONFLICT(endpoint) DO UPDATE SET user_id=?, p256dh=?, auth=?`,
+		userID, endpoint, p256dh, auth, userID, p256dh, auth)
+	return err
+}
+
+func (s *Store) UserPushSubscriptions(userID int64) ([]PushSubscription, error) {
+	rows, err := s.db.Query("SELECT id, user_id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id=?", userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var subs []PushSubscription
+	for rows.Next() {
+		var s PushSubscription
+		rows.Scan(&s.ID, &s.UserID, &s.Endpoint, &s.P256dh, &s.Auth)
+		subs = append(subs, s)
+	}
+	return subs, nil
+}
+
+func (s *Store) DeletePushSubscription(endpoint string) error {
+	_, err := s.db.Exec("DELETE FROM push_subscriptions WHERE endpoint=?", endpoint)
+	return err
 }
