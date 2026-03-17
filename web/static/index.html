@@ -70,7 +70,7 @@ header .user-info{font-size:12px;color:var(--text2);margin-right:8px}header .log
 .inline-kb-btn:active{transform:scale(0.96)}
 
 /* Input */
-#fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:var(--primary);color:#fff;border:none;font-size:28px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.4);z-index:100;display:flex;align-items:center;justify-content:center;transition:transform .2s}
+#fab{display:none;position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:var(--primary);color:#fff;border:none;font-size:28px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.4);z-index:100;display:flex;align-items:center;justify-content:center;transition:transform .2s}
 #fab:hover{transform:scale(1.1)}
 #fab:active{transform:scale(0.95)}
 
@@ -163,6 +163,7 @@ function logout() {
   if (ws) ws.close();
   $('auth').style.display = 'flex';
   $('app').style.display = 'none';
+  $('fab').style.display = 'none';
 }
 
 // ── App ──
@@ -199,11 +200,13 @@ async function loadBots() {
       const subText = ch.subscribed ? 'Joined' : 'Join';
       let preview = '', previewTime = '';
       if (ch.subscribed) {
-        const msgs = await api('GET', `/api/channels/${ch.id}/messages?limit=1`);
-        if (msgs && msgs.length) {
-          preview = (msgs[0].text || '').replace(/\*\*/g,'').replace(/\*/g,'').substring(0,40);
-          previewTime = msgs[0].date ? formatTime(msgs[0].date) : '';
-        }
+        try {
+          const msgs = await api('GET', `/api/channels/${ch.id}/messages?limit=1`);
+          if (msgs && msgs.length) {
+            preview = (msgs[0].text || '').replace(/\*\*/g,'').replace(/\*/g,'').substring(0,40);
+            previewTime = msgs[0].date ? formatTime(msgs[0].date) : '';
+          }
+        } catch(e) {}
       }
       el.innerHTML += `<div class="ch-item">
         <div class="ch-info" onclick="openChannel(${ch.id},'${esc(ch.name)}')" style="flex:1;min-width:0">
@@ -227,15 +230,17 @@ async function loadBots() {
     el.innerHTML += '<div class="section-title">Bots</div>';
     for (const b of bots) {
       // Try to get chat and last message
-      const chat = await api('POST', `/api/bots/${b.id}/start`);
       let preview = '', previewTime = '';
-      if (chat && chat.id) {
-        const msgs = await api('GET', `/api/chats/${chat.id}/messages?limit=1`);
-        if (msgs && msgs.length) {
-          preview = (msgs[0].text || '').replace(/\*\*/g,'').replace(/\*/g,'').substring(0,40);
-          previewTime = msgs[0].date ? formatTime(msgs[0].date) : '';
+      try {
+        const chat = await api('POST', `/api/bots/${b.id}/start`);
+        if (chat && chat.id) {
+          const msgs = await api('GET', `/api/chats/${chat.id}/messages?limit=1`);
+          if (msgs && msgs.length) {
+            preview = (msgs[0].text || '').replace(/\*\*/g,'').replace(/\*/g,'').substring(0,40);
+            previewTime = msgs[0].date ? formatTime(msgs[0].date) : '';
+          }
         }
-      }
+      } catch(e) {}
       el.innerHTML += `<div class="bot-item" onclick="openChat(${b.id},'${esc(b.name)}')">
         <div class="bot-avatar">${b.name[0].toUpperCase()}</div>
         <div style="flex:1;min-width:0">
@@ -466,7 +471,8 @@ async function api(method, path, body) {
   if (body) opts.body = JSON.stringify(body);
   try {
     const r = await fetch(API+path, opts);
-    return await r.json();
+    const text = await r.text();
+    try { return JSON.parse(text); } catch(e) { return {error: text}; }
   } catch(e) { return {error: e.message}; }
 }
 
