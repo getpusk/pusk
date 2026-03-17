@@ -13,7 +13,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 input,button,textarea{font-family:inherit;font-size:inherit}
 
 /* Auth */
-#auth{display:flex;align-items:center;justify-content:center;height:100dvh}
+#auth{display:flex;align-items:center;justify-content:center;height:100dvh;z-index:300}
 #auth .error{color:#e05d44;font-size:13px;margin-top:4px}
 .auth-box{width:280px;text-align:center}
 .auth-logo{font-size:42px;font-weight:800;margin-bottom:4px}
@@ -117,8 +117,8 @@ header .status{font-size:12px;color:var(--text2)}
 <!-- Auth screen -->
 <div id="auth">
   <div class="auth-box">
-    <div class="auth-logo">&#9889; Pusk</div>
-    <p class="auth-tagline">Замена Telegram Bot API</p>
+    <div class="auth-logo">Pusk</div>
+    <p class="auth-tagline" id="auth-tagline">Bot platform</p>
     <input id="a-user" placeholder="Логин" autocomplete="username">
     <input id="a-pin" type="password" placeholder="Пин-код" autocomplete="current-password">
     <button onclick="login()" class="auth-btn primary">Войти</button>
@@ -163,6 +163,66 @@ let userId = localStorage.getItem('pusk_user_id');
 let currentChat = null;
 let ws = null;
 
+// ── i18n ──
+const LANG = {
+  ru: {
+    main: t('main'), channels: t('channels'), bots: t('bots'), subscribe: t('subscribe'),
+    subscribed: t('subscribed'), login: 'Войти', register: 'Создать', demo: 'Демо',
+    username: 'Логин', pin: 'Пин-код', enterCreds: t('enterCreds'),
+    wrongCreds: t('wrongCreds'), taken: 'занят. Попробуйте войти.',
+    demoUnavail: t('demoUnavail'), noMessages: t('noMessages'),
+    noBots: t('noBots'), message: 'Сообщение...',
+    settings: 'Настройки', language: 'Язык', logout: 'Выход',
+    newChannel: t('newChannel'), newBot: t('newBot'), cancel: 'Отмена',
+    create: 'Создать', enterName: t('enterName'), yesterday: 'Вчера',
+    tagline: 'Бот-платформа',
+    footer: (b,ch,on) => `Pusk · ${b} бот. · ${ch} кан. · ${on} онлайн`,
+  },
+  en: {
+    main: 'Home', channels: 'Channels', bots: 'Bots', subscribe: 'Subscribe',
+    subscribed: 'Subscribed', login: 'Login', register: 'Register', demo: 'Demo',
+    username: 'Username', pin: 'PIN', enterCreds: 'Enter username and PIN',
+    wrongCreds: 'Wrong username or PIN', taken: 'taken. Try logging in.',
+    demoUnavail: 'Demo unavailable', noMessages: 'No messages yet',
+    noBots: 'No bots or channels', message: 'Message...',
+    settings: 'Settings', language: 'Language', logout: 'Logout',
+    newChannel: 'New Channel', newBot: 'New Bot', cancel: 'Cancel',
+    create: 'Create', enterName: 'Enter name', yesterday: 'Yesterday',
+    tagline: 'Bot platform',
+    footer: (b,ch,on) => `Pusk · ${b} bots · ${ch} ch. · ${on} online`,
+  }
+};
+
+let lang = localStorage.getItem('pusk_lang') || 'ru';
+function t(key) { return LANG[lang][key] || LANG['en'][key] || key; }
+
+function switchLang() {
+  lang = lang === 'ru' ? 'en' : 'ru';
+  localStorage.setItem('pusk_lang', lang);
+  applyLang();
+  if ($('app').style.display === 'flex') loadBots();
+}
+
+function applyLang() {
+  $('s-lang-btn').textContent = lang === 'ru' ? 'EN' : 'RU';
+  $('s-title').textContent = t('settings');
+  $('s-lang-label').textContent = t('language');
+  $('s-logout').textContent = t('logout');
+  $('msg-input').placeholder = t('message');
+  // Auth screen
+  const au = $('a-user'); if (au) au.placeholder = t('username');
+  const ap = $('a-pin'); if (ap) ap.placeholder = t('pin');
+  // Auth buttons
+  document.querySelectorAll('.auth-btn.primary').forEach(b => b.textContent = t('login'));
+  document.querySelectorAll('.auth-btn.secondary').forEach(b => b.textContent = t('register'));
+  document.querySelectorAll('.auth-btn.ghost').forEach(b => b.textContent = t('demo'));
+  const tl = $('auth-tagline'); if (tl) tl.textContent = t('tagline');
+}
+
+function toggleSettings() {
+  $('settings-overlay').classList.toggle('show');
+}
+
 // ── Auth ──
 
 async function tryDemo() {
@@ -199,7 +259,7 @@ async function register() {
   console.log('[pusk] register response:', r);
   if (r.error) {
     if (r.error.includes('UNIQUE') || r.error.includes('constraint')) {
-      $('a-error').textContent = 'Username "' + u + '" занят. Попробуйте войти.';
+      $('a-error').textContent = u + ' ' + t('taken');
     } else {
       $('a-error').textContent = r.error;
     }
@@ -228,6 +288,7 @@ function logout() {
   $('auth').style.display = 'flex';
   $('app').style.display = 'none';
   $('fab').style.display = 'none';
+  $('settings-overlay').classList.remove('show');
 }
 
 // ── App ──
@@ -330,6 +391,7 @@ function showBotList() {
 
 async function openChat(botId, botName) {
   $('fab').style.display = 'none';
+  $('settings-overlay').classList.remove('show');
   localStorage.setItem('pusk_last_view', JSON.stringify({type:'chat',id:botId,name:botName}));
   const chat = await api('POST', `/api/bots/${botId}/start`);
   currentChat = chat.id;
@@ -418,6 +480,7 @@ async function toggleSub(event, channelID) {
 
 async function openChannel(channelID, channelName) {
   $('fab').style.display = 'none';
+  $('settings-overlay').classList.remove('show');
   localStorage.setItem('pusk_last_view', JSON.stringify({type:'channel',id:channelID,name:channelName}));
   currentChannel = channelID;
   currentChat = null;
@@ -628,74 +691,16 @@ async function doCreate() {
 }
 
 
-// ── i18n ──
-const LANG = {
-  ru: {
-    main: t('main'), channels: t('channels'), bots: t('bots'), subscribe: t('subscribe'),
-    subscribed: t('subscribed'), login: 'Войти', register: 'Создать', demo: 'Демо',
-    username: 'Логин', pin: 'Пин-код', enterCreds: t('enterCreds'),
-    wrongCreds: t('wrongCreds'), taken: 'занят. Попробуйте войти.',
-    demoUnavail: t('demoUnavail'), noMessages: t('noMessages'),
-    noBots: t('noBots'), message: 'Сообщение...',
-    settings: 'Настройки', language: 'Язык', logout: 'Выход',
-    newChannel: t('newChannel'), newBot: t('newBot'), cancel: 'Отмена',
-    create: 'Создать', enterName: t('enterName'), yesterday: 'Вчера',
-    tagline: 'Замена Telegram Bot API',
-    footer: (b,ch,on) => `Pusk · ${b} бот. · ${ch} кан. · ${on} онлайн`,
-  },
-  en: {
-    main: 'Home', channels: 'Channels', bots: 'Bots', subscribe: 'Subscribe',
-    subscribed: 'Subscribed', login: 'Login', register: 'Register', demo: 'Demo',
-    username: 'Username', pin: 'PIN', enterCreds: 'Enter username and PIN',
-    wrongCreds: 'Wrong username or PIN', taken: 'taken. Try logging in.',
-    demoUnavail: 'Demo unavailable', noMessages: 'No messages yet',
-    noBots: 'No bots or channels', message: 'Message...',
-    settings: 'Settings', language: 'Language', logout: 'Logout',
-    newChannel: 'New Channel', newBot: 'New Bot', cancel: 'Cancel',
-    create: 'Create', enterName: 'Enter name', yesterday: 'Yesterday',
-    tagline: 'Self-hosted Telegram Bot API',
-    footer: (b,ch,on) => `Pusk · ${b} bots · ${ch} ch. · ${on} online`,
-  }
-};
-
-let lang = localStorage.getItem('pusk_lang') || 'ru';
-function t(key) { return LANG[lang][key] || LANG['en'][key] || key; }
-
-function switchLang() {
-  lang = lang === 'ru' ? 'en' : 'ru';
-  localStorage.setItem('pusk_lang', lang);
-  applyLang();
-  if ($('app').style.display === 'flex') loadBots();
-}
-
-function applyLang() {
-  $('s-lang-btn').textContent = lang === 'ru' ? 'EN' : 'RU';
-  $('s-title').textContent = t('settings');
-  $('s-lang-label').textContent = t('language');
-  $('s-logout').textContent = t('logout');
-  $('msg-input').placeholder = t('message');
-  // Auth screen
-  const au = $('a-user'); if (au) au.placeholder = t('username');
-  const ap = $('a-pin'); if (ap) ap.placeholder = t('pin');
-  // Auth buttons
-  document.querySelectorAll('.auth-btn.primary').forEach(b => b.textContent = t('login'));
-  document.querySelectorAll('.auth-btn.secondary').forEach(b => b.textContent = t('register'));
-  document.querySelectorAll('.auth-btn.ghost').forEach(b => b.textContent = t('demo'));
-  const tl = document.querySelector('.auth-tagline'); if (tl) tl.textContent = t('tagline');
-}
-
-function toggleSettings() {
-  $('settings-overlay').classList.toggle('show');
-}
-
 // Load landing stats
 (async function(){
   const h = await fetch('/api/health').then(r=>r.json()).catch(()=>({}));
-  const el = document.getElementById('auth-version');
-  if (el) el.textContent = 'v' + (h.version||'');
+  const vel = document.getElementById('auth-version');
+  if (vel) vel.textContent = 'v' + (h.version||'');
 
 
 })();
+
+applyLang();
 
 // Init
 if (token) {
@@ -705,6 +710,7 @@ if (token) {
   }).catch(() => { logout(); });
 } else {
   $('fab').style.display = 'none';
+  $('settings-overlay').classList.remove('show');
 }
 // Register Service Worker for push notifications
 if ('serviceWorker' in navigator && 'PushManager' in window) {
