@@ -88,12 +88,13 @@ func (a *ClientAPI) listBots(w http.ResponseWriter, r *http.Request) {
 	}
 	// Strip tokens from response
 	type safeBotInfo struct {
-		ID   int64  `json:"id"`
-		Name string `json:"name"`
+		ID      int64  `json:"id"`
+		Name    string `json:"name"`
+		IconURL string `json:"icon_url,omitempty"`
 	}
 	safe := make([]safeBotInfo, len(bots))
 	for i, b := range bots {
-		safe[i] = safeBotInfo{ID: b.ID, Name: b.Name}
+		safe[i] = safeBotInfo{ID: b.ID, Name: b.Name, IconURL: b.IconURL}
 	}
 	json.NewEncoder(w).Encode(safe)
 }

@@ -42,6 +42,10 @@ header .logout{cursor:pointer;font-size:12px;color:var(--text2)}
 .msg.bot{background:var(--msg-bot);align-self:flex-start;border-bottom-left-radius:4px}
 .msg.user{background:var(--msg-user);align-self:flex-end;border-bottom-right-radius:4px}
 .msg .time{font-size:11px;color:var(--text2);margin-top:4px}
+.msg{position:relative}
+.msg .del-btn{display:none;position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.4);border:none;color:#708499;cursor:pointer;border-radius:50%;width:22px;height:22px;font-size:12px;line-height:22px;text-align:center}
+.msg:hover .del-btn{display:block}
+.msg .del-btn:hover{color:#e05d44;background:rgba(224,93,68,0.2)}
 .msg .text{white-space:pre-wrap}
 
 /* Inline keyboard */
@@ -145,7 +149,7 @@ async function loadBots() {
   if (!bots || !bots.length) { el.innerHTML = '<p style="padding:20px;color:var(--text2)">Нет ботов</p>'; return; }
   bots.forEach(b => {
     el.innerHTML += `<div class="bot-item" onclick="openChat(${b.id},'${esc(b.name)}')">
-      <div class="bot-avatar">${b.name[0].toUpperCase()}</div>
+      <div class="bot-avatar">${b.icon_url ? `<img src="${b.icon_url}" style="width:40px;height:40px;border-radius:50%">` : b.name[0].toUpperCase()}</div>
       <div><div class="bot-name">${esc(b.name)}</div></div>
     </div>`;
   });
@@ -196,7 +200,7 @@ function appendMsg(m) {
     else html += `<a href="/file/${m.file_id}" target="_blank" style="color:var(--accent)">📎 Файл</a><br>`;
   }
   
-  html += `<div class="text">${esc(m.text || '')}</div>`;
+  html += `<div class="text">${md(m.text || '')}</div>`;
   
   // Inline keyboard
   if (m.reply_markup) {
@@ -216,7 +220,7 @@ function appendMsg(m) {
     } catch(e) {}
   }
   
-  html += `<div class="time">${time}</div></div>`;
+  html += `<div class="time">${time}</div><button class="del-btn" onclick="delMsg(${m.message_id},this)" title="Delete">x</button></div>`;
   el.innerHTML += html;
 }
 
@@ -231,6 +235,13 @@ async function sendMsg() {
   scrollDown();
   
   await api('POST', `/api/chats/${currentChat}/send`, {text});
+}
+
+async function delMsg(msgId, el) {
+  if (!currentChat) return;
+  await api('POST', `/bot/monitor-bot-token/deleteMessage`, {chat_id: currentChat, message_id: msgId});
+  const msgEl = document.getElementById('msg-' + msgId);
+  if (msgEl) msgEl.remove();
 }
 
 async function cbClick(data, msgId) {
@@ -276,8 +287,27 @@ async function api(method, path, body) {
   } catch(e) { return {error: e.message}; }
 }
 
+
+// Markdown (Telegram-compatible: **bold**, `code`, ```pre```, [link](url))
+function md(text) {
+  if (!text) return '';
+  let h = esc(text);
+  h = h.replace(/```([\s\S]*?)```/g, '<pre style="background:#0e1621;padding:8px;border-radius:6px;overflow-x:auto;font-size:13px">$1</pre>');
+  h = h.replace(/`([^`]+)`/g, '<code style="background:#0e1621;padding:2px 6px;border-radius:4px;font-size:13px">$1</code>');
+  h = h.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  h = h.replace(/\*(.+?)\*/g, '<b>$1</b>');
+  h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:var(--accent)">$1</a>');
+  h = h.replace(/\n/g, '<br>');
+  return h;
+}
+
 // Init
-if (token) showApp(); 
+if (token) showApp();
+// Register Service Worker for push notifications
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+ 
 </script>
 </body>
 </html>
