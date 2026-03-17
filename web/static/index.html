@@ -291,13 +291,20 @@ async function api(method, path, body) {
 // Markdown (Telegram-compatible: **bold**, `code`, ```pre```, [link](url))
 function md(text) {
   if (!text) return '';
-  let h = esc(text);
-  h = h.replace(/```([\s\S]*?)```/g, '<pre style="background:#0e1621;padding:8px;border-radius:6px;overflow-x:auto;font-size:13px">$1</pre>');
-  h = h.replace(/`([^`]+)`/g, '<code style="background:#0e1621;padding:2px 6px;border-radius:4px;font-size:13px">$1</code>');
+  let h = text;
+  // Extract code blocks first (protect from escaping)
+  const blocks = [];
+  h = h.replace(/```([\s\S]*?)```/g, (_, code) => { blocks.push('<pre style="background:#0e1621;padding:8px;border-radius:6px;overflow-x:auto;font-size:13px">' + esc(code) + '</pre>'); return '\x00B' + (blocks.length-1) + '\x00'; });
+  h = h.replace(/`([^`]+)`/g, (_, code) => { blocks.push('<code style="background:#0e1621;padding:2px 6px;border-radius:4px;font-size:13px">' + esc(code) + '</code>'); return '\x00B' + (blocks.length-1) + '\x00'; });
+  // Escape HTML in remaining text
+  h = esc(h);
+  // Now apply markdown on escaped text (stars are not escaped by esc())
   h = h.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
   h = h.replace(/\*(.+?)\*/g, '<b>$1</b>');
   h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:var(--accent)">$1</a>');
   h = h.replace(/\n/g, '<br>');
+  // Restore code blocks
+  h = h.replace(/\x00B(\d+)\x00/g, (_, i) => blocks[parseInt(i)]);
   return h;
 }
 
