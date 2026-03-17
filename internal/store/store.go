@@ -293,3 +293,27 @@ func (s *Store) GetFile(id string) (*File, error) {
 		Scan(&f.ID, &f.BotID, &f.Filename, &f.MimeType, &f.Size, &f.Path)
 	return f, err
 }
+
+// ── Lookups ──
+
+func (s *Store) ChatUserID(chatID int64) (int64, error) {
+	var userID int64
+	err := s.db.QueryRow("SELECT user_id FROM chats WHERE id=?", chatID).Scan(&userID)
+	return userID, err
+}
+
+func (s *Store) ChatBotID(chatID int64) (int64, error) {
+	var botID int64
+	err := s.db.QueryRow("SELECT bot_id FROM chats WHERE id=?", chatID).Scan(&botID)
+	return botID, err
+}
+
+func (s *Store) BotByID(id int64) (*Bot, error) {
+	b := &Bot{}
+	err := s.db.QueryRow("SELECT id, token, name, COALESCE(webhook_url,\x27\x27) FROM bots WHERE id=?", id).
+		Scan(&b.ID, &b.Token, &b.Name, &b.WebhookURL)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}

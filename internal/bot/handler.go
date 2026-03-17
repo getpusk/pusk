@@ -303,16 +303,23 @@ func (h *Handler) serveFile(w http.ResponseWriter, r *http.Request) {
 // ── WebSocket push ──
 
 func (h *Handler) pushMessageToChat(chatID int64, bot *store.Bot, msg *store.Message) {
+	userID, err := h.store.ChatUserID(chatID)
+	if err != nil {
+		log.Printf("[ws] cannot find user for chat %d: %v", chatID, err)
+		return
+	}
 	payload, _ := json.Marshal(map[string]interface{}{
 		"message":  msg,
 		"bot_name": bot.Name,
 	})
-	// TODO: lookup user_id from chat_id
-	// For now, broadcast to all
-	h.hub.SendToUser(0, ws.Event{Type: "new_message", ChatID: chatID, Payload: payload})
+	h.hub.SendToUser(userID, ws.Event{Type: "new_message", ChatID: chatID, Payload: payload})
 }
 
 func (h *Handler) pushEditToChat(chatID int64, bot *store.Bot, msg *store.Message) {
+	userID, err := h.store.ChatUserID(chatID)
+	if err != nil {
+		return
+	}
 	payload, _ := json.Marshal(msg)
-	h.hub.SendToUser(0, ws.Event{Type: "edit_message", ChatID: chatID, Payload: payload})
+	h.hub.SendToUser(userID, ws.Event{Type: "edit_message", ChatID: chatID, Payload: payload})
 }

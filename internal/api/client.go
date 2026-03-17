@@ -119,16 +119,7 @@ func (a *ClientAPI) startChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Send /start to bot webhook
-	bot, _ := a.store.BotByToken("")
-	// Find bot by ID instead
-	bots, _ := a.store.ListBots()
-	for _, b := range bots {
-		if b.ID == botID {
-			bot = &b
-			break
-		}
-	}
-
+	bot, _ := a.store.BotByID(botID)
 	if bot != nil && bot.WebhookURL != "" {
 		go sendWebhook(bot.WebhookURL, map[string]interface{}{
 			"update_id": chat.ID,
@@ -238,65 +229,53 @@ func getUserID(r *http.Request) int64 {
 }
 
 func (a *ClientAPI) forwardToBot(chatID, userID int64, msg *store.Message) {
-	// Find bot for this chat
-	chats, _ := a.store.UserChats(userID)
-	var botID int64
-	for _, c := range chats {
-		if c.ID == chatID {
-			botID = c.BotID
-			break
-		}
-	}
-	if botID == 0 {
+	botID, err := a.store.ChatBotID(chatID)
+	if err != nil || botID == 0 {
+		log.Printf("[webhook] no bot for chat %d", chatID)
 		return
 	}
 
-	bots, _ := a.store.ListBots()
-	for _, b := range bots {
-		if b.ID == botID && b.WebhookURL != "" {
-			sendWebhook(b.WebhookURL, map[string]interface{}{
-				"update_id": msg.ID,
-				"message": map[string]interface{}{
-					"message_id": msg.ID,
-					"chat":       map[string]interface{}{"id": chatID},
-					"from":       map[string]interface{}{"id": userID},
-					"text":       msg.Text,
-					"date":       msg.CreatedAt,
-				},
-			})
-			return
-		}
+	bot, err := a.store.BotByID(botID)
+	if err != nil || bot.WebhookURL == "" {
+		log.Printf("[webhook] bot %d has no webhook", botID)
+		return
 	}
+
+	sendWebhook(bot.WebhookURL, map[string]interface{}{
+		"update_id": msg.ID,
+		"message": map[string]interface{}{
+			"message_id": msg.ID,
+			"chat":       map[string]interface{}{"id": chatID},
+			"from":       map[string]interface{}{"id": userID},
+			"text":       msg.Text,
+			"date":       msg.CreatedAt,
+		},
+	})
 }
 
 func (a *ClientAPI) forwardCallback(chatID, userID int64, data string, messageID int64) {
-	chats, _ := a.store.UserChats(userID)
-	var botID int64
-	for _, c := range chats {
-		if c.ID == chatID {
-			botID = c.BotID
-			break
-		}
+	botID, err := a.store.ChatBotID(chatID)
+	if err != nil || botID == 0 {
+		return
 	}
 
-	bots, _ := a.store.ListBots()
-	for _, b := range bots {
-		if b.ID == botID && b.WebhookURL != "" {
-			sendWebhook(b.WebhookURL, map[string]interface{}{
-				"update_id": messageID,
-				"callback_query": map[string]interface{}{
-					"id":   strconv.FormatInt(messageID, 10),
-					"from": map[string]interface{}{"id": userID},
-					"message": map[string]interface{}{
-						"message_id": messageID,
-						"chat":       map[string]interface{}{"id": chatID},
-					},
-					"data": data,
-				},
-			})
-			return
-		}
+	bot, err := a.store.BotByID(botID)
+	if err != nil || bot.WebhookURL == "" {
+		return
 	}
+
+	sendWebhook(bot.WebhookURL, map[string]interface{}{
+		"update_id": messageID,
+		"callback_query": map[string]interface{}{
+			"id":   strconv.FormatInt(messageID, 10),
+			"from": map[string]interface{}{"id": userID},
+			"message": map[string]interface{}{
+				"message_id": messageID,
+				"chat":       map[string]interface{}{"id": chatID},
+			},
+			"data": data,
+		},
+	})
 }
 
 func sendWebhook(url string, payload interface{}) {
