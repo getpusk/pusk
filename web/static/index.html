@@ -41,6 +41,8 @@ header .user-info{font-size:12px;color:var(--text2);margin-right:8px}header .log
 .ch-icon{font-size:18px}
 .ch-name{font-weight:600;font-size:14px}
 .ch-desc{font-size:12px;color:var(--text2)}
+.preview-text{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+.preview-time{font-size:11px;color:var(--text2);white-space:nowrap;margin-left:8px}
 .sub-btn{padding:4px 12px;border-radius:8px;border:1px solid var(--primary);background:transparent;color:var(--accent);cursor:pointer;font-size:12px}
 .sub-btn.active{background:var(--primary);color:#fff}
 .sub-btn:hover{opacity:0.8}
@@ -49,7 +51,8 @@ header .user-info{font-size:12px;color:var(--text2);margin-right:8px}header .log
 #chat{display:none;flex-direction:column;flex:1;overflow:hidden}
 #messages{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px;background-image:url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='p' width='40' height='40' patternUnits='userSpaceOnUse'%3E%3Ccircle cx='20' cy='20' r='1' fill='%25231d2a3a'/%3E%3Cpath d='M0 20h8M32 20h8M20 0v8M20 32v8' stroke='%25231d2a3a' stroke-width='.5'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='200' height='200' fill='url(%23p)'/%3E%3C/svg%3E")}
 .msg{max-width:80%;padding:10px 14px;border-radius:var(--radius);word-wrap:break-word;line-height:1.4}
-.msg.bot{background:var(--msg-bot);align-self:flex-start;border-bottom-left-radius:4px}
+.msg.bot{background:var(--msg-bot);align-self:flex-start;border-bottom-left-radius:4px;margin-left:36px;position:relative}
+.msg-ava{position:absolute;left:-36px;top:0;width:28px;height:28px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff}
 .msg.user{background:var(--msg-user);align-self:flex-end;border-bottom-right-radius:4px}
 .msg .time{font-size:11px;color:var(--text2);margin-top:4px}
 .msg{position:relative}
@@ -176,33 +179,67 @@ async function loadBots() {
   // Channels section
   if (channels && channels.length) {
     el.innerHTML += '<div class="section-title">Channels</div>';
-    channels.forEach(ch => {
+    for (const ch of channels) {
       const subClass = ch.subscribed ? 'sub-btn active' : 'sub-btn';
-      const subText = ch.subscribed ? 'Subscribed' : 'Subscribe';
+      const subText = ch.subscribed ? 'Joined' : 'Join';
+      let preview = '', previewTime = '';
+      if (ch.subscribed) {
+        const msgs = await api('GET', `/api/channels/${ch.id}/messages?limit=1`);
+        if (msgs && msgs.length) {
+          preview = (msgs[0].text || '').replace(/\*\*/g,'').replace(/\*/g,'').substring(0,40);
+          previewTime = msgs[0].date ? formatTime(msgs[0].date) : '';
+        }
+      }
       el.innerHTML += `<div class="ch-item">
-        <div class="ch-info" onclick="openChannel(${ch.id},'${esc(ch.name)}')">
+        <div class="ch-info" onclick="openChannel(${ch.id},'${esc(ch.name)}')" style="flex:1;min-width:0">
           <span class="ch-icon">#</span>
-          <div><div class="ch-name">${esc(ch.name)}</div><div class="ch-desc">${esc(ch.description||'')}</div></div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span class="ch-name">${esc(ch.name)}</span>
+              <span style="font-size:11px;color:var(--text2)">${ch.subscriber_count ? ch.subscriber_count : ''}</span>
+            </div>
+            ${preview ? `<div class="preview-text">${esc(preview)}</div>` : `<div class="ch-desc">${esc(ch.description||'')}</div>`}
+          </div>
+          ${previewTime ? `<div class="preview-time">${previewTime}</div>` : ''}
         </div>
         <button class="${subClass}" onclick="toggleSub(event,${ch.id},${ch.subscribed})" id="sub-${ch.id}">${subText}</button>
       </div>`;
-    });
+    }
   }
 
   // Bots section
   if (bots && bots.length) {
     el.innerHTML += '<div class="section-title">Bots</div>';
-    bots.forEach(b => {
+    for (const b of bots) {
+      // Try to get chat and last message
+      const chat = await api('POST', `/api/bots/${b.id}/start`);
+      let preview = '', previewTime = '';
+      if (chat && chat.id) {
+        const msgs = await api('GET', `/api/chats/${chat.id}/messages?limit=1`);
+        if (msgs && msgs.length) {
+          preview = (msgs[0].text || '').replace(/\*\*/g,'').replace(/\*/g,'').substring(0,40);
+          previewTime = msgs[0].date ? formatTime(msgs[0].date) : '';
+        }
+      }
       el.innerHTML += `<div class="bot-item" onclick="openChat(${b.id},'${esc(b.name)}')">
-        <div class="bot-avatar">${b.icon_url ? `<img src="${b.icon_url}" style="width:40px;height:40px;border-radius:50%">` : b.name[0].toUpperCase()}</div>
-        <div><div class="bot-name">${esc(b.name)}</div></div>
+        <div class="bot-avatar">${b.name[0].toUpperCase()}</div>
+        <div style="flex:1;min-width:0">
+          <div class="bot-name">${esc(b.name)}</div>
+          ${preview ? `<div class="preview-text">${esc(preview)}</div>` : ''}
+        </div>
+        ${previewTime ? `<div class="preview-time">${previewTime}</div>` : ''}
       </div>`;
-    });
+    }
   }
 
   if ((!bots || !bots.length) && (!channels || !channels.length)) {
     el.innerHTML = '<p style="padding:20px;color:var(--text2)">No bots or channels yet</p>';
   }
+  // Mini footer
+  const health = await api('GET', '/api/health');
+  const nBots = bots ? bots.length : 0;
+  const nCh = channels ? channels.length : 0;
+  el.innerHTML += `<div style="padding:16px;text-align:center;font-size:11px;color:var(--text2);opacity:0.6">Pusk ${health.version || ''} &middot; ${nBots} bots &middot; ${nCh} channels &middot; ${health.online || 0} online</div>`;
 }
 
 function showBotList() {
