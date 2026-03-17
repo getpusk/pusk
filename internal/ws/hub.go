@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Volkov Pavel | DevITWay
+// Licensed under the MIT License. See LICENSE file for details.
 package ws
 
 import (
