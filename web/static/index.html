@@ -8,7 +8,7 @@
 <link rel="manifest" href="/manifest.json">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#162645;--surface:#1e325c;--primary:#1c58d9;--accent:#ffbc1f;--text:#e8edf4;--text2:#c5d2ec;--border:#2b3f6b;--msg-bot:#233564;--msg-user:#1c58d9;--radius:12px}
+:root{--bg:#17212b;--surface:#0e1621;--primary:#4082bc;--accent:#6ab2f2;--text:#f5f5f5;--text2:#708499;--border:#1d2a3a;--msg-bot:#182533;--msg-user:#2b5278;--radius:12px}
 body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);height:100dvh;display:flex;flex-direction:column;overflow:hidden}
 input,button,textarea{font-family:inherit;font-size:inherit}
 
@@ -37,7 +37,7 @@ header .logout{cursor:pointer;font-size:12px;color:var(--text2)}
 
 /* Chat */
 #chat{display:none;flex-direction:column;flex:1;overflow:hidden}
-#messages{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px}
+#messages{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px;background-image:url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='p' width='40' height='40' patternUnits='userSpaceOnUse'%3E%3Ccircle cx='20' cy='20' r='1' fill='%25231d2a3a'/%3E%3Cpath d='M0 20h8M32 20h8M20 0v8M20 32v8' stroke='%25231d2a3a' stroke-width='.5'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='200' height='200' fill='url(%23p)'/%3E%3C/svg%3E")}
 .msg{max-width:80%;padding:10px 14px;border-radius:var(--radius);word-wrap:break-word;line-height:1.4}
 .msg.bot{background:var(--msg-bot);align-self:flex-start;border-bottom-left-radius:4px}
 .msg.user{background:var(--msg-user);align-self:flex-end;border-bottom-right-radius:4px}
@@ -47,8 +47,8 @@ header .logout{cursor:pointer;font-size:12px;color:var(--text2)}
 /* Inline keyboard */
 .inline-kb{display:flex;flex-direction:column;gap:4px;margin-top:8px}
 .inline-kb-row{display:flex;gap:4px}
-.inline-kb-btn{flex:1;padding:8px 12px;border-radius:8px;border:1px solid var(--accent);background:rgba(255,188,31,0.1);color:var(--accent);cursor:pointer;font-size:13px;text-align:center;transition:all .15s}
-.inline-kb-btn:hover{background:var(--accent);color:#162645}
+.inline-kb-btn{flex:1;padding:8px 12px;border-radius:8px;border:1px solid var(--primary);background:rgba(64,130,188,0.15);color:var(--accent);cursor:pointer;font-size:13px;text-align:center;transition:all .15s}
+.inline-kb-btn:hover{background:var(--primary);color:#fff}
 .inline-kb-btn:active{transform:scale(0.96)}
 
 /* Input */
