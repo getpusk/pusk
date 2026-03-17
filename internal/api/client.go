@@ -223,7 +223,7 @@ func (a *ClientAPI) health(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":  "ok",
 		"online":  a.hub.Online(),
-		"version": "0.1.0",
+		"version": "0.3.1",
 	})
 }
 
