@@ -59,13 +59,13 @@ func (a *ClientAPI) auth(w http.ResponseWriter, r *http.Request) {
 
 	user, err := a.store.AuthUser(req.Username, req.Pin)
 	if err != nil {
-		http.Error(w, `{"error":"invalid credentials"}`, 401)
+		http.Error(w, `{"error":"invalid credentials"}`, http.StatusUnauthorized)
 		return
 	}
 	// Simple token = userID (in production: JWT)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"token":   strconv.FormatInt(user.ID, 10),
-		"user_id": user.ID,
+		"token":    strconv.FormatInt(user.ID, 10),
+		"user_id":  user.ID,
 		"username": user.Username,
 	})
 }
@@ -203,7 +203,7 @@ func (a *ClientAPI) callback(w http.ResponseWriter, r *http.Request) {
 func (a *ClientAPI) websocket(w http.ResponseWriter, r *http.Request) {
 	userID := getUserID(r)
 	if userID == 0 {
-		http.Error(w, "unauthorized", 401)
+		http.Error(w, `{"error":"invalid credentials"}`, http.StatusUnauthorized)
 		return
 	}
 
@@ -226,7 +226,6 @@ func (a *ClientAPI) health(w http.ResponseWriter, r *http.Request) {
 		"version": "0.1.0",
 	})
 }
-
 
 func (a *ClientAPI) listChannels(w http.ResponseWriter, r *http.Request) {
 	userID := getUserID(r)
@@ -288,12 +287,11 @@ func (a *ClientAPI) channelMessages(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(msgs)
 }
 
-
 func (a *ClientAPI) pushSubscribe(w http.ResponseWriter, r *http.Request) {
 	userID := getUserID(r)
 	var req struct {
 		Endpoint string `json:"endpoint"`
-		Keys struct {
+		Keys     struct {
 			P256dh string `json:"p256dh"`
 			Auth   string `json:"auth"`
 		} `json:"keys"`

@@ -72,7 +72,6 @@ type APIResponse struct {
 
 // ── Route ──
 
-
 // ── Helpers ──
 
 func (h *Handler) authBot(r *http.Request) (*store.Bot, error) {
@@ -325,7 +324,9 @@ func (h *Handler) pushMessageToChat(chatID int64, bot *store.Bot, msg *store.Mes
 }
 
 func truncate(s string, max int) string {
-	if len(s) <= max { return s }
+	if len(s) <= max {
+		return s
+	}
 	return s[:max] + "..."
 }
 
@@ -337,6 +338,7 @@ func (h *Handler) pushEditToChat(chatID int64, bot *store.Bot, msg *store.Messag
 	payload, _ := json.Marshal(msg)
 	h.hub.SendToUser(userID, ws.Event{Type: "edit_message", ChatID: chatID, Payload: payload})
 }
+
 // ── Channel handlers ──
 
 type CreateChannelRequest struct {
