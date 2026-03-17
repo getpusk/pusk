@@ -36,13 +36,13 @@ echo "  Total routes: $ENDPOINTS"
 
 # 6. JS function integrity
 echo "[6/7] JS function check..."
-for fn in appendMsg sendMsg loadBots openChat openChannel connectWS cbClick delMsg toggleSub tryDemo login register showApp logout; do
+for fn in addMsg sendMsg showList openChat openChan connectWS onCb onDel toggleSub showApp logout auth setLang beep scrollDown; do
     if ! grep -q "function $fn\|async function $fn" web/static/index.html; then
         echo "  FAIL: missing function $fn"
         exit 1
     fi
 done
-echo "  OK: all 14 core functions present"
+echo "  OK: all 15 core functions present"
 
 # 7. HTML validity — basic checks
 echo "[7/7] HTML checks..."
