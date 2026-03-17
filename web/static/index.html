@@ -156,6 +156,8 @@ function saveAuth(r) {
 
 function logout() {
   token = null; userId = null;
+  currentChat = null;
+  currentChannel = null;
   localStorage.removeItem('pusk_token');
   localStorage.removeItem('pusk_user_id');
   localStorage.removeItem('pusk_username');
@@ -549,7 +551,14 @@ async function doCreate() {
 }
 
 // Init
-if (token) showApp();
+if (token) {
+  // Validate token by hitting health with auth
+  api('GET', '/api/bots').then(r => {
+    if (r && r.error) { logout(); } else { showApp(); }
+  }).catch(() => { logout(); });
+} else {
+  $('fab').style.display = 'none';
+}
 // Register Service Worker for push notifications
 if ('serviceWorker' in navigator && 'PushManager' in window) {
   navigator.serviceWorker.register('/sw.js').then(async (reg) => {
