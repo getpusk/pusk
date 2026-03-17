@@ -92,17 +92,48 @@ header .user-info{font-size:12px;color:var(--text2);margin-right:8px}header .log
 </head>
 <body>
 
-<!-- Auth screen -->
+<!-- Landing + Auth -->
 <div id="auth">
-  <h1>Pusk</h1>
-  <p style="color:var(--text2)">Бот-платформа</p>
-  <input id="a-user" placeholder="Имя пользователя" autocomplete="username">
-  <input id="a-pin" type="password" placeholder="PIN" autocomplete="current-password">
-  <button onclick="login()">Войти</button>
-  <button onclick="register()" style="background:var(--primary)">Регистрация</button>
-  <div style="margin-top:8px;opacity:0.4;font-size:12px">or</div>
-  <button onclick="tryDemo()" style="background:transparent;border:1px solid var(--border);color:var(--text2)">Try Demo</button>
-  <div id="a-error" class="error"></div>
+  <div class="landing">
+    <div class="landing-left">
+      <div class="landing-logo">&#9889; Pusk</div>
+      <p class="landing-tagline">Self-hosted Telegram Bot API.<br>One binary. Inline keyboards. Push alerts.</p>
+      <div class="landing-features">
+        <div class="landing-feat">&#10003; Telegram Bot API compatible</div>
+        <div class="landing-feat">&#10003; Channels with inline keyboards</div>
+        <div class="landing-feat">&#10003; Push notifications to phone</div>
+        <div class="landing-feat">&#10003; 16MB binary, SQLite, zero config</div>
+      </div>
+      <div class="landing-deploy">
+        <code>docker run -p 8443:8443 getpusk/pusk</code>
+      </div>
+      <div class="landing-links">
+        <a href="https://github.com/getpusk/pusk" target="_blank" class="landing-btn">GitHub</a>
+        <a href="https://github.com/getpusk/pusk#readme" target="_blank" class="landing-btn btn-sec">Docs</a>
+      </div>
+    </div>
+    <div class="landing-right">
+      <div class="landing-card">
+        <div id="demo-chat-panel" style="display:none">
+          <div class="demo-header">DemoBot</div>
+          <div id="demo-messages" class="demo-msgs"></div>
+        </div>
+        <div id="auth-form">
+          <div style="font-size:18px;font-weight:700;margin-bottom:16px">Try it now</div>
+          <button onclick="tryDemo()" class="landing-btn" style="width:100%;margin-bottom:12px">Live Demo</button>
+          <div style="opacity:0.3;font-size:12px;margin-bottom:12px;text-align:center">or sign in</div>
+          <input id="a-user" placeholder="Username" autocomplete="username">
+          <input id="a-pin" type="password" placeholder="PIN" autocomplete="current-password">
+          <div style="display:flex;gap:8px">
+            <button onclick="login()" class="landing-btn" style="flex:1">Login</button>
+            <button onclick="register()" class="landing-btn btn-sec" style="flex:1">Register</button>
+          </div>
+          <div id="a-error" class="error" style="margin-top:8px"></div>
+        </div>
+      </div>
+      <div class="landing-stats" id="landing-stats"></div>
+    </div>
+  </div>
 </div>
 
 <!-- App -->
@@ -584,6 +615,22 @@ async function doCreate() {
     }
   }
 }
+
+// Load landing stats
+(async function(){
+  const h = await fetch('/api/health').then(r=>r.json()).catch(()=>({}));
+  const el = document.getElementById('landing-stats');
+  if (el) el.textContent = 'Pusk ' + (h.version||'') + ' | ' + (h.online||0) + ' online';
+
+  // Show demo chat preview
+  const dp = document.getElementById('demo-chat-panel');
+  if (dp) {
+    dp.style.display = 'block';
+    document.getElementById('demo-messages').innerHTML =
+      '<div class="demo-msg"><div class="dm-text"><b>DemoBot</b><br>Welcome! Try the buttons:</div><div class="dm-btns"><div class="dm-btn">What is Pusk?</div><div class="dm-btn">Deploy</div></div></div>' +
+      '<div class="demo-msg"><div class="dm-text"><b>#alerts</b><br>ALERT: CPU 95% on prod-01</div><div class="dm-btns"><div class="dm-btn">ACK</div><div class="dm-btn">Silence</div></div></div>';
+  }
+})();
 
 // Init
 if (token) {
