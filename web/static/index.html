@@ -604,7 +604,7 @@ if ('serviceWorker' in navigator && 'PushManager' in window) {
       let sub = await reg.pushManager.getSubscription();
       if (!sub) {
         sub = await reg.pushManager.subscribe({
-          userNotificationOnly: true,
+          userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(key)
         });
       }
