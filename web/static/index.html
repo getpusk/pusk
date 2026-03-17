@@ -207,7 +207,7 @@ function appendMsg(m) {
         kb.inline_keyboard.forEach(row => {
           html += '<div class="inline-kb-row">';
           row.forEach(btn => {
-            html += `<button class="inline-kb-btn" onclick="cbClick('${esc(btn.callback_data)}',${m.message_id})">${esc(btn.text)}</button>`;
+            html += `<button class="inline-kb-btn" data-cb="${btn.callback_data}" data-msg="${m.message_id}" onclick="cbClick(this.dataset.cb,Number(this.dataset.msg))">${esc(btn.text)}</button>`;
           });
           html += '</div>';
         });
