@@ -1,5 +1,5 @@
 // Copyright (c) 2026 Volkov Pavel | DevITWay
-// Licensed under the MIT License. See LICENSE file for details.
+// Licensed under the Business Source License 1.1. See LICENSE file for details.
 package api
 
 import (

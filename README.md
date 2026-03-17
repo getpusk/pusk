@@ -1,4 +1,4 @@
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-BSL--1.1-blue.svg)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go&logoColor=white)](https://go.dev)
 
 > **Self-hosted Telegram-compatible bot platform.**
@@ -111,6 +111,6 @@ Managed version at [getpusk.com](https://getpusk.com)
 
 ## License
 
-MIT License - Copyright (c) 2026 Volkov Pavel | DevITWay
+BSL 1.1 - Copyright (c) 2026 Volkov Pavel | DevITWay
 
 See [LICENSE](LICENSE) for details.
