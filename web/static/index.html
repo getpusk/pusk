@@ -133,16 +133,32 @@ let ws = null;
 
 // ── Auth ──
 async function login() {
-  const u = $('a-user').value, p = $('a-pin').value;
+  const u = $('a-user').value.trim(), p = $('a-pin').value.trim();
+  if (!u || !p) { $('a-error').textContent = 'Enter username and PIN'; return; }
+  console.log('[pusk] login:', u);
   const r = await api('POST', '/api/auth', {username:u, pin:p});
-  if (r.error) { $('a-error').textContent = r.error; return; }
+  console.log('[pusk] login response:', JSON.stringify(r).substring(0,100));
+  if (r.error) {
+    $('a-error').textContent = 'Wrong username or PIN';
+    return;
+  }
   saveAuth(r);
 }
 
 async function register() {
-  const u = $('a-user').value, p = $('a-pin').value;
+  const u = $('a-user').value.trim(), p = $('a-pin').value.trim();
+  if (!u || !p) { $('a-error').textContent = 'Enter username and PIN'; return; }
+  console.log('[pusk] register:', u);
   const r = await api('POST', '/api/register', {username:u, pin:p, display_name:u});
-  if (r.error) { $('a-error').textContent = r.error; return; }
+  console.log('[pusk] register response:', r);
+  if (r.error) {
+    if (r.error.includes('UNIQUE') || r.error.includes('constraint')) {
+      $('a-error').textContent = 'Username "' + u + '" already taken. Try logging in.';
+    } else {
+      $('a-error').textContent = r.error;
+    }
+    return;
+  }
   saveAuth(r);
 }
 
@@ -170,6 +186,7 @@ function logout() {
 
 // ── App ──
 async function showApp() {
+  console.log('[pusk] showApp, token:', token ? token.substring(0,20)+'...' : 'none');
   $('auth').style.display = 'none';
   $('app').style.display = 'flex';
   const uname = localStorage.getItem('pusk_username') || '';
@@ -426,6 +443,7 @@ function connectWS() {
   ws.onopen = () => { $('ws-status').style.color = '#4caf50'; };
   ws.onclose = () => { $('ws-status').style.color = '#f44336'; setTimeout(connectWS, 3000); };
   ws.onmessage = (e) => {
+    console.log('[pusk] ws:', e.data.substring(0,100));
     playNotifySound();
     const evt = JSON.parse(e.data);
     if (evt.type === 'new_message' && evt.chat_id === currentChat) {
@@ -474,8 +492,9 @@ async function api(method, path, body) {
   try {
     const r = await fetch(API+path, opts);
     const text = await r.text();
+    if (!r.ok) console.warn('[pusk]', method, path, r.status, text.substring(0,200));
     try { return JSON.parse(text); } catch(e) { return {error: text}; }
-  } catch(e) { return {error: e.message}; }
+  } catch(e) { console.error('[pusk]', method, path, e); return {error: e.message}; }
 }
 
 
