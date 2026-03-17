@@ -53,7 +53,7 @@ header .user-info{font-size:12px;color:var(--text2);margin-right:8px}header .log
 .msg{max-width:80%;padding:10px 14px;border-radius:var(--radius);word-wrap:break-word;line-height:1.4}
 .msg.bot{background:var(--msg-bot);align-self:flex-start;border-bottom-left-radius:4px;margin-left:36px;position:relative}
 .msg-ava{position:absolute;left:-36px;top:0;width:28px;height:28px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff}
-.msg.user{background:var(--msg-user);align-self:flex-end;border-bottom-right-radius:4px;margin-right:36px;position:relative}
+.msg.user{background:var(--msg-user);align-self:flex-end;border-bottom-right-radius:4px}
 .msg-ava-right{position:absolute;right:-36px;top:0;width:28px;height:28px;border-radius:50%;background:#2b5278;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff}
 .msg .time{font-size:11px;color:var(--text2);margin-top:4px}
 .msg{position:relative}
@@ -97,12 +97,12 @@ header .user-info{font-size:12px;color:var(--text2);margin-right:8px}header .log
 <div id="auth">
   <div class="auth-box">
     <div class="auth-logo">&#9889; Pusk</div>
-    <p class="auth-tagline">Self-hosted Telegram Bot API</p>
-    <input id="a-user" placeholder="Username" autocomplete="username">
-    <input id="a-pin" type="password" placeholder="PIN" autocomplete="current-password">
-    <button onclick="login()" class="auth-btn primary">Login</button>
-    <button onclick="register()" class="auth-btn secondary">Register</button>
-    <button onclick="tryDemo()" class="auth-btn ghost">Try Demo</button>
+    <p class="auth-tagline">Замена Telegram Bot API</p>
+    <input id="a-user" placeholder="Логин" autocomplete="username">
+    <input id="a-pin" type="password" placeholder="Пин-код" autocomplete="current-password">
+    <button onclick="login()" class="auth-btn primary">Войти</button>
+    <button onclick="register()" class="auth-btn secondary">Создать</button>
+    <button onclick="tryDemo()" class="auth-btn ghost">Демо</button>
     <div id="a-error" class="error"></div>
     <div class="auth-footer">
       <a href="https://github.com/getpusk/pusk" target="_blank">GitHub</a>
@@ -120,7 +120,7 @@ header .user-info{font-size:12px;color:var(--text2);margin-right:8px}header .log
     <span class="back" id="back-btn" onclick="showBotList()">←</span>
     <h2 id="header-title">Боты</h2>
     <span class="status" id="ws-status">●</span>
-    <span class="user-info" id="user-display"></span><span class="logout" onclick="logout()">exit</span>
+    <span class="user-info" id="user-display"></span><span class="logout" onclick="logout()">выход</span>
   </header>
 
   <div id="bot-list"></div>
@@ -151,7 +151,7 @@ async function tryDemo() {
     // guest might not exist yet — try register
     const r2 = await api('POST', '/api/register', {username:'guest', pin:'guest', display_name:'Guest'});
     if (r2.token) { saveAuth(r2); return; }
-    $('a-error').textContent = 'Demo unavailable';
+    $('a-error').textContent = 'Демо недоступно';
     return;
   }
   saveAuth(r);
@@ -159,12 +159,12 @@ async function tryDemo() {
 
 async function login() {
   const u = $('a-user').value.trim(), p = $('a-pin').value.trim();
-  if (!u || !p) { $('a-error').textContent = 'Enter username and PIN'; return; }
+  if (!u || !p) { $('a-error').textContent = 'Введите логин и пин-код'; return; }
   console.log('[pusk] login:', u);
   const r = await api('POST', '/api/auth', {username:u, pin:p});
   console.log('[pusk] login response:', JSON.stringify(r).substring(0,100));
   if (r.error) {
-    $('a-error').textContent = 'Wrong username or PIN';
+    $('a-error').textContent = 'Неверный логин или пин-код';
     return;
   }
   saveAuth(r);
@@ -172,13 +172,13 @@ async function login() {
 
 async function register() {
   const u = $('a-user').value.trim(), p = $('a-pin').value.trim();
-  if (!u || !p) { $('a-error').textContent = 'Enter username and PIN'; return; }
+  if (!u || !p) { $('a-error').textContent = 'Введите логин и пин-код'; return; }
   console.log('[pusk] register:', u);
   const r = await api('POST', '/api/register', {username:u, pin:p, display_name:u});
   console.log('[pusk] register response:', r);
   if (r.error) {
     if (r.error.includes('UNIQUE') || r.error.includes('constraint')) {
-      $('a-error').textContent = 'Username "' + u + '" already taken. Try logging in.';
+      $('a-error').textContent = 'Username "' + u + '" занят. Попробуйте войти.';
     } else {
       $('a-error').textContent = r.error;
     }
@@ -241,7 +241,7 @@ async function loadBots() {
     el.innerHTML += '<div class="section-title">Channels</div>';
     for (const ch of channels) {
       const subClass = ch.subscribed ? 'sub-btn active' : 'sub-btn';
-      const subText = ch.subscribed ? 'Joined' : 'Join';
+      const subText = ch.subscribed ? 'Подписан' : 'Подписка';
       let preview = '', previewTime = '';
       if (ch.subscribed) {
         try {
@@ -256,13 +256,9 @@ async function loadBots() {
         <div class="ch-info" onclick="openChannel(${ch.id},'${esc(ch.name)}')" style="flex:1;min-width:0">
           <span class="ch-icon">#</span>
           <div style="flex:1;min-width:0">
-            <div style="display:flex;align-items:center;gap:6px">
-              <span class="ch-name">${esc(ch.name)}</span>
-              <span style="font-size:11px;color:var(--text2)">${ch.subscriber_count ? ch.subscriber_count : ''}</span>
-            </div>
-            ${preview ? `<div class="preview-text">${esc(preview)}</div>` : `<div class="ch-desc">${esc(ch.description||'')}</div>`}
+            <div class="ch-name">${esc(ch.name)}</div>
+            ${preview ? `<div class="preview-text">${esc(preview)} <span style="opacity:0.5">${previewTime}</span></div>` : `<div class="ch-desc">${esc(ch.description||'')}</div>`}
           </div>
-          ${previewTime ? `<div class="preview-time">${previewTime}</div>` : ''}
         </div>
         <button class="${subClass}" onclick="toggleSub(event,${ch.id},${ch.subscribed})" id="sub-${ch.id}">${subText}</button>
       </div>`;
@@ -315,7 +311,7 @@ function showBotList() {
   $('chat').style.display = 'none';
   $('input-bar').style.display = 'none';
   $('back-btn').style.display = 'none';
-  $('header-title').textContent = 'Боты';
+  $('header-title').textContent = 'Главная';
 }
 
 async function openChat(botId, botName) {
@@ -347,10 +343,7 @@ function appendMsg(m) {
   const time = m.date ? formatTime(m.date) : '';
   
   let html = `<div class="msg ${cls}" id="msg-${m.message_id}">`;
-  if (cls === 'user') {
-    const uname = localStorage.getItem('pusk_username') || 'U';
-    html += `<div class="msg-ava-right" style="background:${nameColor(uname)}">${uname[0].toUpperCase()}</div>`;
-  }
+  // User messages: no avatar (Telegram style)
   if (cls === 'bot') {
     const bname = m.bot_name || $('header-title').textContent.replace('# ','') || 'B';
     html += `<div class="msg-ava" style="background:${nameColor(bname)}">${bname[0].toUpperCase()}</div>`;
@@ -576,15 +569,15 @@ function showCreateModal() {
 function hideModal() { $('create-modal').classList.remove('show'); }
 function updateCreateForm() {
   const type = $('create-type').value;
-  $('modal-title').textContent = type === 'channel' ? 'New Channel' : 'New Bot';
+  $('modal-title').textContent = type === 'channel' ? 'Новый канал' : 'Новый бот';
   $('create-token-row').style.display = type === 'bot' ? 'block' : 'none';
-  $('create-name').placeholder = type === 'channel' ? 'Channel name (e.g. alerts)' : 'Bot name (e.g. MonitorBot)';
-  $('create-desc').placeholder = type === 'channel' ? 'Description' : 'Webhook URL (optional)';
+  $('create-name').placeholder = type === 'channel' ? 'Имя канала (напр. alerts)' : 'Имя бота (напр. MonitorBot)';
+  $('create-desc').placeholder = type === 'channel' ? 'Описание' : 'Webhook URL (опц.)';
 }
 async function doCreate() {
   const type = $('create-type').value;
   const name = $('create-name').value.trim();
-  if (!name) { $('create-error').textContent = 'Name required'; return; }
+  if (!name) { $('create-error').textContent = 'Введите имя'; return; }
   $('create-error').textContent = '';
   $('create-success').textContent = '';
 
@@ -593,7 +586,7 @@ async function doCreate() {
     const desc = $('create-desc').value.trim();
     const r = await api('POST', '/admin/channel', {name, description: desc});
     if (r && r.ok) {
-      $('create-success').textContent = 'Channel #' + name + ' created!';
+      $('create-success').textContent = 'Канал #' + name + ' создан';
       setTimeout(() => { hideModal(); loadBots(); }, 1000);
     } else {
       $('create-error').textContent = r.error || r.description || 'Failed';
@@ -604,7 +597,7 @@ async function doCreate() {
     const r = await api('POST', '/admin/bots', {token: tok, name});
     if (r && r.id) {
       if (webhook) await api('POST', '/bot/' + tok + '/setWebhook', {url: webhook});
-      $('create-success').textContent = 'Bot ' + name + ' created! Token: ' + tok;
+      $('create-success').textContent = 'Бот ' + name + ' создан. Токен: ' + tok;
       setTimeout(() => { hideModal(); loadBots(); }, 1500);
     } else {
       $('create-error').textContent = r.error || 'Failed';
@@ -669,7 +662,7 @@ function urlBase64ToUint8Array(base64String) {
 
 <div class="modal-overlay" id="create-modal" onclick="if(event.target===this)hideModal()">
   <div class="modal">
-    <h3 id="modal-title">Create</h3>
+    <h3 id="modal-title">Создать</h3>
     <select id="create-type" onchange="updateCreateForm()">
       <option value="channel">Channel</option>
       <option value="bot">Bot</option>
@@ -680,8 +673,8 @@ function urlBase64ToUint8Array(base64String) {
       <input id="create-token" placeholder="Bot token (for API calls)">
     </div>
     <div class="modal-btns">
-      <button class="btn-cancel" onclick="hideModal()">Cancel</button>
-      <button class="btn-primary" onclick="doCreate()">Create</button>
+      <button class="btn-cancel" onclick="hideModal()">Отмена</button>
+      <button class="btn-primary" onclick="doCreate()">Создать</button>
     </div>
     <div id="create-error" style="color:#e05d44;font-size:13px;margin-top:8px"></div>
     <div id="create-success" style="color:#3db887;font-size:13px;margin-top:8px"></div>
