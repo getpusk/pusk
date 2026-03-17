@@ -53,7 +53,8 @@ header .user-info{font-size:12px;color:var(--text2);margin-right:8px}header .log
 .msg{max-width:80%;padding:10px 14px;border-radius:var(--radius);word-wrap:break-word;line-height:1.4}
 .msg.bot{background:var(--msg-bot);align-self:flex-start;border-bottom-left-radius:4px;margin-left:36px;position:relative}
 .msg-ava{position:absolute;left:-36px;top:0;width:28px;height:28px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff}
-.msg.user{background:var(--msg-user);align-self:flex-end;border-bottom-right-radius:4px}
+.msg.user{background:var(--msg-user);align-self:flex-end;border-bottom-right-radius:4px;margin-right:36px;position:relative}
+.msg-ava-right{position:absolute;right:-36px;top:0;width:28px;height:28px;border-radius:50%;background:#2b5278;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff}
 .msg .time{font-size:11px;color:var(--text2);margin-top:4px}
 .msg{position:relative}
 .msg .del-btn{display:none;position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.4);border:none;color:#708499;cursor:pointer;border-radius:50%;width:22px;height:22px;font-size:12px;line-height:22px;text-align:center}
@@ -308,7 +309,7 @@ async function loadBots() {
         }
       } catch(e) {}
       el.innerHTML += `<div class="bot-item" onclick="openChat(${b.id},'${esc(b.name)}')">
-        <div class="bot-avatar">${b.name[0].toUpperCase()}</div>
+        <div class="bot-avatar" style="background:${nameColor(b.name)}">${b.name[0].toUpperCase()}</div>
         <div style="flex:1;min-width:0">
           <div class="bot-name">${esc(b.name)}</div>
           ${preview ? `<div class="preview-text">${esc(preview)}</div>` : ''}
@@ -530,6 +531,13 @@ function formatTime(dateStr) {
   if (yesterday.toDateString() === msgDay) return 'Yesterday ' + time;
   return d.toLocaleDateString('ru',{day:'numeric',month:'short'}) + ' ' + time;
 }
+function nameColor(name) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  const colors = ['#5865F2','#57F287','#FEE75C','#EB459E','#ED4245','#3BA55D','#FAA61A','#5865F2'];
+  return colors[Math.abs(hash) % colors.length];
+}
+
 function esc(s) { if(!s) return ''; const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
 function scrollDown() { const el=$('messages'); setTimeout(()=>el.scrollTop=el.scrollHeight, 50); }
 async function api(method, path, body) {
