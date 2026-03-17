@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<meta name="theme-color" content="#1a1a2e">
+<meta name="theme-color" content="#17212b">
 <title>Pusk</title>
 <link rel="manifest" href="/manifest.json">
 <style>
@@ -13,12 +13,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 input,button,textarea{font-family:inherit;font-size:inherit}
 
 /* Auth */
-#auth{display:flex;align-items:center;justify-content:center;height:100dvh;flex-direction:column;gap:16px}
-#auth h1{font-size:2em;color:var(--accent)}
-#auth input{padding:12px 16px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);color:var(--text);width:260px;font-size:16px}
-#auth button{padding:12px 32px;border-radius:var(--radius);border:none;background:var(--accent);color:#162645;cursor:pointer;font-size:16px;font-weight:600}
-#auth button:hover{opacity:0.9}
-#auth .error{color:var(--accent);font-size:14px}
+#auth{display:flex;align-items:center;justify-content:center;height:100dvh}
+#auth .error{color:#e05d44;font-size:13px;margin-top:4px}
+.auth-box{width:280px;text-align:center}
+.auth-logo{font-size:42px;font-weight:800;margin-bottom:4px}
+.auth-tagline{color:var(--text2);font-size:14px;margin-bottom:28px}
+.auth-box input{padding:14px 16px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);color:var(--text);width:100%;font-size:16px;margin-bottom:10px;box-sizing:border-box}
+.auth-box input:focus{border-color:var(--primary);outline:none}
+.auth-btn{width:100%;padding:14px;border-radius:var(--radius);border:none;cursor:pointer;font-size:15px;font-weight:600;margin-bottom:8px}
+.auth-btn:hover{opacity:0.85}
+.auth-btn.primary{background:var(--primary);color:#fff}
+.auth-btn.secondary{background:var(--surface);color:var(--text);border:1px solid var(--border)}
+.auth-btn.ghost{background:transparent;color:var(--text2);font-weight:400;font-size:13px}
+.auth-footer{margin-top:24px;font-size:12px;color:var(--text2);opacity:0.5}
+.auth-footer a{color:var(--text2);text-decoration:none}
+.auth-footer a:hover{color:var(--accent)}
+.auth-footer span{margin:0 6px}
 
 /* App layout */
 #app{display:none;height:100dvh;flex-direction:column}
@@ -50,13 +60,11 @@ header .user-info{font-size:12px;color:var(--text2);margin-right:8px}header .log
 /* Chat */
 #chat{display:none;flex-direction:column;flex:1;overflow:hidden}
 #messages{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px;background-image:url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='p' width='40' height='40' patternUnits='userSpaceOnUse'%3E%3Ccircle cx='20' cy='20' r='1' fill='%25231d2a3a'/%3E%3Cpath d='M0 20h8M32 20h8M20 0v8M20 32v8' stroke='%25231d2a3a' stroke-width='.5'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='200' height='200' fill='url(%23p)'/%3E%3C/svg%3E")}
-.msg{max-width:80%;padding:10px 14px;border-radius:var(--radius);word-wrap:break-word;line-height:1.4}
+.msg{max-width:80%;padding:10px 14px;border-radius:var(--radius);word-wrap:break-word;line-height:1.4;position:relative}
 .msg.bot{background:var(--msg-bot);align-self:flex-start;border-bottom-left-radius:4px;margin-left:36px;position:relative}
 .msg-ava{position:absolute;left:-36px;top:0;width:28px;height:28px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff}
 .msg.user{background:var(--msg-user);align-self:flex-end;border-bottom-right-radius:4px}
-.msg-ava-right{position:absolute;right:-36px;top:0;width:28px;height:28px;border-radius:50%;background:#2b5278;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff}
 .msg .time{font-size:11px;color:var(--text2);margin-top:4px}
-.msg{position:relative}
 .msg .del-btn{display:none;position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.4);border:none;color:#708499;cursor:pointer;border-radius:50%;width:22px;height:22px;font-size:12px;line-height:22px;text-align:center}
 .msg:hover .del-btn{display:block}
 .msg .del-btn:hover{color:#e05d44;background:rgba(224,93,68,0.2)}
@@ -271,16 +279,6 @@ async function loadBots() {
     for (const b of bots) {
       // Try to get chat and last message
       let preview = '', previewTime = '';
-      try {
-        const chat = await api('POST', `/api/bots/${b.id}/start`);
-        if (chat && chat.id) {
-          const msgs = await api('GET', `/api/chats/${chat.id}/messages?limit=1`);
-          if (msgs && msgs.length) {
-            preview = (msgs[0].text || '').replace(/\*\*/g,'').replace(/\*/g,'').substring(0,40);
-            previewTime = msgs[0].date ? formatTime(msgs[0].date) : '';
-          }
-        }
-      } catch(e) {}
       el.innerHTML += `<div class="bot-item" onclick="openChat(${b.id},'${esc(b.name)}')">
         <div class="bot-avatar" style="background:${nameColor(b.name)}">${b.name[0].toUpperCase()}</div>
         <div style="flex:1;min-width:0">
@@ -299,7 +297,7 @@ async function loadBots() {
   const health = await api('GET', '/api/health');
   const nBots = bots ? bots.length : 0;
   const nCh = channels ? channels.length : 0;
-  el.innerHTML += `<div style="padding:16px;text-align:center;font-size:11px;color:var(--text2);opacity:0.6">Pusk ${health.version || ''} &middot; ${nBots} bots &middot; ${nCh} channels &middot; ${health.online || 0} online</div>`;
+  el.innerHTML += `<div style="padding:16px;text-align:center;font-size:11px;color:var(--text2);opacity:0.6">Pusk ${health.version || ''} &middot; ${nBots} бот. &middot; ${nCh} кан. &middot; ${health.online || 0} онлайн</div>`;
 }
 
 function showBotList() {
@@ -414,7 +412,7 @@ async function loadChannelMessages(channelID) {
   const msgs = await api('GET', `/api/channels/${channelID}/messages`);
   const el = $('messages');
   el.innerHTML = '';
-  if (!msgs || !msgs.length) { el.innerHTML = '<p style="padding:20px;text-align:center;color:var(--text2)">No messages yet</p>'; return; }
+  if (!msgs || !msgs.length) { el.innerHTML = '<p style="padding:20px;text-align:center;color:var(--text2)">Пока нет сообщений</p>'; return; }
   msgs.reverse().forEach(m => {
     m.sender = 'bot';
     appendMsg(m);
@@ -435,15 +433,17 @@ async function sendMsg() {
 }
 
 async function delMsg(msgId, el) {
-  if (!currentChat) return;
-  await api('POST', `/bot/monitor-bot-token/deleteMessage`, {chat_id: currentChat, message_id: msgId});
+  const chatId = currentChat || currentChannel;
+  if (!chatId) return;
+  await api('DELETE', `/api/messages/${msgId}`);
   const msgEl = document.getElementById('msg-' + msgId);
   if (msgEl) msgEl.remove();
 }
 
 async function cbClick(data, msgId) {
-  if (!currentChat) return;
-  await api('POST', `/api/chats/${currentChat}/callback`, {data, message_id: msgId});
+  const chatId = currentChat || currentChannel;
+  if (!chatId) return;
+  await api('POST', `/api/chats/${chatId}/callback`, {data, message_id: parseInt(msgId)});
 }
 
 // ── WebSocket ──
@@ -509,7 +509,7 @@ function formatTime(dateStr) {
   const msgDay = d.toDateString();
   if (today === msgDay) return time;
   const yesterday = new Date(now); yesterday.setDate(yesterday.getDate()-1);
-  if (yesterday.toDateString() === msgDay) return 'Yesterday ' + time;
+  if (yesterday.toDateString() === msgDay) return 'Вчера ' + time;
   return d.toLocaleDateString('ru',{day:'numeric',month:'short'}) + ' ' + time;
 }
 function nameColor(name) {
@@ -664,8 +664,8 @@ function urlBase64ToUint8Array(base64String) {
   <div class="modal">
     <h3 id="modal-title">Создать</h3>
     <select id="create-type" onchange="updateCreateForm()">
-      <option value="channel">Channel</option>
-      <option value="bot">Bot</option>
+      <option value="channel">Канал</option>
+      <option value="bot">Бот</option>
     </select>
     <input id="create-name" placeholder="Name">
     <input id="create-desc" placeholder="Description (optional)">

@@ -50,6 +50,7 @@ func (a *ClientAPI) Route(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/channels/{channelID}/subscribe", a.subscribe)
 	mux.HandleFunc("POST /api/channels/{channelID}/unsubscribe", a.unsubscribe)
 	mux.HandleFunc("GET /api/channels/{channelID}/messages", a.channelMessages)
+	mux.HandleFunc("DELETE /api/messages/{msgID}", a.deleteMessage)
 	mux.HandleFunc("POST /api/push/subscribe", a.pushSubscribe)
 	mux.HandleFunc("GET /api/push/vapid", a.vapidKey)
 }
@@ -316,6 +317,15 @@ func (a *ClientAPI) pushSubscribe(w http.ResponseWriter, r *http.Request) {
 
 func (a *ClientAPI) vapidKey(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"key": a.vapidPub})
+}
+
+func (a *ClientAPI) deleteMessage(w http.ResponseWriter, r *http.Request) {
+	msgID, _ := strconv.ParseInt(r.PathValue("msgID"), 10, 64)
+	if err := a.store.DeleteMessage(msgID); err != nil {
+		http.Error(w, `{"error":"`+err.Error()+`"}`, 500)
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
 // ── Internal ──
