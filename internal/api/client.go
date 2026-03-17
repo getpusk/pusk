@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/gorilla/websocket"
+	"github.com/pusk-platform/pusk/internal/auth"
 	"github.com/pusk-platform/pusk/internal/notify"
 	"github.com/pusk-platform/pusk/internal/store"
 	"github.com/pusk-platform/pusk/internal/ws"
@@ -25,10 +26,13 @@ type ClientAPI struct {
 	hub      *ws.Hub
 	push     *notify.PushService
 	vapidPub string
+	jwt      *auth.JWTService
 }
 
-func NewClientAPI(s *store.Store, hub *ws.Hub, push *notify.PushService, vapidPub string) *ClientAPI {
-	return &ClientAPI{store: s, hub: hub, push: push, vapidPub: vapidPub}
+func NewClientAPI(s *store.Store, hub *ws.Hub, push *notify.PushService, vapidPub string, jwtSvcParam *auth.JWTService) *ClientAPI {
+	svc := &ClientAPI{store: s, hub: hub, push: push, vapidPub: vapidPub, jwt: jwtSvcParam}
+	jwtSvc = jwtSvcParam
+	return svc
 }
 
 func (a *ClientAPI) Route(mux *http.ServeMux) {
@@ -62,9 +66,13 @@ func (a *ClientAPI) auth(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"invalid credentials"}`, http.StatusUnauthorized)
 		return
 	}
-	// Simple token = userID (in production: JWT)
+	token, err := a.jwt.Generate(user.ID, "default", user.Username)
+	if err != nil {
+		http.Error(w, `{"error":"token error"}`, 500)
+		return
+	}
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"token":    strconv.FormatInt(user.ID, 10),
+		"token":    token,
 		"user_id":  user.ID,
 		"username": user.Username,
 	})
@@ -83,9 +91,11 @@ func (a *ClientAPI) register(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"`+err.Error()+`"}`, 400)
 		return
 	}
+	token, _ := a.jwt.Generate(user.ID, "default", req.Username)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"token":   strconv.FormatInt(user.ID, 10),
-		"user_id": user.ID,
+		"token":    token,
+		"user_id":  user.ID,
+		"username": req.Username,
 	})
 }
 
@@ -310,12 +320,26 @@ func (a *ClientAPI) vapidKey(w http.ResponseWriter, r *http.Request) {
 
 // ── Internal ──
 
+// jwtSvc is set during init — package-level for getUserID access
+var jwtSvc *auth.JWTService
+
 func getUserID(r *http.Request) int64 {
-	token := r.Header.Get("Authorization")
-	if token == "" {
-		token = r.URL.Query().Get("token")
+	tokenStr := r.Header.Get("Authorization")
+	if tokenStr == "" {
+		tokenStr = r.URL.Query().Get("token")
 	}
-	id, _ := strconv.ParseInt(token, 10, 64)
+	if tokenStr == "" {
+		return 0
+	}
+	// Try JWT first
+	if jwtSvc != nil {
+		claims, err := jwtSvc.Validate(tokenStr)
+		if err == nil {
+			return claims.UserID
+		}
+	}
+	// Fallback to plain ID (backwards compat)
+	id, _ := strconv.ParseInt(tokenStr, 10, 64)
 	return id
 }
 
