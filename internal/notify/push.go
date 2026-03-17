@@ -56,7 +56,7 @@ func (p *PushService) SendToUser(userID int64, payload PushPayload) {
 			Subscriber:      p.vapidEmail,
 			VAPIDPublicKey:  p.vapidPub,
 			VAPIDPrivateKey: p.vapidPriv,
-			TTL:             60,
+			TTL:             3600,
 		})
 		if err != nil {
 			log.Printf("[push] error sending to user %d: %v", userID, err)
