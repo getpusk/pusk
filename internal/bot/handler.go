@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pusk-platform/pusk/internal/notify"
 	"github.com/pusk-platform/pusk/internal/store"
 	"github.com/pusk-platform/pusk/internal/ws"
 )
@@ -23,12 +24,13 @@ import (
 type Handler struct {
 	store    *store.Store
 	hub      *ws.Hub
+	push     *notify.PushService
 	filesDir string
 }
 
-func NewHandler(s *store.Store, hub *ws.Hub, filesDir string) *Handler {
+func NewHandler(s *store.Store, hub *ws.Hub, push *notify.PushService, filesDir string) *Handler {
 	os.MkdirAll(filesDir, 0755)
-	return &Handler{store: s, hub: hub, filesDir: filesDir}
+	return &Handler{store: s, hub: hub, push: push, filesDir: filesDir}
 }
 
 // ── Telegram-compatible types ──
@@ -313,6 +315,18 @@ func (h *Handler) pushMessageToChat(chatID int64, bot *store.Bot, msg *store.Mes
 		"bot_name": bot.Name,
 	})
 	h.hub.SendToUser(userID, ws.Event{Type: "new_message", ChatID: chatID, Payload: payload})
+	// Push notification
+	h.push.SendToUser(userID, notify.PushPayload{
+		Title: bot.Name,
+		Body:  truncate(msg.Text, 100),
+		Tag:   "chat-" + fmt.Sprintf("%d", chatID),
+		URL:   "/",
+	})
+}
+
+func truncate(s string, max int) string {
+	if len(s) <= max { return s }
+	return s[:max] + "..."
 }
 
 func (h *Handler) pushEditToChat(chatID int64, bot *store.Bot, msg *store.Message) {
@@ -398,6 +412,12 @@ func (h *Handler) sendChannel(w http.ResponseWriter, r *http.Request) {
 	})
 	for _, userID := range subs {
 		h.hub.SendToUser(userID, ws.Event{Type: "channel_message", ChatID: ch.ID, Payload: payload})
+		h.push.SendToUser(userID, notify.PushPayload{
+			Title: "#" + ch.Name,
+			Body:  truncate(req.Text, 100),
+			Tag:   "channel-" + ch.Name,
+			URL:   "/",
+		})
 	}
 
 	log.Printf("[channel] %s: sent to %d subscribers", ch.Name, len(subs))

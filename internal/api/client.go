@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/gorilla/websocket"
+	"github.com/pusk-platform/pusk/internal/notify"
 	"github.com/pusk-platform/pusk/internal/store"
 	"github.com/pusk-platform/pusk/internal/ws"
 )
@@ -20,12 +21,14 @@ var upgrader = websocket.Upgrader{
 
 // ClientAPI handles PWA client requests
 type ClientAPI struct {
-	store *store.Store
-	hub   *ws.Hub
+	store    *store.Store
+	hub      *ws.Hub
+	push     *notify.PushService
+	vapidPub string
 }
 
-func NewClientAPI(s *store.Store, hub *ws.Hub) *ClientAPI {
-	return &ClientAPI{store: s, hub: hub}
+func NewClientAPI(s *store.Store, hub *ws.Hub, push *notify.PushService, vapidPub string) *ClientAPI {
+	return &ClientAPI{store: s, hub: hub, push: push, vapidPub: vapidPub}
 }
 
 func (a *ClientAPI) Route(mux *http.ServeMux) {
@@ -43,6 +46,8 @@ func (a *ClientAPI) Route(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/channels/{channelID}/subscribe", a.subscribe)
 	mux.HandleFunc("POST /api/channels/{channelID}/unsubscribe", a.unsubscribe)
 	mux.HandleFunc("GET /api/channels/{channelID}/messages", a.channelMessages)
+	mux.HandleFunc("POST /api/push/subscribe", a.pushSubscribe)
+	mux.HandleFunc("GET /api/push/vapid", a.vapidKey)
 }
 
 func (a *ClientAPI) auth(w http.ResponseWriter, r *http.Request) {
@@ -281,6 +286,28 @@ func (a *ClientAPI) channelMessages(w http.ResponseWriter, r *http.Request) {
 		msgs = []store.ChannelMessage{}
 	}
 	json.NewEncoder(w).Encode(msgs)
+}
+
+
+func (a *ClientAPI) pushSubscribe(w http.ResponseWriter, r *http.Request) {
+	userID := getUserID(r)
+	var req struct {
+		Endpoint string `json:"endpoint"`
+		Keys struct {
+			P256dh string `json:"p256dh"`
+			Auth   string `json:"auth"`
+		} `json:"keys"`
+	}
+	json.NewDecoder(r.Body).Decode(&req)
+	if err := a.store.SavePushSubscription(userID, req.Endpoint, req.Keys.P256dh, req.Keys.Auth); err != nil {
+		http.Error(w, `{"error":"`+err.Error()+`"}`, 500)
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+}
+
+func (a *ClientAPI) vapidKey(w http.ResponseWriter, r *http.Request) {
+	json.NewEncoder(w).Encode(map[string]string{"key": a.vapidPub})
 }
 
 // ── Internal ──
