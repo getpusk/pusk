@@ -83,9 +83,9 @@ header .status{font-size:12px;color:var(--text2)}
 
 
 /* Settings panel */
-.settings-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:200}
+.settings-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.3);z-index:200}
 .settings-overlay.show{display:block}
-.settings-panel{position:absolute;top:48px;right:8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;min-width:200px}
+.settings-panel{position:fixed;top:48px;right:8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;min-width:200px;z-index:201;box-shadow:0 8px 24px rgba(0,0,0,0.4)}
 .settings-panel h3{font-size:14px;margin-bottom:12px;color:var(--text2)}
 .settings-item{display:flex;align-items:center;justify-content:space-between;padding:8px 0}
 .settings-item label{font-size:13px}
@@ -220,7 +220,12 @@ function applyLang() {
 }
 
 function toggleSettings() {
-  $('settings-overlay').classList.toggle('show');
+  const ov = $('settings-overlay');
+  if (ov.style.display === 'block') {
+    ov.style.display = 'none';
+  } else {
+    ov.style.display = 'block';
+  }
 }
 
 // ── Auth ──
@@ -288,7 +293,7 @@ function logout() {
   $('auth').style.display = 'flex';
   $('app').style.display = 'none';
   $('fab').style.display = 'none';
-  $('settings-overlay').classList.remove('show');
+  $('settings-overlay').style.display = 'none';
 }
 
 // ── App ──
@@ -391,7 +396,7 @@ function showBotList() {
 
 async function openChat(botId, botName) {
   $('fab').style.display = 'none';
-  $('settings-overlay').classList.remove('show');
+  $('settings-overlay').style.display = 'none';
   localStorage.setItem('pusk_last_view', JSON.stringify({type:'chat',id:botId,name:botName}));
   const chat = await api('POST', `/api/bots/${botId}/start`);
   currentChat = chat.id;
@@ -480,7 +485,7 @@ async function toggleSub(event, channelID) {
 
 async function openChannel(channelID, channelName) {
   $('fab').style.display = 'none';
-  $('settings-overlay').classList.remove('show');
+  $('settings-overlay').style.display = 'none';
   localStorage.setItem('pusk_last_view', JSON.stringify({type:'channel',id:channelID,name:channelName}));
   currentChannel = channelID;
   currentChat = null;
@@ -710,7 +715,7 @@ if (token) {
   }).catch(() => { logout(); });
 } else {
   $('fab').style.display = 'none';
-  $('settings-overlay').classList.remove('show');
+  $('settings-overlay').style.display = 'none';
 }
 // Register Service Worker for push notifications
 if ('serviceWorker' in navigator && 'PushManager' in window) {
@@ -748,7 +753,7 @@ function urlBase64ToUint8Array(base64String) {
 
 
 <!-- Settings -->
-<div class="settings-overlay" id="settings-overlay" onclick="if(event.target===this)toggleSettings()">
+<div class="settings-overlay" id="settings-overlay" onclick="if(event.target===this){this.style.display='none'}">
   <div class="settings-panel">
     <h3 id="s-title">Settings</h3>
     <div class="settings-item">
