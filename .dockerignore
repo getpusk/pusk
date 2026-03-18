@@ -1,5 +1,5 @@
-pusk
-pusk-linux
+/pusk
+/pusk-linux
 data/
 *.db
 .env
