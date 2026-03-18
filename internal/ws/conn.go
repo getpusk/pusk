@@ -40,7 +40,9 @@ func (c *Conn) Send(data []byte) {
 
 func (c *Conn) ReadPump(hub *Hub, onMessage func(userID int64, data []byte)) {
 	defer func() {
-		hub.Unregister(c.UserID, c)
+		if hub != nil {
+			hub.Unregister(c.UserID, c)
+		}
 		c.ws.Close()
 	}()
 	c.ws.SetReadLimit(maxMsgSize)
