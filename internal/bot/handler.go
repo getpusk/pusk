@@ -16,22 +16,35 @@ import (
 	"strings"
 
 	"github.com/pusk-platform/pusk/internal/notify"
+	"github.com/pusk-platform/pusk/internal/org"
 	"github.com/pusk-platform/pusk/internal/store"
 	"github.com/pusk-platform/pusk/internal/ws"
 )
 
 // Handler implements Telegram-compatible Bot API endpoints
 type Handler struct {
-	store    *store.Store
+	orgs     *org.Manager
+	store    *store.Store // default org store (backwards compat)
 	hub      *ws.Hub
 	push     *notify.PushService
 	relay    *RelayHub
 	filesDir string
 }
 
-func NewHandler(s *store.Store, hub *ws.Hub, push *notify.PushService, filesDir string) *Handler {
+func NewHandler(orgs *org.Manager, defaultStore *store.Store, hub *ws.Hub, push *notify.PushService, filesDir string) *Handler {
 	os.MkdirAll(filesDir, 0755)
-	return &Handler{store: s, hub: hub, push: push, relay: NewRelayHub(), filesDir: filesDir}
+	return &Handler{orgs: orgs, store: defaultStore, hub: hub, push: push, relay: NewRelayHub(), filesDir: filesDir}
+}
+
+// storeForRequest returns the Store for the bot's org based on token
+func (h *Handler) storeForRequest(r *http.Request) *store.Store {
+	token := r.Header.Get("X-Bot-Token")
+	if h.orgs != nil && token != "" {
+		if s, _, err := h.orgs.GetByToken(token); err == nil {
+			return s
+		}
+	}
+	return h.store
 }
 
 // Relay returns the relay hub for use by client API
@@ -106,11 +119,17 @@ type APIResponse struct {
 // ── Helpers ──
 
 func (h *Handler) authBot(r *http.Request) (*store.Bot, error) {
+	s := h.storeForRequest(r)
 	token := r.Header.Get("X-Bot-Token")
 	if token == "" {
 		return nil, fmt.Errorf("missing token")
 	}
-	return h.store.BotByToken(token)
+	return s.BotByToken(token)
+}
+
+// db returns the store for the current request (set by storeForRequest)
+func (h *Handler) db(r *http.Request) *store.Store {
+	return h.storeForRequest(r)
 }
 
 func jsonResp(w http.ResponseWriter, status int, resp APIResponse) {
@@ -173,7 +192,7 @@ func (h *Handler) sendMessage(w http.ResponseWriter, r *http.Request) {
 		markup = string(req.ReplyMarkup)
 	}
 
-	msg, err := h.store.SaveMessage(req.ChatID, "bot", req.Text, markup, "", "")
+	msg, err := h.db(r).SaveMessage(req.ChatID, "bot", req.Text, markup, "", "")
 	if err != nil {
 		jsonResp(w, 500, APIResponse{OK: false, Error: err.Error()})
 		return
@@ -203,12 +222,12 @@ func (h *Handler) editMessageText(w http.ResponseWriter, r *http.Request) {
 		markup = string(req.ReplyMarkup)
 	}
 
-	if err := h.store.UpdateMessageText(req.MessageID, req.Text, markup); err != nil {
+	if err := h.db(r).UpdateMessageText(req.MessageID, req.Text, markup); err != nil {
 		jsonResp(w, 500, APIResponse{OK: false, Error: err.Error()})
 		return
 	}
 
-	msg, _ := h.store.GetMessage(req.MessageID)
+	msg, _ := h.db(r).GetMessage(req.MessageID)
 	h.pushEditToChat(req.ChatID, bot, msg)
 
 	jsonResp(w, 200, APIResponse{OK: true, Result: msg})
@@ -227,7 +246,7 @@ func (h *Handler) deleteMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.store.DeleteMessage(req.MessageID)
+	h.db(r).DeleteMessage(req.MessageID)
 	jsonResp(w, 200, APIResponse{OK: true, Result: true})
 }
 
@@ -257,7 +276,7 @@ func (h *Handler) setWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.store.SetWebhook(bot.ID, req.URL)
+	h.db(r).SetWebhook(bot.ID, req.URL)
 	log.Printf("[bot] webhook set for %s: %s", bot.Name, req.URL)
 	jsonResp(w, 200, APIResponse{OK: true, Result: true})
 }
@@ -307,7 +326,7 @@ func (h *Handler) sendFile(fileType string) http.HandlerFunc {
 		size, _ := io.Copy(dst, file)
 		dst.Close()
 
-		h.store.SaveFile(fileID, bot.ID, header.Filename,
+		h.db(r).SaveFile(fileID, bot.ID, header.Filename,
 			header.Header.Get("Content-Type"), size, localPath)
 
 		text := caption
@@ -315,7 +334,7 @@ func (h *Handler) sendFile(fileType string) http.HandlerFunc {
 			text = "[" + fileType + "]"
 		}
 
-		msg, _ := h.store.SaveMessage(chatID, "bot", text, "", fileID, fileType)
+		msg, _ := h.db(r).SaveMessage(chatID, "bot", text, "", fileID, fileType)
 		h.pushMessageToChat(chatID, bot, msg)
 
 		jsonResp(w, 200, APIResponse{OK: true, Result: msg})
@@ -324,7 +343,7 @@ func (h *Handler) sendFile(fileType string) http.HandlerFunc {
 
 func (h *Handler) serveFile(w http.ResponseWriter, r *http.Request) {
 	fileID := r.PathValue("fileID")
-	f, err := h.store.GetFile(fileID)
+	f, err := h.store.GetFile(fileID) // file lookup uses default store (files are global)
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -396,7 +415,7 @@ func (h *Handler) createChannel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ch, err := h.store.CreateChannel(bot.ID, req.Name, req.Description)
+	ch, err := h.db(r).CreateChannel(bot.ID, req.Name, req.Description)
 	if err != nil {
 		jsonResp(w, 500, APIResponse{OK: false, Error: err.Error()})
 		return
@@ -419,7 +438,7 @@ func (h *Handler) sendChannel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ch, err := h.store.ChannelByName(bot.ID, req.Channel)
+	ch, err := h.db(r).ChannelByName(bot.ID, req.Channel)
 	if err != nil {
 		jsonResp(w, 404, APIResponse{OK: false, Error: "channel not found: " + req.Channel})
 		return
@@ -430,14 +449,14 @@ func (h *Handler) sendChannel(w http.ResponseWriter, r *http.Request) {
 		markup = string(req.ReplyMarkup)
 	}
 
-	msg, err := h.store.SaveChannelMessage(ch.ID, req.Text, markup, "", "")
+	msg, err := h.db(r).SaveChannelMessage(ch.ID, req.Text, markup, "", "")
 	if err != nil {
 		jsonResp(w, 500, APIResponse{OK: false, Error: err.Error()})
 		return
 	}
 
 	// Push to all subscribers via WebSocket
-	subs, _ := h.store.ChannelSubscribers(ch.ID)
+	subs, _ := h.db(r).ChannelSubscribers(ch.ID)
 	payload, _ := json.Marshal(map[string]interface{}{
 		"message":      msg,
 		"channel_name": ch.Name,
