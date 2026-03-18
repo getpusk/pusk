@@ -13,6 +13,7 @@ import (
 	"github.com/pusk-platform/pusk/internal/auth"
 	"github.com/pusk-platform/pusk/internal/bot"
 	"github.com/pusk-platform/pusk/internal/notify"
+	"github.com/pusk-platform/pusk/internal/org"
 	"github.com/pusk-platform/pusk/internal/store"
 	"github.com/pusk-platform/pusk/internal/ws"
 )
@@ -23,7 +24,8 @@ var upgrader = websocket.Upgrader{
 
 // ClientAPI handles PWA client requests
 type ClientAPI struct {
-	store    *store.Store
+	orgs     *org.Manager
+	store    *store.Store // default org store
 	hub      *ws.Hub
 	push     *notify.PushService
 	relay    *bot.RelayHub
@@ -31,10 +33,26 @@ type ClientAPI struct {
 	jwt      *auth.JWTService
 }
 
-func NewClientAPI(s *store.Store, hub *ws.Hub, push *notify.PushService, relay *bot.RelayHub, vapidPub string, jwtSvcParam *auth.JWTService) *ClientAPI {
-	svc := &ClientAPI{store: s, hub: hub, push: push, relay: relay, vapidPub: vapidPub, jwt: jwtSvcParam}
+func NewClientAPI(orgs *org.Manager, s *store.Store, hub *ws.Hub, push *notify.PushService, relay *bot.RelayHub, vapidPub string, jwtSvcParam *auth.JWTService) *ClientAPI {
+	svc := &ClientAPI{orgs: orgs, store: s, hub: hub, push: push, relay: relay, vapidPub: vapidPub, jwt: jwtSvcParam}
 	jwtSvc = jwtSvcParam
 	return svc
+}
+
+// db returns the Store for the org derived from JWT claims in the request
+func (a *ClientAPI) db(r *http.Request) *store.Store {
+	tokenStr := r.Header.Get("Authorization")
+	if tokenStr == "" {
+		tokenStr = r.URL.Query().Get("token")
+	}
+	if a.orgs != nil && jwtSvc != nil && tokenStr != "" {
+		if claims, err := jwtSvc.Validate(tokenStr); err == nil && claims.OrgID != "" {
+			if s, err := a.orgs.Get(claims.OrgID); err == nil {
+				return s
+			}
+		}
+	}
+	return a.store
 }
 
 func (a *ClientAPI) Route(mux *http.ServeMux) {
@@ -64,7 +82,7 @@ func (a *ClientAPI) auth(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewDecoder(r.Body).Decode(&req)
 
-	user, err := a.store.AuthUser(req.Username, req.Pin)
+	user, err := a.db(r).AuthUser(req.Username, req.Pin)
 	if err != nil {
 		http.Error(w, `{"error":"invalid credentials"}`, http.StatusUnauthorized)
 		return
@@ -89,7 +107,7 @@ func (a *ClientAPI) register(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewDecoder(r.Body).Decode(&req)
 
-	user, err := a.store.CreateUser(req.Username, req.Pin, req.DisplayName)
+	user, err := a.db(r).CreateUser(req.Username, req.Pin, req.DisplayName)
 	if err != nil {
 		http.Error(w, `{"error":"`+err.Error()+`"}`, 400)
 		return
@@ -103,7 +121,7 @@ func (a *ClientAPI) register(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) listBots(w http.ResponseWriter, r *http.Request) {
-	bots, err := a.store.ListBots()
+	bots, err := a.db(r).ListBots()
 	if err != nil {
 		http.Error(w, `{"error":"`+err.Error()+`"}`, 500)
 		return
@@ -123,7 +141,7 @@ func (a *ClientAPI) listBots(w http.ResponseWriter, r *http.Request) {
 
 func (a *ClientAPI) listChats(w http.ResponseWriter, r *http.Request) {
 	userID := getUserID(r)
-	chats, err := a.store.UserChats(userID)
+	chats, err := a.db(r).UserChats(userID)
 	if err != nil {
 		http.Error(w, `{"error":"`+err.Error()+`"}`, 500)
 		return
@@ -135,14 +153,14 @@ func (a *ClientAPI) startChat(w http.ResponseWriter, r *http.Request) {
 	userID := getUserID(r)
 	botID, _ := strconv.ParseInt(r.PathValue("botID"), 10, 64)
 
-	chat, err := a.store.GetOrCreateChat(userID, botID)
+	chat, err := a.db(r).GetOrCreateChat(userID, botID)
 	if err != nil {
 		http.Error(w, `{"error":"`+err.Error()+`"}`, 500)
 		return
 	}
 
 	// Send /start to bot via relay or webhook
-	b, _ := a.store.BotByID(botID)
+	b, _ := a.db(r).BotByID(botID)
 	if b != nil {
 		update := map[string]interface{}{
 			"update_id": chat.ID,
@@ -173,7 +191,7 @@ func (a *ClientAPI) chatMessages(w http.ResponseWriter, r *http.Request) {
 		limit, _ = strconv.Atoi(l)
 	}
 
-	msgs, err := a.store.ChatMessages(chatID, limit)
+	msgs, err := a.db(r).ChatMessages(chatID, limit)
 	if err != nil {
 		http.Error(w, `{"error":"`+err.Error()+`"}`, 500)
 		return
@@ -193,7 +211,7 @@ func (a *ClientAPI) sendToBot(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewDecoder(r.Body).Decode(&req)
 
-	msg, err := a.store.SaveMessage(chatID, "user", req.Text, "", "", "")
+	msg, err := a.db(r).SaveMessage(chatID, "user", req.Text, "", "", "")
 	if err != nil {
 		http.Error(w, `{"error":"`+err.Error()+`"}`, 500)
 		return
@@ -250,7 +268,7 @@ func (a *ClientAPI) health(w http.ResponseWriter, r *http.Request) {
 
 func (a *ClientAPI) listChannels(w http.ResponseWriter, r *http.Request) {
 	userID := getUserID(r)
-	channels, err := a.store.ListChannels()
+	channels, err := a.db(r).ListChannels()
 	if err != nil {
 		http.Error(w, `{"error":"`+err.Error()+`"}`, 500)
 		return
@@ -265,7 +283,7 @@ func (a *ClientAPI) listChannels(w http.ResponseWriter, r *http.Request) {
 	for _, ch := range channels {
 		result = append(result, channelInfo{
 			ID: ch.ID, Name: ch.Name, Description: ch.Description,
-			Subscribed: a.store.IsSubscribed(ch.ID, userID),
+			Subscribed: a.db(r).IsSubscribed(ch.ID, userID),
 		})
 	}
 	json.NewEncoder(w).Encode(result)
@@ -274,7 +292,7 @@ func (a *ClientAPI) listChannels(w http.ResponseWriter, r *http.Request) {
 func (a *ClientAPI) subscribe(w http.ResponseWriter, r *http.Request) {
 	userID := getUserID(r)
 	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
-	if err := a.store.Subscribe(channelID, userID); err != nil {
+	if err := a.db(r).Subscribe(channelID, userID); err != nil {
 		http.Error(w, `{"error":"`+err.Error()+`"}`, 500)
 		return
 	}
@@ -284,7 +302,7 @@ func (a *ClientAPI) subscribe(w http.ResponseWriter, r *http.Request) {
 func (a *ClientAPI) unsubscribe(w http.ResponseWriter, r *http.Request) {
 	userID := getUserID(r)
 	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
-	if err := a.store.Unsubscribe(channelID, userID); err != nil {
+	if err := a.db(r).Unsubscribe(channelID, userID); err != nil {
 		http.Error(w, `{"error":"`+err.Error()+`"}`, 500)
 		return
 	}
@@ -297,7 +315,7 @@ func (a *ClientAPI) channelMessages(w http.ResponseWriter, r *http.Request) {
 	if l := r.URL.Query().Get("limit"); l != "" {
 		limit, _ = strconv.Atoi(l)
 	}
-	msgs, err := a.store.ChannelMessages(channelID, limit)
+	msgs, err := a.db(r).ChannelMessages(channelID, limit)
 	if err != nil {
 		http.Error(w, `{"error":"`+err.Error()+`"}`, 500)
 		return
@@ -318,7 +336,7 @@ func (a *ClientAPI) pushSubscribe(w http.ResponseWriter, r *http.Request) {
 		} `json:"keys"`
 	}
 	json.NewDecoder(r.Body).Decode(&req)
-	if err := a.store.SavePushSubscription(userID, req.Endpoint, req.Keys.P256dh, req.Keys.Auth); err != nil {
+	if err := a.db(r).SavePushSubscription(userID, req.Endpoint, req.Keys.P256dh, req.Keys.Auth); err != nil {
 		http.Error(w, `{"error":"`+err.Error()+`"}`, 500)
 		return
 	}
@@ -331,7 +349,7 @@ func (a *ClientAPI) vapidKey(w http.ResponseWriter, r *http.Request) {
 
 func (a *ClientAPI) deleteMessage(w http.ResponseWriter, r *http.Request) {
 	msgID, _ := strconv.ParseInt(r.PathValue("msgID"), 10, 64)
-	if err := a.store.DeleteMessage(msgID); err != nil {
+	if err := a.db(r).DeleteMessage(msgID); err != nil {
 		http.Error(w, `{"error":"`+err.Error()+`"}`, 500)
 		return
 	}
