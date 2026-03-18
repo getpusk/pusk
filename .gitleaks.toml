@@ -22,12 +22,6 @@ title = "Pusk gitleaks rules"
   regex = '''[a-z0-9]+\.tail[a-z0-9]+\.ts\.net'''
   tags = ["network"]
 
-[[rules]]
-  id = "ai-tooling"
-  description = "AI tooling references"
-  regex = '''(claude|anthropic|мегамозг|megamozg|consilium)'''
-  tags = ["internal"]
-
 [allowlist]
   description = "Allowlist for false positives"
   paths = [
