@@ -105,6 +105,29 @@ API_URL = "https://your-server:8443"
 
 The JSON format for sendMessage, InlineKeyboardMarkup, CallbackQuery is identical.
 
+## Migration from Telegram
+
+### Python (aiogram)
+```diff
+- bot = Bot(token="YOUR_TOKEN")
++ bot = Bot(token="YOUR_TOKEN", base_url="https://your-pusk:8443/bot")
+```
+
+### Python (python-telegram-bot)
+```diff
+  app = Application.builder().token(TOKEN)
++     .base_url("https://your-pusk:8443/bot")
+      .build()
+```
+
+### Node.js (Telegraf)
+```diff
+  const bot = new Telegraf(TOKEN);
++ bot.telegram.options.apiRoot = "https://your-pusk:8443";
+```
+
+See [examples/](examples/) for complete working bots.
+
 ## Cloud
 
 Managed version at [getpusk.com](https://getpusk.com)
