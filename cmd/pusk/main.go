@@ -73,7 +73,7 @@ func main() {
 	botHandler.Route(mux)
 
 	// Client API (for PWA)
-	clientAPI := api.NewClientAPI(db, hub, push, vapidPub, jwtSvc)
+	clientAPI := api.NewClientAPI(db, hub, push, botHandler.Relay(), vapidPub, jwtSvc)
 	clientAPI.Route(mux)
 
 	// Static files (PWA)
