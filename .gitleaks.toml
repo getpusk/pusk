@@ -1,0 +1,36 @@
+# Gitleaks configuration for Pusk
+# https://github.com/gitleaks/gitleaks
+
+title = "Pusk gitleaks rules"
+
+# Internal infrastructure — private IPs and domains
+[[rules]]
+  id = "private-network"
+  description = "Private network addresses"
+  regex = '''(192\.168\.\d+\.\d+|10\.0\.\d+\.\d+|100\.81\.\d+\.\d+)'''
+  tags = ["network"]
+
+[[rules]]
+  id = "internal-domains"
+  description = "Internal domain names"
+  regex = '''[a-z0-9]+\.(lab|internal|local)\b'''
+  tags = ["network"]
+
+[[rules]]
+  id = "tailscale-hostnames"
+  description = "Tailscale MagicDNS hostnames"
+  regex = '''[a-z0-9]+\.tail[a-z0-9]+\.ts\.net'''
+  tags = ["network"]
+
+[[rules]]
+  id = "ai-tooling"
+  description = "AI tooling references"
+  regex = '''(claude|anthropic|мегамозг|megamozg|consilium)'''
+  tags = ["internal"]
+
+[allowlist]
+  description = "Allowlist for false positives"
+  paths = [
+    '''\.gitleaks\.toml$''',
+    '''\.gitignore$''',
+  ]
