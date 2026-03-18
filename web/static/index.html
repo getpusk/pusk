@@ -12,8 +12,46 @@
 body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);height:100dvh;display:flex;flex-direction:column;overflow:hidden}
 input,button,textarea,select{font-family:inherit;font-size:inherit}
 
+/* Landing */
+#landing{display:flex;height:100dvh;overflow:hidden}
+.land-left{flex:1;padding:48px 40px;display:flex;flex-direction:column;justify-content:center;max-width:520px;overflow-y:auto}
+.land-right{flex:1;display:flex;flex-direction:column;border-left:1px solid var(--border);max-width:440px}
+.land-logo{font-size:48px;font-weight:800;margin-bottom:4px}
+.land-tag{color:var(--accent);font-size:18px;margin-bottom:24px}
+.land-desc{color:var(--text2);font-size:15px;line-height:1.6;margin-bottom:24px}
+.land-stats{display:flex;gap:24px;margin-bottom:28px}
+.land-stat{text-align:center}
+.land-stat b{display:block;font-size:22px;color:var(--accent)}
+.land-stat span{font-size:12px;color:var(--text2)}
+.land-feat{list-style:none;margin-bottom:24px}
+.land-feat li{padding:6px 0;font-size:14px;color:var(--text2)}
+.land-feat li::before{content:'';display:inline-block;width:6px;height:6px;background:var(--primary);border-radius:50%;margin-right:10px;vertical-align:middle}
+.land-code{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;font-size:13px;line-height:1.5;margin-bottom:24px;overflow-x:auto;white-space:pre;font-family:monospace;color:var(--text2)}
+.land-code em{color:var(--accent);font-style:normal}
+.land-btns{display:flex;gap:10px;margin-bottom:16px}
+.land-btns a,.land-btns button{padding:14px 24px;border-radius:var(--radius);border:none;font-size:15px;font-weight:600;cursor:pointer;text-decoration:none;text-align:center}
+.land-btn-p{background:var(--primary);color:#fff;flex:1}
+.land-btn-p:hover{opacity:0.85}
+.land-btn-s{background:var(--surface);color:var(--text);border:1px solid var(--border)!important;flex:1}
+.land-btn-s:hover{border-color:var(--primary)!important}
+.land-links{font-size:12px;color:var(--text2)}
+.land-links a{color:var(--text2);text-decoration:none;margin-right:12px}
+.land-links a:hover{color:var(--accent)}
+.land-chat-hdr{background:var(--surface);padding:12px 16px;border-bottom:1px solid var(--border);font-weight:600;font-size:15px;display:flex;align-items:center;gap:8px}
+.land-chat-dot{width:8px;height:8px;border-radius:50%;background:#3db887}
+.land-chat-body{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:0}
+.land-chat-input{padding:10px 16px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center}
+.land-chat-input input{flex:1;padding:10px 14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px}
+.land-chat-input button{padding:10px 16px;border-radius:var(--radius);border:none;background:var(--primary);color:#fff;cursor:pointer;font-size:15px}
+@media(max-width:768px){
+  #landing{flex-direction:column}
+  .land-left{max-width:100%;padding:24px 20px;flex:none}
+  .land-right{max-width:100%;flex:1;border-left:none;border-top:1px solid var(--border)}
+  .land-stats{gap:16px}
+}
+
 /* Auth */
-#auth{display:flex;align-items:center;justify-content:center;height:100dvh;z-index:300}
+#auth{display:none;align-items:center;justify-content:center;height:100dvh;z-index:300}
 .auth-box{width:280px;text-align:center}
 .auth-logo{font-size:42px;font-weight:800;margin-bottom:4px}
 .auth-sub{color:var(--text2);font-size:14px;margin-bottom:28px}
@@ -101,6 +139,52 @@ header h2{font-size:16px;flex:1}
 </style>
 </head>
 <body>
+
+<div id="landing">
+  <div class="land-left">
+    <div class="land-logo">Pusk</div>
+    <div class="land-tag">Self-hosted Telegram Bot API</div>
+    <p class="land-desc">Бот-платформа, совместимая с Telegram. Ваши боты, ваш сервер, ваши данные. Один бинарник, без зависимостей.</p>
+    <div class="land-stats">
+      <div class="land-stat"><b>16 MB</b><span>бинарник</span></div>
+      <div class="land-stat"><b>3 MB</b><span>RAM</span></div>
+      <div class="land-stat"><b>21</b><span>API endpoint</span></div>
+      <div class="land-stat"><b>1 сек</b><span>старт</span></div>
+    </div>
+    <ul class="land-feat">
+      <li>Telegram Bot API — миграция в одну строку</li>
+      <li>Webhook Relay — localhost боты без ngrok</li>
+      <li>Каналы, inline-кнопки, Web Push</li>
+      <li>PWA клиент из коробки</li>
+      <li>Docker 18.9 MB, SQLite, zero config</li>
+    </ul>
+    <div class="land-code"><em># Было (Telegram)</em>
+bot = Bot(token="123:ABC",
+  base_url="https://api.telegram.org")
+
+<em># Стало (Pusk)</em>
+bot = Bot(token="my-token",
+  base_url="https://your-server.ru")</div>
+    <div class="land-btns">
+      <button class="land-btn-p" id="land-demo">Попробовать демо</button>
+      <a class="land-btn-s" href="https://github.com/getpusk/pusk" target="_blank">GitHub</a>
+    </div>
+    <div class="land-links">
+      <a href="https://github.com/getpusk/pusk#readme">Документация</a>
+      <a href="https://github.com/getpusk/pusk#migrating-from-telegram">Миграция</a>
+      <a href="#" id="land-login">Войти</a>
+      <span id="land-ver"></span>
+    </div>
+  </div>
+  <div class="land-right">
+    <div class="land-chat-hdr"><span class="land-chat-dot"></span> DemoBot — живой чат</div>
+    <div class="land-chat-body" id="land-msgs"></div>
+    <div class="land-chat-input">
+      <input id="land-input" placeholder="Напишите боту...">
+      <button id="land-send">&#8594;</button>
+    </div>
+  </div>
+</div>
 
 <div id="auth">
   <div class="auth-box">
@@ -205,7 +289,7 @@ $('btn-reg').onclick=async()=>{const u=$('a-user').value.trim(),p=$('a-pin').val
 $('btn-demo').onclick=async()=>{let r=await api('POST','/api/auth',{username:'guest',pin:'guest'});if(!r.token)r=await api('POST','/api/register',{username:'guest',pin:'guest',display_name:'Guest'});if(!r.token){$('a-err').textContent=t('err_demo');return}auth(r)};
 
 function auth(r){token=r.token;localStorage.setItem('pusk_token',token);localStorage.setItem('pusk_uid',r.user_id);localStorage.setItem('pusk_uname',r.username||'');showApp()}
-function logout(){token=null;curChat=null;curChan=null;localStorage.removeItem('pusk_token');localStorage.removeItem('pusk_uid');localStorage.removeItem('pusk_uname');localStorage.removeItem('pusk_view');if(ws)ws.close();$('auth').style.display='flex';$('app').style.display='none';$('fab').style.display='none';$('settings').style.display='none';$('settings-bg').style.display='none'}
+function logout(){token=null;curChat=null;curChan=null;localStorage.removeItem('pusk_token');localStorage.removeItem('pusk_uid');localStorage.removeItem('pusk_uname');localStorage.removeItem('pusk_view');if(ws)ws.close();$('landing').style.display='flex';$('auth').style.display='none';$('app').style.display='none';$('fab').style.display='none';$('settings').style.display='none';$('settings-bg').style.display='none';initLandingChat()}
 
 // ── App ──
 async function showApp(){$('auth').style.display='none';$('app').style.display='flex';const u=localStorage.getItem('pusk_uname')||'?';$('hdr-ava').textContent=u[0].toUpperCase();$('hdr-ava').style.background=nameColor(u);$('hdr-name').textContent=u;connectWS();await showList();const v=localStorage.getItem('pusk_view');if(v){try{const o=JSON.parse(v);if(o.t==='chat')openChat(o.id,o.n);else if(o.t==='ch')openChan(o.id,o.n)}catch{}}}
@@ -265,12 +349,68 @@ function connectWS(){if(!token)return;const p=location.protocol==='https:'?'wss:
 // ── Push ──
 if('serviceWorker' in navigator&&'PushManager' in window){navigator.serviceWorker.register('/sw.js').then(async reg=>{try{const r=await fetch('/api/push/vapid');const{key}=await r.json();if(!key)return;let sub=await reg.pushManager.getSubscription();if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:Uint8Array.from(atob(key.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-key.length%4)%4)),c=>c.charCodeAt(0))});fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json',Authorization:token},body:JSON.stringify(sub.toJSON())})}catch(e){console.log('Push:',e)}}).catch(()=>{})}
 
+// ── Landing live chat ──
+let landToken=null,landChat=null;
+async function landApi(method,path,body){
+  const o={method,headers:{'Content-Type':'application/json'}};
+  if(landToken)o.headers.Authorization=landToken;
+  if(body)o.body=JSON.stringify(body);
+  try{const r=await fetch(path,o);return await r.json()}catch{return{}}
+}
+function landAddMsg(who,text,tm){
+  const el=$('land-msgs');
+  const col=nameColor(who);
+  el.innerHTML+=`<div class="m"><div class="m-ava" style="background:${col}">${who[0].toUpperCase()}</div><div class="m-head"><span class="m-name">${esc(who)}</span><span class="m-time">${tm||''}</span></div><div class="m-text">${md(text||'')}</div></div>`;
+  el.scrollTop=el.scrollHeight;
+}
+async function initLandingChat(){
+  let r=await landApi('POST','/api/auth',{username:'guest',pin:'guest'});
+  if(!r.token)r=await landApi('POST','/api/register',{username:'guest',pin:'guest',display_name:'Guest'});
+  if(!r.token)return;
+  landToken=r.token;
+  const chat=await landApi('POST','/api/bots/1/start');
+  if(!chat.id)return;
+  landChat=chat.id;
+  const msgs=await landApi('GET',`/api/chats/${chat.id}/messages`);
+  if(msgs&&msgs.length)msgs.reverse().forEach(m=>{
+    const who=m.sender==='bot'?'DemoBot':'Guest';
+    landAddMsg(who,m.text,fmtTime(m.date));
+  });
+}
+$('land-send').onclick=landSend;
+$('land-input').onkeydown=e=>{if(e.key==='Enter')landSend()};
+async function landSend(){
+  const inp=$('land-input');const txt=inp.value.trim();if(!txt||!landChat)return;
+  inp.value='';landAddMsg('Guest',txt,'');
+  await landApi('POST',`/api/chats/${landChat}/send`,{text:txt});
+}
+function hideLanding(){$('landing').style.display='none'}
+$('land-login').onclick=e=>{e.preventDefault();hideLanding();$('auth').style.display='flex'}
+$('land-demo').onclick=async()=>{
+  // Auto-login as guest and switch to full app
+  let r=await api('POST','/api/auth',{username:'guest',pin:'guest'});
+  if(!r.token)r=await api('POST','/api/register',{username:'guest',pin:'guest',display_name:'Guest'});
+  if(!r.token)return;
+  hideLanding();auth(r);
+};
+
 // ── Init ──
 setLang();
-(async()=>{const h=await fetch('/api/health').then(r=>r.json()).catch(()=>({}));$('a-ver').textContent='v'+(h.version||'')})();
-// ?demo=1 auto-login from Habr link
-const _p=new URLSearchParams(location.search);if(_p.get('demo')==='1'&&!token){$('btn-demo').click()}
-else if(token){api('GET','/api/bots').then(r=>{if(r&&!r.error)showApp();else logout()}).catch(logout)}
+(async()=>{
+  const h=await fetch('/api/health').then(r=>r.json()).catch(()=>({}));
+  const ver='v'+(h.version||'');
+  $('a-ver').textContent=ver;
+  if($('land-ver'))$('land-ver').textContent=ver;
+})();
+const _p=new URLSearchParams(location.search);
+if(_p.get('demo')==='1'&&!token){
+  hideLanding();$('auth').style.display='flex';$('btn-demo').click();
+} else if(token){
+  hideLanding();api('GET','/api/bots').then(r=>{if(r&&!r.error)showApp();else logout()}).catch(logout);
+} else {
+  // Show landing with live chat
+  initLandingChat();
+}
 </script>
 </body>
 </html>
