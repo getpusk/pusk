@@ -189,7 +189,7 @@ func initDemo(db *store.Store) {
 	}
 	msgs, _ := db.ChatMessages(chat.ID, 1)
 	if len(msgs) == 0 {
-		welcome := "**DemoBot**\n\nWelcome to Pusk! I am a demo bot.\n\nTry the buttons below:"
+		welcome := "Welcome to Pusk! I am a demo bot.\n\nTry the buttons below:"
 		markup := `{"inline_keyboard":[[{"text":"What is Pusk?","callback_data":"about"},{"text":"How to deploy","callback_data":"deploy"}],[{"text":"Bot API docs","callback_data":"docs"},{"text":"GitHub ⭐","callback_data":"github"}]]}`
 		db.SaveMessage(chat.ID, "bot", welcome, markup, "", "")
 		log.Printf("[demo] welcome message sent to guest")
