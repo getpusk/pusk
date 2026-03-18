@@ -1,6 +1,8 @@
 [![License: MIT](https://img.shields.io/badge/License-BSL--1.1-blue.svg)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go&logoColor=white)](https://go.dev)
 
+![Pusk Demo](docs/demo.gif)
+
 > **Self-hosted Telegram-compatible bot platform.**
 >
 > One binary. Inline keyboards. Zero config.
