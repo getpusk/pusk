@@ -34,7 +34,7 @@ func initDemo(db *store.Store) {
 		log.Printf("[demo] MonitorBot created")
 	}
 
-	// ── Guest user ──
+	// ── Users ──
 	guest, err := db.AuthUser("guest", "guest")
 	if err != nil {
 		guest, err = db.CreateUser("guest", "guest", "Guest")
@@ -42,6 +42,18 @@ func initDemo(db *store.Store) {
 			return
 		}
 		log.Printf("[demo] guest user created")
+	}
+
+	// Test users (admin uses ADMIN_TOKEN, these are regular users for demo)
+	for _, u := range []struct{ name, pin, display string }{
+		{"pavel", "1234", "Pavel"},
+		{"alex", "1234", "Alex"},
+		{"ilya", "1234", "Ilya"},
+	} {
+		if _, err := db.AuthUser(u.name, u.pin); err != nil {
+			db.CreateUser(u.name, u.pin, u.display)
+			log.Printf("[demo] user %s created", u.name)
+		}
 	}
 
 	// ── DemoBot chat ──
@@ -107,8 +119,8 @@ var monitorBotMessages = []demoMsg{
 	{sender: "bot", text: "MonitorBot подключён. Мониторинг серверов активен.\n\nОтслеживаю: **3 сервера**, **12 сервисов**", markup: `{"inline_keyboard":[[{"text":"Статус","callback_data":"status"},{"text":"Последние алерты","callback_data":"alerts"}]]}`},
 	{sender: "user", text: "/status"},
 	{sender: "bot", text: "**Статус серверов:**\n\nweb-01 — CPU 23%, RAM 1.2/4 GB\nweb-02 — CPU 18%, RAM 1.4/4 GB\ndb-01 — CPU 45%, RAM 6.1/8 GB\n\nВсе сервисы работают штатно.", markup: `{"inline_keyboard":[[{"text":"Обновить","callback_data":"status"}]]}`},
-	{sender: "bot", text: "**ALERT** `HighMemory`\nСервер: *db-01*\nRAM: 92% (7.4/8 GB)\nMySQL buffer pool — основной потребитель"},
-	{sender: "bot", text: "Resolved: `HighMemory` на *db-01*\nRAM: 68% после автоочистки кеша"},
+	{sender: "bot", text: "**ALERT #1047** `HighMemory`\nСервер: *db-01*\nRAM: 92% (7.4/8 GB)\nMySQL buffer pool — основной потребитель"},
+	{sender: "bot", text: "**Resolved #1047** `HighMemory` на *db-01*\nRAM: 68% после автоочистки кеша"},
 }
 
 var updatesChanMessages = []string{
@@ -117,10 +129,10 @@ var updatesChanMessages = []string{
 }
 
 var alertsChanMessages = []string{
-	"**ALERT** `HighCPU`\nСервер: *web-01*\nCPU: 94% более 5 минут\nПричина: индексация поисковым ботом",
-	"Resolved: `HighCPU` на *web-01* — нагрузка снизилась до 31%",
-	"**ALERT** `DiskSpace`\nСервер: *db-01*\nДиск: 89% занято (178/200 GB)\nРекомендация: очистить старые бекапы",
-	"Resolved: `DiskSpace` на *db-01* — удалены бекапы старше 30 дней, занято 52%",
+	"**ALERT #1043** `HighCPU`\nСервер: *web-01*\nCPU: 94% более 5 минут\nПричина: индексация поисковым ботом",
+	"**Resolved #1043** `HighCPU` на *web-01* — нагрузка снизилась до 31%",
+	"**ALERT #1044** `DiskSpace`\nСервер: *db-01*\nДиск: 89% занято (178/200 GB)\nРекомендация: очистить старые бекапы",
+	"**Resolved #1044** `DiskSpace` на *db-01* — удалены бекапы старше 30 дней, занято 52%",
 }
 
 var deploysChanMessages = []string{
