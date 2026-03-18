@@ -5,4 +5,3 @@ data/
 *.db
 .env
 *.secret
-CLAUDE.md
