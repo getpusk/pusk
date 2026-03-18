@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
 	_ "modernc.org/sqlite"
 )
 
@@ -193,8 +194,12 @@ type User struct {
 }
 
 func (s *Store) CreateUser(username, pin, displayName string) (*User, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(pin), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("hash pin: %w", err)
+	}
 	res, err := s.db.Exec("INSERT INTO users (username, pin, display_name) VALUES (?, ?, ?)",
-		username, pin, displayName)
+		username, string(hash), displayName)
 	if err != nil {
 		return nil, err
 	}
@@ -204,10 +209,14 @@ func (s *Store) CreateUser(username, pin, displayName string) (*User, error) {
 
 func (s *Store) AuthUser(username, pin string) (*User, error) {
 	u := &User{}
-	err := s.db.QueryRow("SELECT id, username, COALESCE(display_name,'') FROM users WHERE username=? AND pin=?",
-		username, pin).Scan(&u.ID, &u.Username, &u.DisplayName)
+	var storedHash string
+	err := s.db.QueryRow("SELECT id, username, COALESCE(display_name,''), pin FROM users WHERE username=?",
+		username).Scan(&u.ID, &u.Username, &u.DisplayName, &storedHash)
 	if err != nil {
 		return nil, err
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(pin)); err != nil {
+		return nil, fmt.Errorf("invalid pin")
 	}
 	return u, nil
 }

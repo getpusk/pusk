@@ -3,11 +3,14 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/pusk-platform/pusk/internal/api"
 	"github.com/pusk-platform/pusk/internal/auth"
@@ -59,11 +62,7 @@ func main() {
 	// JWT auth
 	jwtSecret := os.Getenv("PUSK_JWT_SECRET")
 	if jwtSecret == "" {
-		if len(vapidPub) >= 16 {
-			jwtSecret = "pusk-" + vapidPub[:16]
-		} else {
-			jwtSecret = "pusk-default-jwt-secret"
-		} // derive from VAPID if not set
+		jwtSecret = loadOrGenerateSecret("data/jwt.secret")
 	}
 	jwtSvc := auth.NewJWTService(jwtSecret, 720) // 30 days
 
@@ -80,17 +79,18 @@ func main() {
 	// Static files (PWA)
 	mux.Handle("GET /", http.FileServer(http.Dir(*staticDir)))
 
+	// Admin auth helper
+	adminToken := os.Getenv("PUSK_ADMIN_TOKEN")
+	checkAdmin := func(r *http.Request) bool {
+		if adminToken == "" {
+			return false
+		}
+		return strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ") == adminToken
+	}
+
 	// Admin: register bot
 	mux.HandleFunc("POST /admin/bots", func(w http.ResponseWriter, r *http.Request) {
-		adminToken := os.Getenv("PUSK_ADMIN_TOKEN")
-		authHeader := r.Header.Get("Authorization")
-		isAdmin := adminToken != "" && authHeader == adminToken
-		isUser := false
-		if jwtSvc != nil && authHeader != "" {
-			_, err := jwtSvc.Validate(authHeader)
-			isUser = err == nil
-		}
-		if !isAdmin && !isUser {
+		if !checkAdmin(r) {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
@@ -113,6 +113,10 @@ func main() {
 	})
 
 	mux.HandleFunc("POST /admin/channel", func(w http.ResponseWriter, r *http.Request) {
+		if !checkAdmin(r) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
 		var req struct {
 			Name        string `json:"name"`
 			Description string `json:"description"`
@@ -148,4 +152,22 @@ func main() {
 	if err := http.ListenAndServe(*addr, mux); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+func loadOrGenerateSecret(path string) string {
+	data, err := os.ReadFile(path)
+	if err == nil {
+		s := strings.TrimSpace(string(data))
+		if len(s) >= 32 {
+			return s
+		}
+	}
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		log.Fatalf("Failed to generate JWT secret: %v", err)
+	}
+	secret := hex.EncodeToString(b)
+	os.WriteFile(path, []byte(secret+"\n"), 0600)
+	log.Printf("  JWT:        generated new secret → %s", path)
+	return secret
 }
