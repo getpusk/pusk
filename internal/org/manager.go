@@ -74,6 +74,10 @@ func (m *Manager) RegisterToken(token, orgSlug string) {
 	m.tokDB.Exec("INSERT OR REPLACE INTO tokens (token, org) VALUES (?, ?)", token, orgSlug)
 }
 
+func (m *Manager) registerTokenLocked(token, orgSlug string) {
+	m.tokDB.Exec("INSERT OR REPLACE INTO tokens (token, org) VALUES (?, ?)", token, orgSlug)
+}
+
 // OrgByToken looks up which org a bot token belongs to
 func (m *Manager) OrgByToken(token string) (string, error) {
 	var slug string
@@ -163,6 +167,14 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 	_, err = s.CreateUser(adminUser, adminPin, adminUser)
 	if err != nil {
 		return fmt.Errorf("create admin: %w", err)
+	}
+
+	// Create default system bot (needed for channels)
+	botToken := slug + "-system-" + fmt.Sprintf("%d", len(m.orgs))
+	sysBot, _ := s.CreateBot(botToken, name+" Bot")
+	if sysBot != nil {
+		m.registerTokenLocked(botToken, slug)
+		log.Printf("[org] system bot created: %s (token: %s)", sysBot.Name, botToken)
 	}
 
 	m.orgs = append(m.orgs, Org{
