@@ -167,7 +167,10 @@ bot = Bot(token="my-token",
   base_url="https://your-server.ru")</div>
     <div class="land-btns">
       <button class="land-btn-p" id="land-demo">Попробовать демо</button>
-      <a class="land-btn-s" href="https://github.com/getpusk/pusk" target="_blank">GitHub</a>
+      <button class="land-btn-s" id="land-create-org">Создать организацию</button>
+    </div>
+    <div class="land-btns" style="margin-top:0">
+      <a class="land-btn-s" href="https://github.com/getpusk/pusk" target="_blank" style="font-size:13px;padding:10px 16px;color:var(--text2)">GitHub</a>
     </div>
     <div class="land-links">
       <a href="https://github.com/getpusk/pusk#readme">Документация</a>
@@ -192,6 +195,7 @@ bot = Bot(token="my-token",
     <p class="auth-sub" id="auth-sub"></p>
     <input id="a-user" autocomplete="username">
     <input id="a-pin" type="password" autocomplete="current-password">
+    <input id="a-org" placeholder="Организация (необязательно)" style="font-size:13px;padding:10px 16px">
     <button class="abtn abtn-p" id="btn-login"></button>
     <button class="abtn abtn-s" id="btn-reg"></button>
     <button class="abtn abtn-g" id="btn-demo"></button>
@@ -243,6 +247,21 @@ bot = Bot(token="my-token",
   </div>
 </div>
 
+<div class="modal-bg" id="org-modal-bg">
+  <div class="modal">
+    <h3>Создать организацию</h3>
+    <input id="org-slug" placeholder="ID организации (латиница, напр: acme)">
+    <input id="org-name" placeholder="Название (напр: Acme Corp)">
+    <input id="org-user" placeholder="Логин администратора">
+    <input id="org-pin" type="password" placeholder="Пин-код">
+    <div class="modal-btns">
+      <button class="mbtn-no" id="org-cancel">Отмена</button>
+      <button class="mbtn-ok" id="org-ok">Создать</button>
+    </div>
+    <div class="modal-msg" id="org-msg"></div>
+  </div>
+</div>
+
 <script>
 // ── i18n ──
 const L={
@@ -284,8 +303,8 @@ function md(s){if(!s)return'';let h=s;const bl=[];h=h.replace(/```([\s\S]*?)```/
 async function api(method,path,body){const o={method,headers:{'Content-Type':'application/json'}};if(token)o.headers.Authorization=token;if(body)o.body=JSON.stringify(body);try{const r=await fetch(path,o);const txt=await r.text();if(!r.ok)console.warn('[pusk]',method,path,r.status);try{return JSON.parse(txt)}catch{return{error:txt}}}catch(e){return{error:e.message}}}
 
 // ── Auth ──
-$('btn-login').onclick=async()=>{const u=$('a-user').value.trim(),p=$('a-pin').value.trim();if(!u||!p){$('a-err').textContent=t('err_empty');return}const r=await api('POST','/api/auth',{username:u,pin:p});if(r.error||!r.token){$('a-err').textContent=t('err_wrong');return}auth(r)};
-$('btn-reg').onclick=async()=>{const u=$('a-user').value.trim(),p=$('a-pin').value.trim();if(!u||!p){$('a-err').textContent=t('err_empty');return}const r=await api('POST','/api/register',{username:u,pin:p,display_name:u});if(r.error){$('a-err').textContent=r.error.includes('UNIQUE')?u+' '+t('err_taken'):r.error;return}auth(r)};
+$('btn-login').onclick=async()=>{const u=$('a-user').value.trim(),p=$('a-pin').value.trim(),o=$('a-org').value.trim()||undefined;if(!u||!p){$('a-err').textContent=t('err_empty');return}const r=await api('POST','/api/auth',{username:u,pin:p,org:o});if(r.error||!r.token){$('a-err').textContent=t('err_wrong');return}auth(r)};
+$('btn-reg').onclick=async()=>{const u=$('a-user').value.trim(),p=$('a-pin').value.trim(),o=$('a-org').value.trim()||undefined;if(!u||!p){$('a-err').textContent=t('err_empty');return}const r=await api('POST','/api/register',{username:u,pin:p,display_name:u,org:o});if(r.error){$('a-err').textContent=r.error.includes('UNIQUE')?u+' '+t('err_taken'):r.error;return}auth(r)};
 $('btn-demo').onclick=async()=>{let r=await api('POST','/api/auth',{username:'guest',pin:'guest'});if(!r.token)r=await api('POST','/api/register',{username:'guest',pin:'guest',display_name:'Guest'});if(!r.token){$('a-err').textContent=t('err_demo');return}auth(r)};
 
 function auth(r){token=r.token;localStorage.setItem('pusk_token',token);localStorage.setItem('pusk_uid',r.user_id);localStorage.setItem('pusk_uname',r.username||'');showApp()}
@@ -387,11 +406,31 @@ async function landSend(){
 function hideLanding(){$('landing').style.display='none'}
 $('land-login').onclick=e=>{e.preventDefault();hideLanding();$('auth').style.display='flex'}
 $('land-demo').onclick=async()=>{
-  // Auto-login as guest and switch to full app
   let r=await api('POST','/api/auth',{username:'guest',pin:'guest'});
   if(!r.token)r=await api('POST','/api/register',{username:'guest',pin:'guest',display_name:'Guest'});
   if(!r.token)return;
   hideLanding();auth(r);
+};
+
+// ── Org creation ──
+$('land-create-org').onclick=()=>{$('org-modal-bg').classList.add('open');$('org-slug').focus()};
+$('org-cancel').onclick=()=>$('org-modal-bg').classList.remove('open');
+$('org-modal-bg').onclick=e=>{if(e.target===$('org-modal-bg'))$('org-modal-bg').classList.remove('open')};
+$('org-ok').onclick=async()=>{
+  const slug=$('org-slug').value.trim().toLowerCase().replace(/[^a-z0-9-]/g,'');
+  const name=$('org-name').value.trim()||slug;
+  const user=$('org-user').value.trim();
+  const pin=$('org-pin').value.trim();
+  const msg=$('org-msg');
+  if(!slug||!user||!pin){msg.textContent='Заполните все поля';msg.style.color='#e05d44';return}
+  msg.textContent='';
+  const r=await api('POST','/api/org/register',{slug,name,username:user,pin});
+  if(r.ok&&r.token){
+    msg.textContent=name+' создана!';msg.style.color='#3db887';
+    setTimeout(()=>{$('org-modal-bg').classList.remove('open');hideLanding();auth(r)},800);
+  } else {
+    msg.textContent=r.error||'Ошибка';msg.style.color='#e05d44';
+  }
 };
 
 // ── Init ──
