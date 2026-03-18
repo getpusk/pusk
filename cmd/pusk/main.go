@@ -16,13 +16,12 @@ import (
 	"github.com/pusk-platform/pusk/internal/auth"
 	"github.com/pusk-platform/pusk/internal/bot"
 	"github.com/pusk-platform/pusk/internal/notify"
-	"github.com/pusk-platform/pusk/internal/store"
+	"github.com/pusk-platform/pusk/internal/org"
 	"github.com/pusk-platform/pusk/internal/ws"
 )
 
 func main() {
 	addr := flag.String("addr", ":8443", "listen address")
-	dbPath := flag.String("db", "data/pusk.db", "SQLite database path")
 	filesDir := flag.String("files", "data/files", "uploaded files directory")
 	staticDir := flag.String("static", "web/static", "PWA static files")
 	flag.Parse()
@@ -30,18 +29,21 @@ func main() {
 	if v := os.Getenv("PUSK_ADDR"); v != "" {
 		*addr = v
 	}
-	if v := os.Getenv("PUSK_DB"); v != "" {
-		*dbPath = v
-	}
-
 	os.MkdirAll("data", 0755)
 	os.MkdirAll(*filesDir, 0755)
 
-	db, err := store.New(*dbPath)
+	// Multi-tenant org manager
+	orgs, err := org.NewManager("data")
 	if err != nil {
-		log.Fatalf("Failed to init database: %v", err)
+		log.Fatalf("Failed to init org manager: %v", err)
 	}
-	defer db.Close()
+	defer orgs.Close()
+
+	// Default org store (backwards compatible)
+	db, err := orgs.Get("default")
+	if err != nil {
+		log.Fatalf("Failed to init default org: %v", err)
+	}
 
 	// Demo mode: create guest user + DemoBot on first start
 	if os.Getenv("PUSK_NO_DEMO") == "" {
@@ -69,11 +71,11 @@ func main() {
 	mux := http.NewServeMux()
 
 	// Bot API (Telegram-compatible)
-	botHandler := bot.NewHandler(db, hub, push, *filesDir)
+	botHandler := bot.NewHandler(orgs, db, hub, push, *filesDir)
 	botHandler.Route(mux)
 
 	// Client API (for PWA)
-	clientAPI := api.NewClientAPI(db, hub, push, botHandler.Relay(), vapidPub, jwtSvc)
+	clientAPI := api.NewClientAPI(orgs, db, hub, push, botHandler.Relay(), vapidPub, jwtSvc)
 	clientAPI.Route(mux)
 
 	// Static files (PWA)
@@ -141,6 +143,41 @@ func main() {
 		log.Printf("[admin] channel created: %s", ch.Name)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "result": ch})
+	})
+
+	// Org registration
+	mux.HandleFunc("POST /api/org/register", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Slug     string `json:"slug"`
+			Name     string `json:"name"`
+			Username string `json:"username"`
+			Pin      string `json:"pin"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, `{"error":"`+err.Error()+`"}`, 400)
+			return
+		}
+		if req.Slug == "" || req.Username == "" || req.Pin == "" {
+			http.Error(w, `{"error":"slug, username and pin required"}`, 400)
+			return
+		}
+		if err := orgs.Register(req.Slug, req.Name, req.Username, req.Pin); err != nil {
+			http.Error(w, `{"error":"`+err.Error()+`"}`, 400)
+			return
+		}
+		// Generate JWT for the new admin
+		s, _ := orgs.Get(req.Slug)
+		user, _ := s.AuthUser(req.Username, req.Pin)
+		tok, _ := jwtSvc.Generate(user.ID, req.Slug, req.Username)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":       true,
+			"org":      req.Slug,
+			"token":    tok,
+			"user_id":  user.ID,
+			"username": req.Username,
+		})
+		log.Printf("[org] registered: %s by %s", req.Slug, req.Username)
 	})
 
 	log.Printf("Pusk server starting on %s", *addr)

@@ -11,6 +11,9 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// Now returns current time in RFC3339 format
+func Now() string { return time.Now().UTC().Format(time.RFC3339) }
+
 type Store struct {
 	db *sql.DB
 }
