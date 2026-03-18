@@ -268,7 +268,9 @@ if('serviceWorker' in navigator&&'PushManager' in window){navigator.serviceWorke
 // ── Init ──
 setLang();
 (async()=>{const h=await fetch('/api/health').then(r=>r.json()).catch(()=>({}));$('a-ver').textContent='v'+(h.version||'')})();
-if(token){api('GET','/api/bots').then(r=>{if(r&&!r.error)showApp();else logout()}).catch(logout)}
+// ?demo=1 auto-login from Habr link
+const _p=new URLSearchParams(location.search);if(_p.get('demo')==='1'&&!token){$('btn-demo').click()}
+else if(token){api('GET','/api/bots').then(r=>{if(r&&!r.error)showApp();else logout()}).catch(logout)}
 </script>
 </body>
 </html>
