@@ -17,6 +17,7 @@ import (
 	"github.com/pusk-platform/pusk/internal/bot"
 	"github.com/pusk-platform/pusk/internal/notify"
 	"github.com/pusk-platform/pusk/internal/org"
+	"github.com/pusk-platform/pusk/internal/store"
 	"github.com/pusk-platform/pusk/internal/ws"
 )
 
@@ -81,18 +82,29 @@ func main() {
 	// Static files (PWA)
 	mux.Handle("GET /", http.FileServer(http.Dir(*staticDir)))
 
-	// Admin auth helper
+	// Auth helper: ADMIN_TOKEN (global) or JWT (org user)
 	adminToken := os.Getenv("PUSK_ADMIN_TOKEN")
-	checkAdmin := func(r *http.Request) bool {
-		if adminToken == "" {
-			return false
+	getOrgStore := func(r *http.Request) (*store.Store, bool) {
+		authHeader := r.Header.Get("Authorization")
+		// Try ADMIN_TOKEN first (global admin → default org)
+		if adminToken != "" && strings.TrimPrefix(authHeader, "Bearer ") == adminToken {
+			return db, true
 		}
-		return strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ") == adminToken
+		// Try JWT (org user → their org store)
+		if jwtSvc != nil && authHeader != "" {
+			if claims, err := jwtSvc.Validate(authHeader); err == nil {
+				if s, err := orgs.Get(claims.OrgID); err == nil {
+					return s, true
+				}
+			}
+		}
+		return nil, false
 	}
 
 	// Admin: register bot
 	mux.HandleFunc("POST /admin/bots", func(w http.ResponseWriter, r *http.Request) {
-		if !checkAdmin(r) {
+		s, ok := getOrgStore(r)
+		if !ok {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
@@ -104,10 +116,17 @@ func main() {
 			http.Error(w, err.Error(), 400)
 			return
 		}
-		b, err := db.CreateBot(req.Token, req.Name)
+		b, err := s.CreateBot(req.Token, req.Name)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
+		}
+		// Register token globally for Bot API routing
+		claims, _ := jwtSvc.Validate(r.Header.Get("Authorization"))
+		if claims != nil {
+			orgs.RegisterToken(req.Token, claims.OrgID)
+		} else {
+			orgs.RegisterToken(req.Token, "default")
 		}
 		log.Printf("[admin] bot registered: %s (token: %s...)", b.Name, b.Token[:8])
 		w.Header().Set("Content-Type", "application/json")
@@ -115,7 +134,8 @@ func main() {
 	})
 
 	mux.HandleFunc("POST /admin/channel", func(w http.ResponseWriter, r *http.Request) {
-		if !checkAdmin(r) {
+		s, ok := getOrgStore(r)
+		if !ok {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
@@ -128,13 +148,13 @@ func main() {
 			json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": err.Error()})
 			return
 		}
-		bots, _ := db.ListBots()
+		bots, _ := s.ListBots()
 		if len(bots) == 0 {
 			w.WriteHeader(400)
 			json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": "create a bot first"})
 			return
 		}
-		ch, err := db.CreateChannel(bots[0].ID, req.Name, req.Description)
+		ch, err := s.CreateChannel(bots[0].ID, req.Name, req.Description)
 		if err != nil {
 			w.WriteHeader(500)
 			json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": err.Error()})
