@@ -360,7 +360,7 @@ func (s *Store) ChatBotID(chatID int64) (int64, error) {
 
 func (s *Store) BotByID(id int64) (*Bot, error) {
 	b := &Bot{}
-	err := s.db.QueryRow("SELECT id, token, name, COALESCE(webhook_url,\x27\x27) FROM bots WHERE id=?", id).
+	err := s.db.QueryRow("SELECT id, token, name, COALESCE(webhook_url,''), COALESCE(icon_url,'') FROM bots WHERE id=?", id).
 		Scan(&b.ID, &b.Token, &b.Name, &b.WebhookURL, &b.IconURL)
 	if err != nil {
 		return nil, err

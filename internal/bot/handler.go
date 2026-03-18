@@ -25,12 +25,43 @@ type Handler struct {
 	store    *store.Store
 	hub      *ws.Hub
 	push     *notify.PushService
+	relay    *RelayHub
 	filesDir string
 }
 
 func NewHandler(s *store.Store, hub *ws.Hub, push *notify.PushService, filesDir string) *Handler {
 	os.MkdirAll(filesDir, 0755)
-	return &Handler{store: s, hub: hub, push: push, filesDir: filesDir}
+	return &Handler{store: s, hub: hub, push: push, relay: NewRelayHub(), filesDir: filesDir}
+}
+
+// Relay returns the relay hub for use by client API
+func (h *Handler) Relay() *RelayHub { return h.relay }
+
+// relayWebSocket handles GET /bot/{token}/relay — bot connects here
+// to receive Telegram-compatible Updates via WebSocket instead of HTTP webhook.
+func (h *Handler) relayWebSocket(w http.ResponseWriter, r *http.Request) {
+	bot, err := h.authBot(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	wsConn, err := relayUpgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+
+	conn := ws.NewConn(wsConn, bot.ID)
+	h.relay.Register(bot.ID, conn)
+
+	// Send confirmation
+	conn.Send([]byte(`{"type":"connected","bot_id":` + strconv.FormatInt(bot.ID, 10) + `}`))
+
+	go conn.WritePump()
+
+	// ReadPump blocks — unregister on disconnect
+	conn.ReadPump(nil, nil)
+	h.relay.Unregister(bot.ID, conn)
 }
 
 // ── Telegram-compatible types ──

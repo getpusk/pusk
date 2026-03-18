@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/pusk-platform/pusk/internal/auth"
+	"github.com/pusk-platform/pusk/internal/bot"
 	"github.com/pusk-platform/pusk/internal/notify"
 	"github.com/pusk-platform/pusk/internal/store"
 	"github.com/pusk-platform/pusk/internal/ws"
@@ -25,12 +26,13 @@ type ClientAPI struct {
 	store    *store.Store
 	hub      *ws.Hub
 	push     *notify.PushService
+	relay    *bot.RelayHub
 	vapidPub string
 	jwt      *auth.JWTService
 }
 
-func NewClientAPI(s *store.Store, hub *ws.Hub, push *notify.PushService, vapidPub string, jwtSvcParam *auth.JWTService) *ClientAPI {
-	svc := &ClientAPI{store: s, hub: hub, push: push, vapidPub: vapidPub, jwt: jwtSvcParam}
+func NewClientAPI(s *store.Store, hub *ws.Hub, push *notify.PushService, relay *bot.RelayHub, vapidPub string, jwtSvcParam *auth.JWTService) *ClientAPI {
+	svc := &ClientAPI{store: s, hub: hub, push: push, relay: relay, vapidPub: vapidPub, jwt: jwtSvcParam}
 	jwtSvc = jwtSvcParam
 	return svc
 }
@@ -139,10 +141,10 @@ func (a *ClientAPI) startChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Send /start to bot webhook
-	bot, _ := a.store.BotByID(botID)
-	if bot != nil && bot.WebhookURL != "" {
-		go sendWebhook(bot.WebhookURL, map[string]interface{}{
+	// Send /start to bot via relay or webhook
+	b, _ := a.store.BotByID(botID)
+	if b != nil {
+		update := map[string]interface{}{
 			"update_id": chat.ID,
 			"message": map[string]interface{}{
 				"message_id": 0,
@@ -150,7 +152,15 @@ func (a *ClientAPI) startChat(w http.ResponseWriter, r *http.Request) {
 				"from":       map[string]interface{}{"id": userID},
 				"text":       "/start",
 			},
-		})
+		}
+		go func() {
+			if a.relay != nil && a.relay.Send(b.ID, update) {
+				return
+			}
+			if b.WebhookURL != "" && !bot.IsLocalURL(b.WebhookURL) {
+				sendWebhook(b.WebhookURL, update)
+			}
+		}()
 	}
 
 	json.NewEncoder(w).Encode(chat)
@@ -360,13 +370,13 @@ func (a *ClientAPI) forwardToBot(chatID, userID int64, msg *store.Message) {
 		return
 	}
 
-	bot, err := a.store.BotByID(botID)
-	if err != nil || bot.WebhookURL == "" {
-		log.Printf("[webhook] bot %d has no webhook", botID)
+	b, err := a.store.BotByID(botID)
+	if err != nil {
+		log.Printf("[webhook] bot %d not found", botID)
 		return
 	}
 
-	sendWebhook(bot.WebhookURL, map[string]interface{}{
+	update := map[string]interface{}{
 		"update_id": msg.ID,
 		"message": map[string]interface{}{
 			"message_id": msg.ID,
@@ -375,7 +385,20 @@ func (a *ClientAPI) forwardToBot(chatID, userID int64, msg *store.Message) {
 			"text":       msg.Text,
 			"date":       msg.CreatedAt,
 		},
-	})
+	}
+
+	// Try relay first (bot connected via WebSocket)
+	if a.relay != nil && a.relay.Send(botID, update) {
+		log.Printf("[relay] forwarded to bot %s (ws)", b.Name)
+		return
+	}
+
+	// Fall back to HTTP webhook
+	if b.WebhookURL == "" || bot.IsLocalURL(b.WebhookURL) {
+		log.Printf("[webhook] bot %s: no webhook and not connected via relay", b.Name)
+		return
+	}
+	sendWebhook(b.WebhookURL, update)
 }
 
 func (a *ClientAPI) forwardCallback(chatID, userID int64, data string, messageID int64) {
@@ -384,12 +407,12 @@ func (a *ClientAPI) forwardCallback(chatID, userID int64, data string, messageID
 		return
 	}
 
-	bot, err := a.store.BotByID(botID)
-	if err != nil || bot.WebhookURL == "" {
+	b, err := a.store.BotByID(botID)
+	if err != nil {
 		return
 	}
 
-	sendWebhook(bot.WebhookURL, map[string]interface{}{
+	update := map[string]interface{}{
 		"update_id": messageID,
 		"callback_query": map[string]interface{}{
 			"id":   strconv.FormatInt(messageID, 10),
@@ -400,7 +423,18 @@ func (a *ClientAPI) forwardCallback(chatID, userID int64, data string, messageID
 			},
 			"data": data,
 		},
-	})
+	}
+
+	// Try relay first
+	if a.relay != nil && a.relay.Send(botID, update) {
+		return
+	}
+
+	// Fall back to HTTP webhook
+	if b.WebhookURL == "" || bot.IsLocalURL(b.WebhookURL) {
+		return
+	}
+	sendWebhook(b.WebhookURL, update)
 }
 
 func sendWebhook(url string, payload interface{}) {
