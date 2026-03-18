@@ -79,15 +79,26 @@ func (a *ClientAPI) auth(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Username string `json:"username"`
 		Pin      string `json:"pin"`
+		Org      string `json:"org"`
 	}
 	json.NewDecoder(r.Body).Decode(&req)
 
-	user, err := a.db(r).AuthUser(req.Username, req.Pin)
+	orgSlug := req.Org
+	if orgSlug == "" {
+		orgSlug = "default"
+	}
+	s, err := a.orgs.Get(orgSlug)
+	if err != nil {
+		http.Error(w, `{"error":"org not found"}`, 400)
+		return
+	}
+
+	user, err := s.AuthUser(req.Username, req.Pin)
 	if err != nil {
 		http.Error(w, `{"error":"invalid credentials"}`, http.StatusUnauthorized)
 		return
 	}
-	token, err := a.jwt.Generate(user.ID, "default", user.Username)
+	token, err := a.jwt.Generate(user.ID, orgSlug, user.Username)
 	if err != nil {
 		http.Error(w, `{"error":"token error"}`, 500)
 		return
@@ -96,6 +107,7 @@ func (a *ClientAPI) auth(w http.ResponseWriter, r *http.Request) {
 		"token":    token,
 		"user_id":  user.ID,
 		"username": user.Username,
+		"org":      orgSlug,
 	})
 }
 
@@ -104,19 +116,31 @@ func (a *ClientAPI) register(w http.ResponseWriter, r *http.Request) {
 		Username    string `json:"username"`
 		Pin         string `json:"pin"`
 		DisplayName string `json:"display_name"`
+		Org         string `json:"org"`
 	}
 	json.NewDecoder(r.Body).Decode(&req)
 
-	user, err := a.db(r).CreateUser(req.Username, req.Pin, req.DisplayName)
+	orgSlug := req.Org
+	if orgSlug == "" {
+		orgSlug = "default"
+	}
+	s, err := a.orgs.Get(orgSlug)
+	if err != nil {
+		http.Error(w, `{"error":"org not found"}`, 400)
+		return
+	}
+
+	user, err := s.CreateUser(req.Username, req.Pin, req.DisplayName)
 	if err != nil {
 		http.Error(w, `{"error":"`+err.Error()+`"}`, 400)
 		return
 	}
-	token, _ := a.jwt.Generate(user.ID, "default", req.Username)
+	token, _ := a.jwt.Generate(user.ID, orgSlug, req.Username)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"token":    token,
 		"user_id":  user.ID,
 		"username": req.Username,
+		"org":      orgSlug,
 	})
 }
 
