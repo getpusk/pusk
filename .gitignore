@@ -1,5 +1,7 @@
 /pusk
 /pusk-linux
+pusk-old*
 data/
 *.db
 .env
+*.secret
