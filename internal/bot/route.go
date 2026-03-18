@@ -12,7 +12,25 @@ func (h *Handler) Route(mux *http.ServeMux) {
 	// Bot API uses /bot<token>/method format
 	// Go 1.22 can't do /bot{token}/method, so we use a prefix handler
 	mux.HandleFunc("POST /bot/", h.dispatch)
+	mux.HandleFunc("GET /bot/", h.dispatchGet)
 	mux.HandleFunc("GET /file/{fileID}", h.serveFile)
+}
+
+func (h *Handler) dispatchGet(w http.ResponseWriter, r *http.Request) {
+	parts := strings.SplitN(strings.TrimPrefix(r.URL.Path, "/bot/"), "/", 2)
+	if len(parts) != 2 {
+		jsonResp(w, 400, APIResponse{OK: false, Error: "invalid path"})
+		return
+	}
+	r.Header.Set("X-Bot-Token", parts[0])
+	switch parts[1] {
+	case "relay":
+		h.relayWebSocket(w, r)
+	case "getMe":
+		h.getMe(w, r)
+	default:
+		jsonResp(w, 400, APIResponse{OK: false, Error: "unknown GET method: " + parts[1]})
+	}
 }
 
 func (h *Handler) dispatch(w http.ResponseWriter, r *http.Request) {
