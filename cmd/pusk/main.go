@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -10,7 +11,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/pusk-platform/pusk/internal/api"
@@ -208,9 +211,24 @@ func main() {
 	log.Printf("  PWA:        GET  /")
 	log.Printf("  Admin:      POST /admin/bots")
 
-	if err := http.ListenAndServe(*addr, mux); err != nil {
+	srv := &http.Server{Addr: *addr, Handler: mux}
+
+	// Graceful shutdown on SIGTERM/SIGINT
+	go func() {
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
+		sig := <-sigCh
+		log.Printf("Received %s, shutting down...", sig)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		srv.Shutdown(ctx)
+	}()
+
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("Server error: %v", err)
 	}
+	log.Printf("Pusk stopped gracefully")
 }
 
 func loadOrGenerateSecret(path string) string {
