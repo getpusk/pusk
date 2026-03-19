@@ -289,7 +289,8 @@ func (a *ClientAPI) sendToBot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Forward to bot webhook (Telegram Update format)
-	go a.forwardToBot(chatID, userID, msg)
+	s := a.db(r)
+	go a.forwardToBot(s, chatID, userID, msg)
 
 	json.NewEncoder(w).Encode(msg)
 }
@@ -308,7 +309,8 @@ func (a *ClientAPI) callback(w http.ResponseWriter, r *http.Request) {
 	json.NewDecoder(r.Body).Decode(&req)
 
 	// Forward callback_query to bot webhook
-	go a.forwardCallback(chatID, userID, req.Data, req.MessageID)
+	s := a.db(r)
+	go a.forwardCallback(s, chatID, userID, req.Data, req.MessageID)
 
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
@@ -510,14 +512,14 @@ func (a *ClientAPI) checkChatAccess(w http.ResponseWriter, r *http.Request, chat
 	return true
 }
 
-func (a *ClientAPI) forwardToBot(chatID, userID int64, msg *store.Message) {
-	botID, err := a.store.ChatBotID(chatID)
+func (a *ClientAPI) forwardToBot(s *store.Store, chatID, userID int64, msg *store.Message) {
+	botID, err := s.ChatBotID(chatID)
 	if err != nil || botID == 0 {
 		log.Printf("[webhook] no bot for chat %d", chatID)
 		return
 	}
 
-	b, err := a.store.BotByID(botID)
+	b, err := s.BotByID(botID)
 	if err != nil {
 		log.Printf("[webhook] bot %d not found", botID)
 		return
@@ -548,13 +550,13 @@ func (a *ClientAPI) forwardToBot(chatID, userID int64, msg *store.Message) {
 	sendWebhook(b.WebhookURL, update)
 }
 
-func (a *ClientAPI) forwardCallback(chatID, userID int64, data string, messageID int64) {
-	botID, err := a.store.ChatBotID(chatID)
+func (a *ClientAPI) forwardCallback(s *store.Store, chatID, userID int64, data string, messageID int64) {
+	botID, err := s.ChatBotID(chatID)
 	if err != nil || botID == 0 {
 		return
 	}
 
-	b, err := a.store.BotByID(botID)
+	b, err := s.BotByID(botID)
 	if err != nil {
 		return
 	}
