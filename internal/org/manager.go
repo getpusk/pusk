@@ -145,6 +145,16 @@ func (m *Manager) Get(slug string) (*store.Store, error) {
 
 // Register creates a new organization with admin user
 func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
+	// Validate slug: alphanumeric + hyphens, 2-32 chars, no leading dot/slash
+	if len(slug) < 2 || len(slug) > 32 {
+		return fmt.Errorf("slug must be 2-32 characters")
+	}
+	for _, c := range slug {
+		if !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-') {
+			return fmt.Errorf("slug must contain only lowercase letters, digits and hyphens")
+		}
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
