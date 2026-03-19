@@ -5,7 +5,9 @@ package bot
 import (
 	"encoding/json"
 	"log"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 
@@ -82,25 +84,36 @@ func (rh *RelayHub) Online() int {
 // IsLocalURL returns true if the webhook URL points to localhost, private
 // networks, or cloud metadata endpoints — meaning the bot should use relay
 // instead of HTTP POST, or the URL should be blocked (SSRF protection).
-func IsLocalURL(url string) bool {
-	if url == "" {
+// IsLocalURL returns true if the webhook URL points to localhost, private
+// networks, or cloud metadata — meaning relay should be used or URL blocked.
+func IsLocalURL(rawURL string) bool {
+	if rawURL == "" {
 		return true
 	}
-	lower := strings.ToLower(url)
-	blocklist := []string{
-		"localhost", "127.0.0.1", "127.1", "0.0.0.0",
-		"[::1]", "[::]",
-		"169.254.169.254", // cloud metadata (AWS/GCP)
-		"metadata.google",
-		"10.", "192.168.", "172.16.", "172.17.", "172.18.", "172.19.",
-		"172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.",
-		"172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31.",
-		"0x7f", // hex loopback
+
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return true // can't parse = block
 	}
-	for _, b := range blocklist {
-		if strings.Contains(lower, b) {
-			return true
+
+	host := strings.ToLower(u.Hostname())
+
+	// Direct hostname checks
+	if host == "localhost" || host == "metadata.google.internal" {
+		return true
+	}
+
+	// Parse as IP
+	ip := net.ParseIP(host)
+	if ip == nil {
+		// Not an IP — try DNS resolve
+		ips, err := net.LookupIP(host)
+		if err != nil || len(ips) == 0 {
+			return false // can't resolve, let it through (will fail on HTTP POST)
 		}
+		ip = ips[0]
 	}
-	return false
+
+	// Check private/loopback/link-local ranges
+	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast()
 }
