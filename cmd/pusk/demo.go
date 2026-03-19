@@ -89,9 +89,9 @@ func initDemo(db *store.Store) {
 }
 
 func seedChannel(db *store.Store, bot *store.Bot, guest *store.User, name, desc string, messages []string) {
-	ch, err := db.ChannelByName(bot.ID, name)
+	_, err := db.ChannelByName(bot.ID, name)
 	if err != nil {
-		ch, err = db.CreateChannel(bot.ID, name, desc)
+		ch, err := db.CreateChannel(bot.ID, name, desc)
 		if err != nil {
 			return
 		}
