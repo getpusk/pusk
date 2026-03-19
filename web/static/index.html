@@ -180,7 +180,7 @@ bot = Bot(token="my-token",
     </div>
   </div>
   <div class="land-right">
-    <div class="land-chat-hdr"><span class="land-chat-dot"></span> DemoBot — живой чат</div>
+    <div class="land-chat-hdr"><span class="land-chat-dot"></span> DemoBot — публичная демо-среда</div>
     <div class="land-chat-body" id="land-msgs"></div>
     <div class="land-chat-input">
       <input id="land-input" placeholder="Напишите боту...">
@@ -313,7 +313,7 @@ function logout(){token=null;curChat=null;curChan=null;localStorage.removeItem('
 // ── App ──
 async function showApp(){$('auth').style.display='none';$('app').style.display='flex';const u=localStorage.getItem('pusk_uname')||'?';$('hdr-ava').textContent=u[0].toUpperCase();$('hdr-ava').style.background=nameColor(u);$('hdr-name').textContent=u;connectWS();await showList();const v=localStorage.getItem('pusk_view');if(v){try{const o=JSON.parse(v);if(o.t==='chat')openChat(o.id,o.n);else if(o.t==='ch')openChan(o.id,o.n)}catch{}}}
 
-async function showList(){curChat=null;curChan=null;localStorage.removeItem('pusk_view');$('main-list').style.display='block';$('chat-view').style.display='none';$('input-bar').style.display='none';$('hdr-back').style.display='none';$('hdr-title').textContent=t('main');$('fab').style.display='flex';
+async function showList(){curChat=null;curChan=null;localStorage.removeItem('pusk_view');$('main-list').style.display='block';$('chat-view').style.display='none';$('input-bar').style.display='none';$('hdr-back').style.display='none';$('hdr-title').textContent=t('main');const isGuest=localStorage.getItem('pusk_uname')==='guest';$('fab').style.display=isGuest?'none':'flex';
   const[bots,chs,health]=await Promise.all([api('GET','/api/bots'),api('GET','/api/channels'),api('GET','/api/health')]);
   const el=$('main-list');el.innerHTML='';
   if(chs&&chs.length){el.innerHTML+=`<div class="sec-title">${t('ch')}</div>`;for(const c of chs){const cls=c.subscribed?'sub-btn on':'sub-btn';const txt=c.subscribed?t('sub_on'):t('sub_off');el.innerHTML+=`<div class="ch-row"><span class="ch-hash" onclick="openChan(${c.id},'${esc(c.name)}')">#</span><div class="ch-body" onclick="openChan(${c.id},'${esc(c.name)}')"><div class="ch-name">${esc(c.name)}</div><div class="ch-desc">${esc(c.description||'')}</div></div><button class="${cls}" onclick="toggleSub(event,${c.id})">${txt}</button></div>`}}
