@@ -20,6 +20,7 @@ jobs:
       - uses: docker/build-push-action@v5
         with:
           push: true
+          build-args: VERSION=${{ github.ref_name }}
           tags: |
             ghcr.io/getpusk/pusk:latest
             ghcr.io/getpusk/pusk:${{ github.ref_name }}
