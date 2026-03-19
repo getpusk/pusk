@@ -130,9 +130,9 @@ The JSON format for sendMessage, InlineKeyboardMarkup, CallbackQuery is identica
 
 See [examples/](examples/) for complete working bots.
 
-## Cloud
+## Live Demo
 
-Managed version at [getpusk.com](https://getpusk.com)
+Try it: [getpusk.ru](https://getpusk.ru) — click "Demo", no registration needed.
 
 ## License
 
