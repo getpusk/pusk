@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -20,7 +21,24 @@ import (
 )
 
 var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool { return true },
+	CheckOrigin: checkWSOrigin,
+}
+
+func checkWSOrigin(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return true // non-browser clients (curl, bots) don't send Origin
+	}
+	host := r.Host
+	// Allow same-host origin
+	if strings.Contains(origin, host) {
+		return true
+	}
+	// Allow localhost for development
+	if strings.Contains(origin, "localhost") || strings.Contains(origin, "127.0.0.1") {
+		return true
+	}
+	return false
 }
 
 // ClientAPI handles PWA client requests
