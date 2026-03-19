@@ -79,14 +79,28 @@ func (rh *RelayHub) Online() int {
 	return len(rh.conns)
 }
 
-// IsLocalURL returns true if the webhook URL points to localhost or
-// is empty — meaning the bot should use relay instead of HTTP POST.
+// IsLocalURL returns true if the webhook URL points to localhost, private
+// networks, or cloud metadata endpoints — meaning the bot should use relay
+// instead of HTTP POST, or the URL should be blocked (SSRF protection).
 func IsLocalURL(url string) bool {
 	if url == "" {
 		return true
 	}
 	lower := strings.ToLower(url)
-	return strings.Contains(lower, "localhost") ||
-		strings.Contains(lower, "127.0.0.1") ||
-		strings.Contains(lower, "0.0.0.0")
+	blocklist := []string{
+		"localhost", "127.0.0.1", "127.1", "0.0.0.0",
+		"[::1]", "[::]",
+		"169.254.169.254", // cloud metadata (AWS/GCP)
+		"metadata.google",
+		"10.", "192.168.", "172.16.", "172.17.", "172.18.", "172.19.",
+		"172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.",
+		"172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31.",
+		"0x7f", // hex loopback
+	}
+	for _, b := range blocklist {
+		if strings.Contains(lower, b) {
+			return true
+		}
+	}
+	return false
 }
