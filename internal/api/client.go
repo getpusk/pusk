@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/pusk-platform/pusk/internal/auth"
@@ -56,8 +57,10 @@ func (a *ClientAPI) db(r *http.Request) *store.Store {
 }
 
 func (a *ClientAPI) Route(mux *http.ServeMux) {
-	mux.HandleFunc("POST /api/auth", a.auth)
-	mux.HandleFunc("POST /api/register", a.register)
+	authRL := NewRateLimiter(5, time.Minute) // 5 attempts per minute per IP
+	regRL := NewRateLimiter(3, time.Minute)  // 3 registrations per minute per IP
+	mux.HandleFunc("POST /api/auth", RateLimit(authRL, a.auth))
+	mux.HandleFunc("POST /api/register", RateLimit(regRL, a.register))
 	mux.HandleFunc("GET /api/bots", a.listBots)
 	mux.HandleFunc("GET /api/chats", a.listChats)
 	mux.HandleFunc("GET /api/chats/{chatID}/messages", a.chatMessages)
