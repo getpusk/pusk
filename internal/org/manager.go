@@ -174,6 +174,23 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 	sysBot, _ := s.CreateBot(botToken, name+" Bot")
 	if sysBot != nil {
 		m.registerTokenLocked(botToken, slug)
+
+		// Create #general channel
+		ch, _ := s.CreateChannel(sysBot.ID, "general", "General channel")
+		if ch != nil {
+			s.Subscribe(ch.ID, 1) // admin user_id = 1
+		}
+
+		// Welcome message from system bot
+		admin, _ := s.AuthUser(adminUser, adminPin)
+		if admin != nil {
+			chat, _ := s.GetOrCreateChat(admin.ID, sysBot.ID)
+			if chat != nil {
+				welcome := fmt.Sprintf("Добро пожаловать в **%s**!\n\nВаш бот-шлюз готов к работе. Отправьте первое сообщение через API:\n\n```\ncurl -X POST https://your-server/bot/%s/sendMessage \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"chat_id\": %d, \"text\": \"Hello!\"}'\n```\n\nBot token: `%s`", name, botToken, chat.ID, botToken)
+				s.SaveMessage(chat.ID, "bot", welcome, "", "", "")
+			}
+		}
+
 		log.Printf("[org] system bot created: %s (token: %s)", sysBot.Name, botToken)
 	}
 
