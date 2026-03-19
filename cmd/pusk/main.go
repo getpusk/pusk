@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/pusk-platform/pusk/internal/api"
 	"github.com/pusk-platform/pusk/internal/auth"
@@ -166,7 +167,8 @@ func main() {
 	})
 
 	// Org registration
-	mux.HandleFunc("POST /api/org/register", func(w http.ResponseWriter, r *http.Request) {
+	orgRL := api.NewRateLimiter(2, time.Minute) // 2 org registrations per minute per IP
+	mux.HandleFunc("POST /api/org/register", api.RateLimit(orgRL, func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			Slug     string `json:"slug"`
 			Name     string `json:"name"`
@@ -198,7 +200,7 @@ func main() {
 			"username": req.Username,
 		})
 		log.Printf("[org] registered: %s by %s", req.Slug, req.Username)
-	})
+	}))
 
 	log.Printf("Pusk server starting on %s", *addr)
 	log.Printf("  Bot API:    POST /bot{token}/sendMessage")
