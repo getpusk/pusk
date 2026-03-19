@@ -3,6 +3,7 @@
 package api
 
 import (
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -87,6 +88,7 @@ func RateLimit(rl *RateLimiter, next http.HandlerFunc) http.HandlerFunc {
 			ip = r.RemoteAddr
 		}
 		if !rl.Allow(ip) {
+			log.Printf("[ratelimit] blocked %s on %s", ip, r.URL.Path)
 			w.Header().Set("Content-Type", "application/json")
 			w.Header().Set("Retry-After", "60")
 			w.WriteHeader(http.StatusTooManyRequests)
