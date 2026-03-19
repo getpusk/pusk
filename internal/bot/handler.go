@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pusk-platform/pusk/internal/auth"
 	"github.com/pusk-platform/pusk/internal/notify"
 	"github.com/pusk-platform/pusk/internal/org"
 	"github.com/pusk-platform/pusk/internal/store"
@@ -28,12 +29,25 @@ type Handler struct {
 	hub      *ws.Hub
 	push     *notify.PushService
 	relay    *RelayHub
+	jwt      *auth.JWTService
 	filesDir string
 }
 
-func NewHandler(orgs *org.Manager, defaultStore *store.Store, hub *ws.Hub, push *notify.PushService, filesDir string) *Handler {
+func NewHandler(orgs *org.Manager, defaultStore *store.Store, hub *ws.Hub, push *notify.PushService, jwtSvc *auth.JWTService, filesDir string) *Handler {
 	os.MkdirAll(filesDir, 0755)
-	return &Handler{orgs: orgs, store: defaultStore, hub: hub, push: push, relay: NewRelayHub(), filesDir: filesDir}
+	return &Handler{orgs: orgs, store: defaultStore, hub: hub, push: push, jwt: jwtSvc, relay: NewRelayHub(), filesDir: filesDir}
+}
+
+// storeForJWT resolves org store from JWT token string
+func (h *Handler) storeForJWT(tokenStr string) *store.Store {
+	if h.jwt != nil && h.orgs != nil && tokenStr != "" {
+		if claims, err := h.jwt.Validate(tokenStr); err == nil && claims.OrgID != "" {
+			if s, err := h.orgs.Get(claims.OrgID); err == nil {
+				return s
+			}
+		}
+	}
+	return h.store
 }
 
 // storeForRequest returns the Store for the bot's org based on token
@@ -199,7 +213,7 @@ func (h *Handler) sendMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Find user for this chat and push via WebSocket
-	h.pushMessageToChat(req.ChatID, bot, msg)
+	h.pushMessageToChat(h.db(r), req.ChatID, bot, msg)
 
 	jsonResp(w, 200, APIResponse{OK: true, Result: msg})
 }
@@ -228,7 +242,7 @@ func (h *Handler) editMessageText(w http.ResponseWriter, r *http.Request) {
 	}
 
 	msg, _ := h.db(r).GetMessage(req.MessageID)
-	h.pushEditToChat(req.ChatID, bot, msg)
+	h.pushEditToChat(h.db(r), req.ChatID, bot, msg)
 
 	jsonResp(w, 200, APIResponse{OK: true, Result: msg})
 }
@@ -335,7 +349,7 @@ func (h *Handler) sendFile(fileType string) http.HandlerFunc {
 		}
 
 		msg, _ := h.db(r).SaveMessage(chatID, "bot", text, "", fileID, fileType)
-		h.pushMessageToChat(chatID, bot, msg)
+		h.pushMessageToChat(h.db(r), chatID, bot, msg)
 
 		jsonResp(w, 200, APIResponse{OK: true, Result: msg})
 	}
@@ -352,17 +366,13 @@ func (h *Handler) serveFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Inject token for org resolution
+	r.Header.Set("Authorization", tokenStr)
 	fileID := r.PathValue("fileID")
 
-	// Try org-specific store first, fallback to default
-	var f *store.File
-	var err error
-	if h.orgs != nil {
-		// Find file across org stores by checking bot ownership
-		f, err = h.store.GetFile(fileID)
-	} else {
-		f, err = h.store.GetFile(fileID)
-	}
+	// Use org store from JWT
+	s := h.storeForJWT(tokenStr)
+	f, err := s.GetFile(fileID)
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -372,8 +382,8 @@ func (h *Handler) serveFile(w http.ResponseWriter, r *http.Request) {
 
 // ── WebSocket push ──
 
-func (h *Handler) pushMessageToChat(chatID int64, bot *store.Bot, msg *store.Message) {
-	userID, err := h.store.ChatUserID(chatID)
+func (h *Handler) pushMessageToChat(s *store.Store, chatID int64, bot *store.Bot, msg *store.Message) {
+	userID, err := s.ChatUserID(chatID)
 	if err != nil {
 		log.Printf("[ws] cannot find user for chat %d: %v", chatID, err)
 		return
@@ -399,8 +409,8 @@ func truncate(s string, max int) string {
 	return s[:max] + "..."
 }
 
-func (h *Handler) pushEditToChat(chatID int64, bot *store.Bot, msg *store.Message) {
-	userID, err := h.store.ChatUserID(chatID)
+func (h *Handler) pushEditToChat(s *store.Store, chatID int64, bot *store.Bot, msg *store.Message) {
+	userID, err := s.ChatUserID(chatID)
 	if err != nil {
 		return
 	}
