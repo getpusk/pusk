@@ -503,7 +503,10 @@ func requireAuth(w http.ResponseWriter, r *http.Request) int64 {
 
 // checkChatAccess verifies the requesting user owns the chat
 func (a *ClientAPI) checkChatAccess(w http.ResponseWriter, r *http.Request, chatID int64) bool {
-	userID := getUserID(r)
+	userID := requireAuth(w, r)
+	if userID == 0 {
+		return false
+	}
 	ownerID, err := a.db(r).ChatUserID(chatID)
 	if err != nil || ownerID != userID {
 		jsonErr(w, "forbidden", 403)
