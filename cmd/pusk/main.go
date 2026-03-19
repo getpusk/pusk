@@ -76,7 +76,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	// Bot API (Telegram-compatible)
-	botHandler := bot.NewHandler(orgs, db, hub, push, *filesDir)
+	botHandler := bot.NewHandler(orgs, db, hub, push, jwtSvc, *filesDir)
 	botHandler.Route(mux)
 
 	// Client API (for PWA)
