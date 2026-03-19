@@ -23,7 +23,7 @@ jobs:
         run: test -z "$(gofmt -l .)"
       - name: JS function integrity
         run: |
-          for fn in appendMsg sendMsg loadBots openChat openChannel connectWS cbClick delMsg toggleSub tryDemo login register showApp logout; do
+          for fn in addMsg sendMsg showList openChat openChan connectWS onCb onDel toggleSub showApp logout auth setLang beep scrollDown; do
             grep -q "function $fn\|async function $fn" web/static/index.html || { echo "MISSING: $fn"; exit 1; }
           done
       - name: No hardcoded secrets in frontend
