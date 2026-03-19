@@ -170,7 +170,7 @@ func main() {
 	})
 
 	// Org registration
-	orgRL := api.NewRateLimiter(2, time.Minute) // 2 org registrations per minute per IP
+	orgRL := api.NewRateLimiter(10, time.Minute) // 10 org registrations per minute per IP
 	mux.HandleFunc("POST /api/org/register", api.RateLimit(orgRL, func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			Slug     string `json:"slug"`

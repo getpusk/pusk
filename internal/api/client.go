@@ -86,8 +86,8 @@ func (a *ClientAPI) db(r *http.Request) *store.Store {
 }
 
 func (a *ClientAPI) Route(mux *http.ServeMux) {
-	authRL := NewRateLimiter(5, time.Minute) // 5 attempts per minute per IP
-	regRL := NewRateLimiter(3, time.Minute)  // 3 registrations per minute per IP
+	authRL := NewRateLimiter(20, time.Minute) // 20 attempts per minute per IP
+	regRL := NewRateLimiter(10, time.Minute)  // 10 registrations per minute per IP
 	mux.HandleFunc("POST /api/auth", RateLimit(authRL, a.auth))
 	mux.HandleFunc("POST /api/register", RateLimit(regRL, a.register))
 	mux.HandleFunc("GET /api/bots", a.listBots)
