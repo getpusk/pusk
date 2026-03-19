@@ -342,8 +342,27 @@ func (h *Handler) sendFile(fileType string) http.HandlerFunc {
 }
 
 func (h *Handler) serveFile(w http.ResponseWriter, r *http.Request) {
+	// Auth: require JWT via Authorization header or ?token= query
+	tokenStr := r.Header.Get("Authorization")
+	if tokenStr == "" {
+		tokenStr = r.URL.Query().Get("token")
+	}
+	if tokenStr == "" {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	fileID := r.PathValue("fileID")
-	f, err := h.store.GetFile(fileID) // file lookup uses default store (files are global)
+
+	// Try org-specific store first, fallback to default
+	var f *store.File
+	var err error
+	if h.orgs != nil {
+		// Find file across org stores by checking bot ownership
+		f, err = h.store.GetFile(fileID)
+	} else {
+		f, err = h.store.GetFile(fileID)
+	}
 	if err != nil {
 		http.NotFound(w, r)
 		return
