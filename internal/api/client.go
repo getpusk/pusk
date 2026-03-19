@@ -6,9 +6,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"log"
+	"net"
 	"net/http"
+	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -29,13 +30,23 @@ func checkWSOrigin(r *http.Request) bool {
 	if origin == "" {
 		return true // non-browser clients (curl, bots) don't send Origin
 	}
-	host := r.Host
-	// Allow same-host origin
-	if strings.Contains(origin, host) {
+	// Parse origin to extract host
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	originHost := u.Hostname()
+	requestHost := r.Host
+	// Strip port from request host
+	if h, _, err := net.SplitHostPort(requestHost); err == nil {
+		requestHost = h
+	}
+	// Exact host match
+	if originHost == requestHost {
 		return true
 	}
 	// Allow localhost for development
-	if strings.Contains(origin, "localhost") || strings.Contains(origin, "127.0.0.1") {
+	if originHost == "localhost" || originHost == "127.0.0.1" {
 		return true
 	}
 	return false
@@ -166,6 +177,9 @@ func (a *ClientAPI) register(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) listBots(w http.ResponseWriter, r *http.Request) {
+	if requireAuth(w, r) == 0 {
+		return
+	}
 	bots, err := a.db(r).ListBots()
 	if err != nil {
 		jsonErr(w, "internal error", 500)
@@ -185,7 +199,10 @@ func (a *ClientAPI) listBots(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) listChats(w http.ResponseWriter, r *http.Request) {
-	userID := getUserID(r)
+	userID := requireAuth(w, r)
+	if userID == 0 {
+		return
+	}
 	chats, err := a.db(r).UserChats(userID)
 	if err != nil {
 		jsonErr(w, "internal error", 500)
@@ -195,7 +212,10 @@ func (a *ClientAPI) listChats(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) startChat(w http.ResponseWriter, r *http.Request) {
-	userID := getUserID(r)
+	userID := requireAuth(w, r)
+	if userID == 0 {
+		return
+	}
 	botID, _ := strconv.ParseInt(r.PathValue("botID"), 10, 64)
 
 	chat, err := a.db(r).GetOrCreateChat(userID, botID)
@@ -316,12 +336,15 @@ func (a *ClientAPI) health(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":  "ok",
 		"online":  a.hub.Online(),
-		"version": "0.3.1",
+		"version": Version,
 	})
 }
 
 func (a *ClientAPI) listChannels(w http.ResponseWriter, r *http.Request) {
-	userID := getUserID(r)
+	userID := requireAuth(w, r)
+	if userID == 0 {
+		return
+	}
 	channels, err := a.db(r).ListChannels()
 	if err != nil {
 		jsonErr(w, "internal error", 500)
@@ -344,7 +367,10 @@ func (a *ClientAPI) listChannels(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) subscribe(w http.ResponseWriter, r *http.Request) {
-	userID := getUserID(r)
+	userID := requireAuth(w, r)
+	if userID == 0 {
+		return
+	}
 	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
 	if err := a.db(r).Subscribe(channelID, userID); err != nil {
 		jsonErr(w, "internal error", 500)
@@ -354,7 +380,10 @@ func (a *ClientAPI) subscribe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) unsubscribe(w http.ResponseWriter, r *http.Request) {
-	userID := getUserID(r)
+	userID := requireAuth(w, r)
+	if userID == 0 {
+		return
+	}
 	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
 	if err := a.db(r).Unsubscribe(channelID, userID); err != nil {
 		jsonErr(w, "internal error", 500)
@@ -364,6 +393,9 @@ func (a *ClientAPI) unsubscribe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) channelMessages(w http.ResponseWriter, r *http.Request) {
+	if requireAuth(w, r) == 0 {
+		return
+	}
 	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
 	limit := 50
 	if l := r.URL.Query().Get("limit"); l != "" {
@@ -402,7 +434,23 @@ func (a *ClientAPI) vapidKey(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) deleteMessage(w http.ResponseWriter, r *http.Request) {
+	userID := getUserID(r)
+	if userID == 0 {
+		jsonErr(w, "unauthorized", 401)
+		return
+	}
 	msgID, _ := strconv.ParseInt(r.PathValue("msgID"), 10, 64)
+	// Verify user owns the chat this message belongs to
+	msg, err := a.db(r).GetMessage(msgID)
+	if err != nil {
+		jsonErr(w, "not found", 404)
+		return
+	}
+	ownerID, _ := a.db(r).ChatUserID(msg.ChatID)
+	if ownerID != userID {
+		jsonErr(w, "forbidden", 403)
+		return
+	}
 	if err := a.db(r).DeleteMessage(msgID); err != nil {
 		jsonErr(w, "internal error", 500)
 		return
@@ -413,6 +461,9 @@ func (a *ClientAPI) deleteMessage(w http.ResponseWriter, r *http.Request) {
 // ── Internal ──
 
 // jwtSvc is set during init — package-level for getUserID access
+// Version is set via -ldflags at build time
+var Version = "dev"
+
 var jwtSvc *auth.JWTService
 
 func jsonErr(w http.ResponseWriter, msg string, code int) {
@@ -437,6 +488,15 @@ func getUserID(r *http.Request) int64 {
 		}
 	}
 	return 0
+}
+
+// requireAuth returns userID or writes 401 and returns 0
+func requireAuth(w http.ResponseWriter, r *http.Request) int64 {
+	uid := getUserID(r)
+	if uid == 0 {
+		jsonErr(w, "unauthorized", 401)
+	}
+	return uid
 }
 
 // checkChatAccess verifies the requesting user owns the chat
