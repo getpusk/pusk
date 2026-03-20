@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -319,7 +319,7 @@ func (h *Handler) setWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.db(r).SetWebhook(bot.ID, req.URL)
-	log.Printf("[bot] webhook set for %s: %s", bot.Name, req.URL)
+	slog.Info("webhook set", "bot", bot.Name, "url", req.URL)
 	jsonResp(w, 200, APIResponse{OK: true, Result: true})
 }
 
@@ -413,7 +413,7 @@ func (h *Handler) serveFile(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) pushMessageToChat(s *store.Store, chatID int64, bot *store.Bot, msg *store.Message) {
 	userID, err := s.ChatUserID(chatID)
 	if err != nil {
-		log.Printf("[ws] cannot find user for chat %d: %v", chatID, err)
+		slog.Warn("cannot find user for chat", "chat_id", chatID, "error", err)
 		return
 	}
 	payload, _ := json.Marshal(map[string]interface{}{
@@ -496,7 +496,7 @@ func (h *Handler) createChannel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[channel] created: %s (bot: %s)", ch.Name, bot.Name)
+	slog.Info("channel created", "channel", ch.Name, "bot", bot.Name)
 	jsonResp(w, 200, APIResponse{OK: true, Result: ch})
 }
 
@@ -533,6 +533,6 @@ func (h *Handler) sendChannel(w http.ResponseWriter, r *http.Request) {
 	// Push to all subscribers
 	h.pushChannelMessage(h.db(r), ch, bot, msg)
 
-	log.Printf("[channel] %s: message sent", ch.Name)
+	slog.Info("channel message sent", "channel", ch.Name)
 	jsonResp(w, 200, APIResponse{OK: true, Result: msg})
 }

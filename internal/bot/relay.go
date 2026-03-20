@@ -4,7 +4,7 @@ package bot
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -39,7 +39,7 @@ func (rh *RelayHub) Register(botID int64, c *ws.Conn) {
 		old.Send([]byte(`{"type":"replaced"}`))
 	}
 	rh.conns[botID] = c
-	log.Printf("[relay] bot %d connected", botID)
+	slog.Info("relay bot connected", "bot_id", botID)
 }
 
 func (rh *RelayHub) Unregister(botID int64, c *ws.Conn) {
@@ -47,7 +47,7 @@ func (rh *RelayHub) Unregister(botID int64, c *ws.Conn) {
 	defer rh.mu.Unlock()
 	if cur, ok := rh.conns[botID]; ok && cur == c {
 		delete(rh.conns, botID)
-		log.Printf("[relay] bot %d disconnected", botID)
+		slog.Info("relay bot disconnected", "bot_id", botID)
 	}
 }
 
