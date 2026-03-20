@@ -108,6 +108,9 @@ header h2{font-size:16px;flex:1}
 #msgs{flex:1;overflow-y:auto;padding:8px 16px;display:flex;flex-direction:column;gap:0}
 .m{padding:6px 0 6px 40px;position:relative}
 .m-bot{background:rgba(14,22,33,0.5);border-radius:8px;margin:2px -8px;padding:6px 8px 6px 48px}
+.m-alert{border-left:3px solid #e05d44}
+.m-resolved{border-left:3px solid #3db887}
+.m-acked{border-left:3px solid #faa61a}
 .m-ava{position:absolute;left:0;top:8px;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff}
 .m-head{font-size:13px;margin-bottom:2px}
 .m-name{font-weight:700;color:var(--accent)}
@@ -421,7 +424,8 @@ async function openChan(chId,name){localStorage.setItem('pusk_view',JSON.stringi
 
 function addMsg(m){const el=$('msgs');if(el.querySelector('.m-empty'))el.innerHTML='';const who=m.sender==='bot'?(m.bot_name||$('hdr-title').textContent.replace('# ','')||'Bot'):(m.sender_name||localStorage.getItem('pusk_uname')||'You');const tm=fmtTime(m.date);
   const isBot=m.sender==='bot';const isMine=m.sender==='user'&&m.sender_name===localStorage.getItem('pusk_uname');
-  let h=`<div class="m${isBot?' m-bot':''}" id="m-${m.message_id}" data-sender="${esc(m.sender)}" data-sname="${esc(m.sender_name||'')}" data-mine="${isMine?1:0}"><div class="m-ava" style="background:${nameColor(who)}">${who[0].toUpperCase()}</div>`;
+  const txt=m.text||'';let alertCls='';if(txt.includes('**ALERT**')||txt.includes('status: firing'))alertCls=' m-alert';if(txt.includes('**Resolved**')||txt.includes('status: resolved'))alertCls=' m-resolved';if(txt.includes('**ACK**')||txt.includes('**Muted'))alertCls=' m-acked';
+  let h=`<div class="m${isBot?' m-bot':''}${alertCls}" id="m-${m.message_id}" data-sender="${esc(m.sender)}" data-sname="${esc(m.sender_name||'')}" data-mine="${isMine?1:0}"><div class="m-ava" style="background:${nameColor(who)}">${who[0].toUpperCase()}</div>`;
   if(m.reply_to){const orig=document.getElementById('m-'+m.reply_to);const qtext=orig?orig.querySelector('.m-text')?.textContent?.substring(0,40):'...';const qname=orig?orig.querySelector('.m-name')?.textContent:'';h+=`<div class="m-quote"><b>${esc(qname)}</b> ${esc(qtext)}</div>`}
   const editedTag=m.edited_at?`<span class="m-edited">(${lang==='ru'?'ред.':'edited'})</span>`:'';
   h+=`<div class="m-head"><span class="m-name">${esc(who)}</span><span class="m-time">${tm}</span>${editedTag}</div>`;
@@ -509,7 +513,7 @@ document.addEventListener('contextmenu',e=>{
 // Delete channel message
 async function delChanMsg(mid){if(!confirm(lang==='ru'?'Удалить сообщение?':'Delete message?'))return;await api('DELETE',`/api/channels/messages/${mid}`);const el=document.getElementById('m-'+mid);if(el)el.remove()}
 function toast(msg){const t=$('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',2000)}
-async function onCb(el){if(curChan){await api('POST',`/api/channels/${curChan}/ack`,{action:el.dataset.cb,message_id:parseInt(el.dataset.mid)});el.closest('.m-kb').innerHTML='<span style="color:#3db887;font-size:12px">'+el.textContent+' ✓</span>';toast(el.textContent+' ✓')}else if(curChat){await api('POST',`/api/chats/${curChat}/callback`,{data:el.dataset.cb,message_id:parseInt(el.dataset.mid)})}}
+async function onCb(el){if(curChan){await api('POST',`/api/channels/${curChan}/ack`,{action:el.dataset.cb,message_id:parseInt(el.dataset.mid)});const u=localStorage.getItem('pusk_uname')||'?';const t=new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});el.closest('.m-kb').innerHTML=`<span style="color:#3db887;font-size:12px">${el.textContent} @${u} ${t}</span>`;toast(el.textContent+' ✓');const msg=el.closest('.m');if(msg){msg.classList.remove('m-alert');msg.classList.add('m-acked')}}else if(curChat){await api('POST',`/api/chats/${curChat}/callback`,{data:el.dataset.cb,message_id:parseInt(el.dataset.mid)})}}
 async function onDel(mid){if(!confirm('Удалить сообщение?'))return;await api('DELETE',`/api/messages/${mid}`);const el=document.getElementById('m-'+mid);if(el)el.remove()}
 
 // ── Navigation ──
