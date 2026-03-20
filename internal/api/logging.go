@@ -6,7 +6,10 @@ import (
 	"log/slog"
 	"net/http"
 	"regexp"
+	"strconv"
 	"time"
+
+	"github.com/pusk-platform/pusk/internal/metrics"
 )
 
 // statusWriter wraps http.ResponseWriter to capture the status code.
@@ -35,6 +38,9 @@ func RequestLogger(next http.Handler) http.Handler {
 		sw := &statusWriter{ResponseWriter: w, code: http.StatusOK}
 		next.ServeHTTP(sw, r)
 
+		duration := time.Since(start)
+		path := normalizePath(r.URL.Path)
+
 		ip := r.Header.Get("X-Forwarded-For")
 		if ip == "" {
 			ip = r.RemoteAddr
@@ -42,10 +48,13 @@ func RequestLogger(next http.Handler) http.Handler {
 
 		slog.Info("http request",
 			"method", r.Method,
-			"path", normalizePath(r.URL.Path),
+			"path", path,
 			"status", sw.code,
-			"duration_ms", time.Since(start).Milliseconds(),
+			"duration_ms", duration.Milliseconds(),
 			"client_ip", ip,
 		)
+
+		metrics.HTTPRequests.WithLabelValues(r.Method, path, strconv.Itoa(sw.code)).Inc()
+		metrics.HTTPDuration.WithLabelValues(r.Method, path).Observe(duration.Seconds())
 	})
 }
