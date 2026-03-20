@@ -394,7 +394,7 @@ $('hdr-back').onclick=showList;
 $('hdr-ava').onclick=$('hdr-name').onclick=()=>{const v=$('settings').style.display==='block';$('settings').style.display=v?'none':'block';$('settings-bg').style.display=v?'none':'block'};
 $('settings-bg').onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none'};
 $('s-lang-btn').onclick=()=>{lang=lang==='ru'?'en':'ru';localStorage.setItem('pusk_lang',lang);setLang();if($('app').style.display==='flex')showList()};
-$('s-invite').onclick=async()=>{const r=await api('POST','/api/invite');if(r.code){const url=location.origin+r.url;$('s-invite-result').textContent=url;if(navigator.clipboard)navigator.clipboard.writeText(url);$('s-invite').textContent='Скопировано!';setTimeout(()=>{$('s-invite').textContent='Пригласить коллегу';$('s-invite-result').textContent=''},5000)}};
+$('s-invite').onclick=async()=>{const r=await api('POST','/api/invite');if(r.code){const o=localStorage.getItem('pusk_org')||'default';const url=location.origin+r.url+'?org='+o;$('s-invite-result').textContent=url;if(navigator.clipboard)navigator.clipboard.writeText(url);$('s-invite').textContent='Скопировано!';setTimeout(()=>{$('s-invite').textContent='Пригласить коллегу';$('s-invite-result').textContent=''},5000)}};
 $('s-out').onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none';logout()};
 
 // ── FAB / Create ──
@@ -505,7 +505,8 @@ const _p=new URLSearchParams(location.search);
 const _invite=_p.get('invite');
 if(_invite&&!token){
   hideLanding();$('auth').style.display='flex';
-  $('a-err').style.color='var(--accent)';$('a-err').textContent='Регистрация по приглашению';
+  const _invOrg=_p.get('org');if(_invOrg)$('a-org').value=_invOrg;
+  $('a-err').style.color='var(--accent)';$('a-err').textContent='Регистрация по приглашению — введите логин и пароль';
 } else if(_p.get('demo')==='1'&&!token){
   hideLanding();$('auth').style.display='flex';$('btn-demo').click();
 } else if(token){
