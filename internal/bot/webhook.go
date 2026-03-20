@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+
+	"github.com/pusk-platform/pusk/internal/metrics"
 	"net/http"
 	"strings"
 )
@@ -106,6 +108,7 @@ func (h *Handler) webhook(w http.ResponseWriter, r *http.Request) {
 		h.pushChannelMessage(s, ch, bot, msg)
 	}
 
+	metrics.WebhooksReceived.WithLabelValues(format).Inc()
 	slog.Info("webhook received", "format", format, "channel", channelName, "bot", bot.Name)
 	w.WriteHeader(200)
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})

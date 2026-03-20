@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"log/slog"
 	"sync"
+
+	"github.com/pusk-platform/pusk/internal/metrics"
 )
 
 // Event sent to PWA clients via WebSocket
@@ -29,6 +31,7 @@ func (h *Hub) Register(userID int64, c *Conn) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.conns[userID] = append(h.conns[userID], c)
+	metrics.WSConnections.Inc()
 	slog.Info("ws user connected", "user_id", userID, "total", len(h.conns[userID]))
 }
 
@@ -39,6 +42,7 @@ func (h *Hub) Unregister(userID int64, c *Conn) {
 	for i, conn := range conns {
 		if conn == c {
 			h.conns[userID] = append(conns[:i], conns[i+1:]...)
+			metrics.WSConnections.Dec()
 			break
 		}
 	}
