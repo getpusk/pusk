@@ -142,7 +142,13 @@ func (s *Store) migrate() error {
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		);
 	`)
-	return err
+	if err != nil {
+		return err
+	}
+	// Migration: add sender fields to channel_messages
+	s.db.Exec("ALTER TABLE channel_messages ADD COLUMN sender TEXT DEFAULT 'bot'")
+	s.db.Exec("ALTER TABLE channel_messages ADD COLUMN sender_name TEXT DEFAULT ''")
+	return nil
 }
 
 // ── Bots ──
@@ -390,6 +396,8 @@ type Channel struct {
 type ChannelMessage struct {
 	ID          int64  `json:"message_id"`
 	ChannelID   int64  `json:"channel_id"`
+	Sender      string `json:"sender"`
+	SenderName  string `json:"sender_name,omitempty"`
 	Text        string `json:"text,omitempty"`
 	ReplyMarkup string `json:"reply_markup,omitempty"`
 	FileID      string `json:"file_id,omitempty"`
@@ -488,21 +496,25 @@ func (s *Store) IsSubscribed(channelID, userID int64) bool {
 }
 
 func (s *Store) SaveChannelMessage(channelID int64, text, replyMarkup, fileID, fileType string) (*ChannelMessage, error) {
+	return s.SaveChannelMessageFrom(channelID, "bot", "", text, replyMarkup, fileID, fileType)
+}
+
+func (s *Store) SaveChannelMessageFrom(channelID int64, sender, senderName, text, replyMarkup, fileID, fileType string) (*ChannelMessage, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	res, err := s.db.Exec(
-		"INSERT INTO channel_messages (channel_id, text, reply_markup, file_id, file_type, created_at) VALUES (?,?,?,?,?,?)",
-		channelID, text, replyMarkup, fileID, fileType, now)
+		"INSERT INTO channel_messages (channel_id, sender, sender_name, text, reply_markup, file_id, file_type, created_at) VALUES (?,?,?,?,?,?,?,?)",
+		channelID, sender, senderName, text, replyMarkup, fileID, fileType, now)
 	if err != nil {
 		return nil, err
 	}
 	id, _ := res.LastInsertId()
-	return &ChannelMessage{ID: id, ChannelID: channelID, Text: text, ReplyMarkup: replyMarkup,
-		FileID: fileID, FileType: fileType, CreatedAt: now}, nil
+	return &ChannelMessage{ID: id, ChannelID: channelID, Sender: sender, SenderName: senderName,
+		Text: text, ReplyMarkup: replyMarkup, FileID: fileID, FileType: fileType, CreatedAt: now}, nil
 }
 
 func (s *Store) ChannelMessages(channelID int64, limit int) ([]ChannelMessage, error) {
 	rows, err := s.db.Query(
-		"SELECT id, channel_id, COALESCE(text,''), COALESCE(reply_markup,''), COALESCE(file_id,''), COALESCE(file_type,''), created_at FROM channel_messages WHERE channel_id=? ORDER BY created_at DESC LIMIT ?",
+		"SELECT id, channel_id, COALESCE(sender,'bot'), COALESCE(sender_name,''), COALESCE(text,''), COALESCE(reply_markup,''), COALESCE(file_id,''), COALESCE(file_type,''), created_at FROM channel_messages WHERE channel_id=? ORDER BY created_at DESC LIMIT ?",
 		channelID, limit)
 	if err != nil {
 		return nil, err
@@ -511,7 +523,7 @@ func (s *Store) ChannelMessages(channelID int64, limit int) ([]ChannelMessage, e
 	var msgs []ChannelMessage
 	for rows.Next() {
 		var m ChannelMessage
-		rows.Scan(&m.ID, &m.ChannelID, &m.Text, &m.ReplyMarkup, &m.FileID, &m.FileType, &m.CreatedAt)
+		rows.Scan(&m.ID, &m.ChannelID, &m.Sender, &m.SenderName, &m.Text, &m.ReplyMarkup, &m.FileID, &m.FileType, &m.CreatedAt)
 		msgs = append(msgs, m)
 	}
 	return msgs, nil
