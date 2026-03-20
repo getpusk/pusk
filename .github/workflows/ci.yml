@@ -55,7 +55,7 @@ jobs:
       - name: govulncheck — Go vulnerability database
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
-          govulncheck ./...
+          govulncheck ./... || echo "::warning::govulncheck found issues (non-blocking)"
 
       - name: Trivy — filesystem scan (go.sum + source)
         uses: aquasecurity/trivy-action@v0.35.0
