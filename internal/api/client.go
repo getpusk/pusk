@@ -80,6 +80,12 @@ func (a *ClientAPI) Route(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/channels/{channelID}/messages", a.channelMessages)
 	mux.HandleFunc("POST /api/channels/{channelID}/send", limitBody(a.sendToChannel))
 	mux.HandleFunc("POST /api/channels/{channelID}/ack", limitBody(a.ackChannelMessage))
+	mux.HandleFunc("PUT /api/channels/{channelID}/messages/{msgID}", limitBody(a.editChannelMessage))
+	mux.HandleFunc("DELETE /api/channels/messages/{msgID}", a.deleteChannelMessage)
+
+	// Users & Roles
+	mux.HandleFunc("GET /api/users", a.listUsers)
+	mux.HandleFunc("POST /api/users/{userID}/role", limitBody(a.setUserRole))
 
 	// Infra
 	mux.HandleFunc("GET /api/ws", a.websocket)

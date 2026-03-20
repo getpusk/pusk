@@ -229,3 +229,100 @@ func (a *ClientAPI) pushSubscribe(w http.ResponseWriter, r *http.Request) {
 func (a *ClientAPI) vapidKey(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"key": a.vapidPub})
 }
+
+// ── Users & Roles ──
+
+func (a *ClientAPI) listUsers(w http.ResponseWriter, r *http.Request) {
+	if a.requireAuth(w, r) == 0 {
+		return
+	}
+	users, err := a.db(r).ListUsers()
+	if err != nil {
+		jsonErr(w, "internal error", 500)
+		return
+	}
+	json.NewEncoder(w).Encode(users)
+}
+
+func (a *ClientAPI) setUserRole(w http.ResponseWriter, r *http.Request) {
+	userID := a.requireAuth(w, r)
+	if userID == 0 {
+		return
+	}
+	s := a.db(r)
+	if !s.IsAdmin(userID) {
+		jsonErr(w, "admin only", 403)
+		return
+	}
+	targetID, _ := strconv.ParseInt(r.PathValue("userID"), 10, 64)
+	var req struct {
+		Role string `json:"role"`
+	}
+	json.NewDecoder(r.Body).Decode(&req)
+	if req.Role != "admin" && req.Role != "member" {
+		jsonErr(w, "role must be admin or member", 400)
+		return
+	}
+	s.SetUserRole(targetID, req.Role)
+	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+}
+
+// ── Channel Message Management ──
+
+func (a *ClientAPI) editChannelMessage(w http.ResponseWriter, r *http.Request) {
+	userID := a.requireAuth(w, r)
+	if userID == 0 {
+		return
+	}
+	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
+	msgID, _ := strconv.ParseInt(r.PathValue("msgID"), 10, 64)
+	s := a.db(r)
+
+	msg, err := s.GetChannelMessage(msgID)
+	if err != nil {
+		jsonErr(w, "not found", 404)
+		return
+	}
+
+	// Only author can edit
+	claims := a.getJWTClaims(r)
+	if claims == nil || msg.SenderName != claims.Username {
+		jsonErr(w, "can only edit own messages", 403)
+		return
+	}
+	_ = channelID
+
+	var req struct {
+		Text string `json:"text"`
+	}
+	json.NewDecoder(r.Body).Decode(&req)
+	s.UpdateChannelMessageText(msgID, req.Text, "")
+	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+}
+
+func (a *ClientAPI) deleteChannelMessage(w http.ResponseWriter, r *http.Request) {
+	userID := a.requireAuth(w, r)
+	if userID == 0 {
+		return
+	}
+	msgID, _ := strconv.ParseInt(r.PathValue("msgID"), 10, 64)
+	s := a.db(r)
+
+	msg, err := s.GetChannelMessage(msgID)
+	if err != nil {
+		jsonErr(w, "not found", 404)
+		return
+	}
+
+	// Author or admin can delete
+	claims := a.getJWTClaims(r)
+	isAuthor := claims != nil && msg.SenderName == claims.Username
+	isAdmin := s.IsAdmin(userID)
+	if !isAuthor && !isAdmin {
+		jsonErr(w, "forbidden", 403)
+		return
+	}
+
+	s.DeleteChannelMessage(msgID)
+	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+}
