@@ -167,7 +167,8 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Text string `json:"text"`
+		Text    string `json:"text"`
+		ReplyTo int64  `json:"reply_to"`
 	}
 	json.NewDecoder(r.Body).Decode(&req)
 	if req.Text == "" {
@@ -182,6 +183,10 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	msg, err := s.SaveChannelMessageFrom(channelID, "user", username, req.Text, "", "", "")
+	if msg != nil && req.ReplyTo > 0 {
+		s.SetChannelMessageReplyTo(msg.ID, req.ReplyTo)
+		msg.ReplyTo = req.ReplyTo
+	}
 	if err != nil {
 		jsonErr(w, "internal error", 500)
 		return

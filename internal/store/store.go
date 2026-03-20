@@ -149,6 +149,7 @@ func (s *Store) migrate() error {
 	s.db.Exec("ALTER TABLE channel_messages ADD COLUMN sender TEXT DEFAULT 'bot'")
 	s.db.Exec("CREATE TABLE IF NOT EXISTS channel_reads (channel_id INTEGER, user_id INTEGER, last_read_id INTEGER DEFAULT 0, PRIMARY KEY(channel_id, user_id))")
 	s.db.Exec("ALTER TABLE channel_messages ADD COLUMN sender_name TEXT DEFAULT ''")
+	s.db.Exec("ALTER TABLE channel_messages ADD COLUMN reply_to INTEGER DEFAULT 0")
 	return nil
 }
 
@@ -315,6 +316,10 @@ func (s *Store) UpdateMessageText(id int64, text, replyMarkup string) error {
 	return err
 }
 
+func (s *Store) SetChannelMessageReplyTo(id, replyTo int64) {
+	s.db.Exec("UPDATE channel_messages SET reply_to=? WHERE id=?", replyTo, id)
+}
+
 func (s *Store) UpdateChannelMessageText(id int64, text, replyMarkup string) error {
 	_, err := s.db.Exec("UPDATE channel_messages SET text=?, reply_markup=? WHERE id=?", text, replyMarkup, id)
 	return err
@@ -406,6 +411,7 @@ type ChannelMessage struct {
 	SenderName  string `json:"sender_name,omitempty"`
 	Text        string `json:"text,omitempty"`
 	ReplyMarkup string `json:"reply_markup,omitempty"`
+	ReplyTo     int64  `json:"reply_to,omitempty"`
 	FileID      string `json:"file_id,omitempty"`
 	FileType    string `json:"file_type,omitempty"`
 	CreatedAt   string `json:"date"`
@@ -520,7 +526,7 @@ func (s *Store) SaveChannelMessageFrom(channelID int64, sender, senderName, text
 
 func (s *Store) ChannelMessages(channelID int64, limit int) ([]ChannelMessage, error) {
 	rows, err := s.db.Query(
-		"SELECT id, channel_id, COALESCE(sender,'bot'), COALESCE(sender_name,''), COALESCE(text,''), COALESCE(reply_markup,''), COALESCE(file_id,''), COALESCE(file_type,''), created_at FROM channel_messages WHERE channel_id=? ORDER BY created_at DESC LIMIT ?",
+		"SELECT id, channel_id, COALESCE(sender,'bot'), COALESCE(sender_name,''), COALESCE(text,''), COALESCE(reply_markup,''), COALESCE(reply_to,0), COALESCE(file_id,''), COALESCE(file_type,''), created_at FROM channel_messages WHERE channel_id=? ORDER BY created_at DESC LIMIT ?",
 		channelID, limit)
 	if err != nil {
 		return nil, err
@@ -529,7 +535,7 @@ func (s *Store) ChannelMessages(channelID int64, limit int) ([]ChannelMessage, e
 	var msgs []ChannelMessage
 	for rows.Next() {
 		var m ChannelMessage
-		rows.Scan(&m.ID, &m.ChannelID, &m.Sender, &m.SenderName, &m.Text, &m.ReplyMarkup, &m.FileID, &m.FileType, &m.CreatedAt)
+		rows.Scan(&m.ID, &m.ChannelID, &m.Sender, &m.SenderName, &m.Text, &m.ReplyMarkup, &m.ReplyTo, &m.FileID, &m.FileType, &m.CreatedAt)
 		msgs = append(msgs, m)
 	}
 	return msgs, nil
