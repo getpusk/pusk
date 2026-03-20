@@ -17,9 +17,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/pusk-platform/pusk/internal/api"
 	"github.com/pusk-platform/pusk/internal/auth"
 	"github.com/pusk-platform/pusk/internal/bot"
+	_ "github.com/pusk-platform/pusk/internal/metrics"
 	"github.com/pusk-platform/pusk/internal/notify"
 	"github.com/pusk-platform/pusk/internal/org"
 	"github.com/pusk-platform/pusk/internal/store"
@@ -106,6 +108,7 @@ func main() {
 		http.Redirect(w, r, target, http.StatusFound)
 	})
 
+	mux.Handle("GET /metrics", promhttp.Handler())
 	// Static files (PWA)
 	mux.Handle("GET /", http.FileServer(http.Dir(*staticDir)))
 
