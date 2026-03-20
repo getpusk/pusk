@@ -206,14 +206,42 @@ func (h *Handler) sendMessage(w http.ResponseWriter, r *http.Request) {
 		markup = string(req.ReplyMarkup)
 	}
 
-	msg, err := h.db(r).SaveMessage(req.ChatID, "bot", req.Text, markup, "", "")
+	s := h.db(r)
+
+	// Negative chat_id = channel (Telegram convention: channels have negative IDs)
+	if req.ChatID < 0 {
+		channelID := -req.ChatID
+		ch, err := s.ChannelByID(channelID)
+		if err != nil {
+			jsonResp(w, 404, APIResponse{OK: false, Error: "channel not found"})
+			return
+		}
+		chMsg, _ := s.SaveChannelMessage(ch.ID, req.Text, markup, "", "")
+		if chMsg != nil {
+			h.pushChannelMessage(s, ch, bot, chMsg)
+		}
+		jsonResp(w, 200, APIResponse{OK: true, Result: chMsg})
+		return
+	}
+
+	msg, err := s.SaveMessage(req.ChatID, "bot", req.Text, markup, "", "")
 	if err != nil {
+		// Fallback: try chat_id as channel_id
+		ch, chErr := s.ChannelByID(req.ChatID)
+		if chErr == nil {
+			chMsg, _ := s.SaveChannelMessage(ch.ID, req.Text, markup, "", "")
+			if chMsg != nil {
+				h.pushChannelMessage(s, ch, bot, chMsg)
+				jsonResp(w, 200, APIResponse{OK: true, Result: chMsg})
+				return
+			}
+		}
 		jsonResp(w, 500, APIResponse{OK: false, Error: err.Error()})
 		return
 	}
 
 	// Find user for this chat and push via WebSocket
-	h.pushMessageToChat(h.db(r), req.ChatID, bot, msg)
+	h.pushMessageToChat(s, req.ChatID, bot, msg)
 
 	jsonResp(w, 200, APIResponse{OK: true, Result: msg})
 }
