@@ -191,6 +191,10 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "internal error", 500)
 		return
 	}
+	// Mark channel as read for sender (own messages shouldn't count as unread)
+	if msg != nil {
+		s.MarkChannelRead(channelID, userID, msg.ID)
+	}
 
 	// Push to all subscribers via WebSocket
 	ch, _ := s.ChannelByID(channelID)
