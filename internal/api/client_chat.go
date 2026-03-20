@@ -1,0 +1,200 @@
+// Copyright (c) 2026 Volkov Pavel | DevITWay
+// Licensed under the Business Source License 1.1. See LICENSE file for details.
+package api
+
+import (
+	"encoding/json"
+	"net/http"
+	"strconv"
+
+	"github.com/pusk-platform/pusk/internal/bot"
+	"github.com/pusk-platform/pusk/internal/store"
+	"github.com/pusk-platform/pusk/internal/ws"
+)
+
+func (a *ClientAPI) listBots(w http.ResponseWriter, r *http.Request) {
+	if a.requireAuth(w, r) == 0 {
+		return
+	}
+	bots, err := a.db(r).ListBots()
+	if err != nil {
+		jsonErr(w, "internal error", 500)
+		return
+	}
+	type safeBotInfo struct {
+		ID      int64  `json:"id"`
+		Name    string `json:"name"`
+		IconURL string `json:"icon_url,omitempty"`
+	}
+	safe := make([]safeBotInfo, len(bots))
+	for i, b := range bots {
+		safe[i] = safeBotInfo{ID: b.ID, Name: b.Name, IconURL: b.IconURL}
+	}
+	json.NewEncoder(w).Encode(safe)
+}
+
+func (a *ClientAPI) listChats(w http.ResponseWriter, r *http.Request) {
+	userID := a.requireAuth(w, r)
+	if userID == 0 {
+		return
+	}
+	chats, err := a.db(r).UserChats(userID)
+	if err != nil {
+		jsonErr(w, "internal error", 500)
+		return
+	}
+	json.NewEncoder(w).Encode(chats)
+}
+
+func (a *ClientAPI) startChat(w http.ResponseWriter, r *http.Request) {
+	userID := a.requireAuth(w, r)
+	if userID == 0 {
+		return
+	}
+	botID, _ := strconv.ParseInt(r.PathValue("botID"), 10, 64)
+
+	chat, err := a.db(r).GetOrCreateChat(userID, botID)
+	if err != nil {
+		jsonErr(w, "internal error", 500)
+		return
+	}
+
+	b, _ := a.db(r).BotByID(botID)
+	if b != nil {
+		update := map[string]interface{}{
+			"update_id": chat.ID,
+			"message": map[string]interface{}{
+				"message_id": 0,
+				"chat":       map[string]interface{}{"id": chat.ID},
+				"from":       map[string]interface{}{"id": userID},
+				"text":       "/start",
+			},
+		}
+		go func() {
+			if a.relay != nil && a.relay.Send(b.ID, update) {
+				return
+			}
+			if b.WebhookURL != "" && !bot.IsLocalURL(b.WebhookURL) {
+				sendWebhook(b.WebhookURL, update)
+			}
+		}()
+	}
+
+	json.NewEncoder(w).Encode(chat)
+}
+
+func (a *ClientAPI) chatMessages(w http.ResponseWriter, r *http.Request) {
+	chatID, _ := strconv.ParseInt(r.PathValue("chatID"), 10, 64)
+	if !a.checkChatAccess(w, r, chatID) {
+		return
+	}
+	limit := 50
+	if l := r.URL.Query().Get("limit"); l != "" {
+		limit, _ = strconv.Atoi(l)
+	}
+	if limit > 200 {
+		limit = 200
+	}
+
+	msgs, err := a.db(r).ChatMessages(chatID, limit)
+	if err != nil {
+		jsonErr(w, "internal error", 500)
+		return
+	}
+	if msgs == nil {
+		msgs = []store.Message{}
+	}
+	json.NewEncoder(w).Encode(msgs)
+}
+
+func (a *ClientAPI) sendToBot(w http.ResponseWriter, r *http.Request) {
+	chatID, _ := strconv.ParseInt(r.PathValue("chatID"), 10, 64)
+	if !a.checkChatAccess(w, r, chatID) {
+		return
+	}
+	userID := a.getUserID(r)
+
+	var req struct {
+		Text string `json:"text"`
+	}
+	json.NewDecoder(r.Body).Decode(&req)
+
+	msg, err := a.db(r).SaveMessage(chatID, "user", req.Text, "", "", "")
+	if err != nil {
+		jsonErr(w, "internal error", 500)
+		return
+	}
+
+	s := a.db(r)
+	go a.forwardToBot(s, chatID, userID, msg)
+
+	json.NewEncoder(w).Encode(msg)
+}
+
+func (a *ClientAPI) callback(w http.ResponseWriter, r *http.Request) {
+	chatID, _ := strconv.ParseInt(r.PathValue("chatID"), 10, 64)
+	if !a.checkChatAccess(w, r, chatID) {
+		return
+	}
+	userID := a.getUserID(r)
+
+	var req struct {
+		Data      string `json:"data"`
+		MessageID int64  `json:"message_id"`
+	}
+	json.NewDecoder(r.Body).Decode(&req)
+
+	s := a.db(r)
+	go a.forwardCallback(s, chatID, userID, req.Data, req.MessageID)
+
+	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+}
+
+func (a *ClientAPI) deleteMessage(w http.ResponseWriter, r *http.Request) {
+	userID := a.getUserID(r)
+	if userID == 0 {
+		jsonErr(w, "unauthorized", 401)
+		return
+	}
+	msgID, _ := strconv.ParseInt(r.PathValue("msgID"), 10, 64)
+	msg, err := a.db(r).GetMessage(msgID)
+	if err != nil {
+		jsonErr(w, "not found", 404)
+		return
+	}
+	ownerID, _ := a.db(r).ChatUserID(msg.ChatID)
+	if ownerID != userID {
+		jsonErr(w, "forbidden", 403)
+		return
+	}
+	if err := a.db(r).DeleteMessage(msgID); err != nil {
+		jsonErr(w, "internal error", 500)
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+}
+
+func (a *ClientAPI) websocket(w http.ResponseWriter, r *http.Request) {
+	userID := a.getUserID(r)
+	if userID == 0 {
+		jsonErr(w, "invalid credentials", 401)
+		return
+	}
+
+	wsConn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+
+	conn := ws.NewConn(wsConn, userID)
+	a.hub.Register(userID, conn)
+
+	go conn.WritePump()
+	conn.ReadPump(a.hub, nil)
+}
+
+func (a *ClientAPI) health(w http.ResponseWriter, r *http.Request) {
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status": "ok", "online": a.hub.Online(), "version": Version,
+	})
+}
