@@ -243,10 +243,15 @@ test.describe('Multi-tenant Isolation', () => {
 // ══════════════════════════════════════════
 test.describe('Bot API', () => {
   test('sendMessage via Bot API', async () => {
-    const guest = await api('POST', '/api/auth', { username: 'guest', pin: 'guest' });
-    const chat = await api('POST', '/api/bots/1/start', null, guest.data.token);
+    // Use isolated org so E2E tests don't pollute default demo data
+    const slug = 'e2e-botapi-' + Date.now();
+    const reg = await api('POST', '/api/org/register', { slug, name: slug, username: 'admin', pin: 'admin' });
+    const token = reg.data.token;
+    const bots = await api('GET', '/api/bots', null, token);
+    const botToken = bots.data[0].token;
+    const chat = await api('POST', `/api/bots/${bots.data[0].id}/start`, null, token);
 
-    const r = await fetch(`${BASE}/bot/demo-bot-token/sendMessage`, {
+    const r = await fetch(`${BASE}/bot/${botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: chat.data.id, text: 'E2E bot message' })
