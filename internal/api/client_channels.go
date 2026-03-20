@@ -85,12 +85,14 @@ func (a *ClientAPI) listChannels(w http.ResponseWriter, r *http.Request) {
 		Name        string `json:"name"`
 		Description string `json:"description,omitempty"`
 		Subscribed  bool   `json:"subscribed"`
+		Unread      int    `json:"unread"`
 	}
 	result := make([]channelInfo, 0, len(channels))
 	for _, ch := range channels {
 		result = append(result, channelInfo{
 			ID: ch.ID, Name: ch.Name, Description: ch.Description,
 			Subscribed: a.db(r).IsSubscribed(ch.ID, userID),
+			Unread:     a.db(r).UnreadCount(ch.ID, userID),
 		})
 	}
 	json.NewEncoder(w).Encode(result)
@@ -123,7 +125,8 @@ func (a *ClientAPI) unsubscribe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) channelMessages(w http.ResponseWriter, r *http.Request) {
-	if a.requireAuth(w, r) == 0 {
+	userID := a.requireAuth(w, r)
+	if userID == 0 {
 		return
 	}
 	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
@@ -141,6 +144,10 @@ func (a *ClientAPI) channelMessages(w http.ResponseWriter, r *http.Request) {
 	}
 	if msgs == nil {
 		msgs = []store.ChannelMessage{}
+	}
+	// Mark channel as read
+	if len(msgs) > 0 {
+		a.db(r).MarkChannelRead(channelID, userID, msgs[0].ID) // msgs[0] = newest (DESC order)
 	}
 	json.NewEncoder(w).Encode(msgs)
 }
