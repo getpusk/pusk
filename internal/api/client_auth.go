@@ -77,34 +77,11 @@ func (a *ClientAPI) register(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (a *ClientAPI) getUserID(r *http.Request) int64 {
-	tokenStr := r.Header.Get("Authorization")
-	if tokenStr == "" {
-		tokenStr = r.URL.Query().Get("token")
-	}
-	if tokenStr == "" {
-		return 0
-	}
-	if a.jwt != nil {
-		claims, err := a.jwt.Validate(tokenStr)
-		if err == nil {
-			return claims.UserID
-		}
-	}
-	return 0
-}
-
-func (a *ClientAPI) requireAuth(w http.ResponseWriter, r *http.Request) int64 {
-	uid := a.getUserID(r)
-	if uid == 0 {
-		jsonErr(w, "unauthorized", 401)
-	}
-	return uid
-}
-
+// checkChatAccess verifies the authenticated user owns the given chat.
 func (a *ClientAPI) checkChatAccess(w http.ResponseWriter, r *http.Request, chatID int64) bool {
-	userID := a.requireAuth(w, r)
+	userID := UserIDFromCtx(r.Context())
 	if userID == 0 {
+		jsonErr(w, "unauthorized", 401)
 		return false
 	}
 	ownerID, err := a.db(r).ChatUserID(chatID)
@@ -116,7 +93,9 @@ func (a *ClientAPI) checkChatAccess(w http.ResponseWriter, r *http.Request, chat
 }
 
 func (a *ClientAPI) createInvite(w http.ResponseWriter, r *http.Request) {
-	if a.requireAuth(w, r) == 0 {
+	userID := UserIDFromCtx(r.Context())
+	if userID == 0 {
+		jsonErr(w, "unauthorized", 401)
 		return
 	}
 	s := a.db(r)
