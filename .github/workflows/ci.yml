@@ -1,22 +1,26 @@
 name: CI
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
 
+permissions: read-all
+
 jobs:
   build:
+    name: Build & Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
           go-version: '1.22'
       - run: go build -o pusk ./cmd/pusk/
       - run: go vet ./...
       - name: staticcheck
-        uses: dominikh/staticcheck-action@v1
+        uses: dominikh/staticcheck-action@fe1dd0c3658873b46f8c9bb3291096a617310571 # v1.3.1
         with:
           version: latest
       - name: gofmt
@@ -29,3 +33,112 @@ jobs:
       - name: No hardcoded secrets in frontend
         run: |
           ! grep -rn 'monitor-bot-token' web/static/ --include='*.html' --include='*.js' || { echo 'Hardcoded token found'; exit 1; }
+
+  security:
+    name: Security
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: '1.22'
+
+      - name: Gitleaks — scan for hardcoded secrets
+        run: |
+          curl -sL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz \
+            | tar xz -C /usr/local/bin gitleaks
+          gitleaks detect --source . --config .gitleaks.toml --exit-code 1
+
+      - name: govulncheck — Go vulnerability database
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+      - name: Trivy — filesystem scan (go.sum + source)
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-fs.sarif
+          severity: HIGH,CRITICAL
+          exit-code: 0
+
+      - name: Upload Trivy results to Security tab
+        uses: github/codeql-action/upload-sarif@a60c4df7a135c7317c1e9ddf9b5a9b07a910dda9 # v4
+        if: always()
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs
+
+  integration:
+    name: Integration
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: '1.22'
+
+      - name: Build Pusk
+        run: go build -o pusk ./cmd/pusk/
+
+      - name: Start Pusk
+        run: |
+          PUSK_ADDR=:9999 ./pusk &
+          for i in $(seq 1 10); do
+            curl -sf http://localhost:9999/api/health && break || sleep 1
+          done
+          curl -sf http://localhost:9999/api/health | head -1
+
+      - name: Auth — login as guest
+        run: |
+          TOKEN=$(curl -sf http://localhost:9999/api/auth -X POST \
+            -H 'Content-Type: application/json' \
+            -d '{"username":"guest","pin":"guest"}' | python3 -c "import sys,json;print(json.load(sys.stdin)['token'])")
+          echo "TOKEN=$TOKEN" >> $GITHUB_ENV
+
+      - name: Bot API — sendMessage + getMe
+        run: |
+          curl -sf http://localhost:9999/bot/demo-bot-token/getMe | python3 -c "import sys,json;assert json.load(sys.stdin)['result']['username']=='DemoBot'"
+          CHAT=$(curl -sf http://localhost:9999/api/bots/1/start -X POST -H "Authorization: $TOKEN" | python3 -c "import sys,json;print(json.load(sys.stdin)['id'])")
+          curl -sf http://localhost:9999/bot/demo-bot-token/sendMessage -X POST \
+            -H 'Content-Type: application/json' \
+            -d "{\"chat_id\":$CHAT,\"text\":\"CI test\"}" | python3 -c "import sys,json;assert json.load(sys.stdin)['ok']==True"
+          echo "Bot API OK"
+
+      - name: Webhooks — Alertmanager + Zabbix + Grafana
+        run: |
+          curl -sf http://localhost:9999/hook/demo-bot-token?format=alertmanager -X POST \
+            -H 'Content-Type: application/json' \
+            -d '{"status":"firing","alerts":[{"status":"firing","labels":{"alertname":"CITest"},"annotations":{"summary":"CI"}}]}'
+          curl -sf http://localhost:9999/hook/demo-bot-token?format=zabbix -X POST \
+            -H 'Content-Type: application/json' \
+            -d '{"subject":"CI Zabbix","message":"test"}'
+          curl -sf http://localhost:9999/hook/demo-bot-token?format=grafana -X POST \
+            -H 'Content-Type: application/json' \
+            -d '{"title":"CI Grafana","state":"ok"}'
+          echo "Webhooks OK"
+
+      - name: Multi-tenant — org isolation
+        run: |
+          ORG=$(curl -sf http://localhost:9999/api/org/register -X POST \
+            -H 'Content-Type: application/json' \
+            -d '{"slug":"ci-test","name":"CI","username":"admin","pin":"1234"}')
+          ORG_TOKEN=$(echo "$ORG" | python3 -c "import sys,json;print(json.load(sys.stdin)['token'])")
+          BOTS=$(curl -sf http://localhost:9999/api/bots -H "Authorization: $ORG_TOKEN" | python3 -c "import sys,json;print(len(json.load(sys.stdin)))")
+          [ "$BOTS" = "1" ] && echo "Isolation OK (1 system bot)" || (echo "FAIL: expected 1 bot, got $BOTS" && exit 1)
+
+      - name: Security — unauth blocked
+        run: |
+          [ "$(curl -sf -o /dev/null -w '%{http_code}' http://localhost:9999/api/bots)" = "401" ] && echo "Unauth blocked OK" || exit 1
+
+      - name: Stop Pusk
+        if: always()
+        run: pkill pusk || true
