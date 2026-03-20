@@ -448,33 +448,32 @@ async function sendMsg(){const inp=$('msg-in');const txt=inp.value.trim();if(!tx
   const uname=localStorage.getItem('pusk_uname')||'You';const rid=replyToId;replyToId=0;$('reply-bar').style.display='none';if(curChan){addMsg({sender:'user',sender_name:uname,text:txt,reply_to:rid,date:new Date().toISOString(),message_id:Date.now()});scrollDown();await api('POST',`/api/channels/${curChan}/send`,{text:txt,reply_to:rid})}else if(curChat){addMsg({sender:'user',text:txt,date:new Date().toISOString(),message_id:Date.now()});scrollDown();await api('POST',`/api/chats/${curChat}/send`,{text:txt})}}
 
 // ── Context menu ──
-let _longTimer=null,_ctxMsgEl=null;
+let _longTimer=null,_ctxMsgEl=null,_ctxSavedText='';
 function showCtxMenu(x,y,msgEl){
   const mid=parseInt(msgEl.id.replace('m-',''));
   const isMine=msgEl.dataset.mine==='1';
   const isAdmin=localStorage.getItem('pusk_role')==='admin'||localStorage.getItem('pusk_uid')==='1';
   const sender=msgEl.dataset.sender;
-  const sname=msgEl.dataset.sname;
   const text=msgEl.querySelector('.m-text')?.textContent||'';
   const name=msgEl.querySelector('.m-name')?.textContent||'';
+  _ctxMsgEl=msgEl;_ctxSavedText=text;
   const menu=$('ctx-menu');
   let items='';
   if(curChan){
     items+=`<div class="ctx-item" onclick="hideCtx();startReply(${mid},'${escJs(name)}','${escJs(text.substring(0,40))}')">${lang==='ru'?'Ответить':'Reply'}</div>`;
-    if(isMine&&sender==='user')items+=`<div class="ctx-item" onclick="hideCtx();startEdit(${mid},${curChan},ctxText())">${lang==='ru'?'Редактировать':'Edit'}</div>`;
+    if(isMine&&sender==='user')items+=`<div class="ctx-item" onclick="ctxEdit(${mid},${curChan})">${lang==='ru'?'Редактировать':'Edit'}</div>`;
     if(isMine||isAdmin)items+=`<div class="ctx-item danger" onclick="hideCtx();delChanMsg(${mid})">${lang==='ru'?'Удалить':'Delete'}</div>`;
   }
-  items+=`<div class="ctx-item" onclick="hideCtx();navigator.clipboard.writeText(ctxText())">${lang==='ru'?'Копировать':'Copy'}</div>`;
+  items+=`<div class="ctx-item" onclick="ctxCopy()">${lang==='ru'?'Копировать':'Copy'}</div>`;
   menu.innerHTML=items;
-  _ctxMsgEl=msgEl;
-  // Position
   menu.style.display='block';
   const mw=menu.offsetWidth,mh=menu.offsetHeight;
   menu.style.left=Math.min(x,window.innerWidth-mw-8)+'px';
   menu.style.top=Math.min(y,window.innerHeight-mh-8)+'px';
 }
-function ctxText(){return _ctxMsgEl?_ctxMsgEl.querySelector('.m-text')?.textContent||'':''}
-function hideCtx(){$('ctx-menu').style.display='none';_ctxMsgEl=null}
+function ctxEdit(mid,chanId){const t=_ctxSavedText;hideCtx();startEdit(mid,chanId,t)}
+function ctxCopy(){const t=_ctxSavedText;hideCtx();navigator.clipboard.writeText(t)}
+function hideCtx(){$('ctx-menu').style.display='none';_ctxMsgEl=null;_ctxSavedText=''}
 document.addEventListener('click',e=>{if(!e.target.closest('#ctx-menu'))hideCtx()});
 
 // Long press for context menu (mobile)
