@@ -5,11 +5,12 @@ package bot
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
-
-	"github.com/pusk-platform/pusk/internal/metrics"
 	"net/http"
 	"strings"
+
+	"github.com/pusk-platform/pusk/internal/metrics"
 )
 
 // WebhookHandler handles incoming webhooks from monitoring systems
@@ -35,9 +36,26 @@ func (h *Handler) webhook(w http.ResponseWriter, r *http.Request) {
 	}
 	channelName := r.URL.Query().Get("channel")
 
+	// Read body bytes for dedup check before parsing
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(200)
+		json.NewEncoder(w).Encode(map[string]string{"status": "ok", "error": "read error"})
+		return
+	}
+
+	// Deduplicate burst webhook calls (e.g. Alertmanager retries)
+	if h.debounce != nil && h.debounce.IsDuplicate(bodyBytes) {
+		slog.Info("webhook deduplicated", "format", format, "bot", bot.Name)
+		metrics.WebhooksDedupedTotal.Inc()
+		w.WriteHeader(200)
+		json.NewEncoder(w).Encode(map[string]string{"status": "ok", "deduped": "true"})
+		return
+	}
+
 	// Parse JSON body
 	var payload map[string]interface{}
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+	if err := json.Unmarshal(bodyBytes, &payload); err != nil {
 		// Try as array (some systems send arrays)
 		w.WriteHeader(200) // Always 200 for webhook senders
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok", "error": "invalid json"})
