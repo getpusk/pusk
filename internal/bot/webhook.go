@@ -62,20 +62,14 @@ func (h *Handler) webhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Format message based on source type
+	// Format message via template engine
 	var text string
 	switch format {
-	case "alertmanager":
-		text = formatAlertmanager(payload)
-	case "zabbix":
-		text = formatZabbix(payload)
-	case "grafana":
-		text = formatGrafana(payload)
-	case "raw":
-		// Smart extract: if payload has msg/message/text field, use it as plain text
-		if t := extractText(payload); t != "" {
-			text = t
-		} else {
+	case "alertmanager", "zabbix", "grafana", "raw":
+		var err error
+		text, err = h.templates.Render(format, payload)
+		if err != nil {
+			slog.Warn("template error, raw fallback", "format", format, "err", err)
 			raw, _ := json.MarshalIndent(payload, "", "  ")
 			text = "```json\n" + string(raw) + "\n```"
 		}
