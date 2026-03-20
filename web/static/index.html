@@ -218,7 +218,13 @@ bot = Bot(token="my-token",
     <div class="auth-logo">Pusk</div>
     <p class="auth-sub" id="auth-sub"></p>
     <input id="a-user" autocomplete="username">
-    <div style="position:relative"><input id="a-pin" type="password" autocomplete="current-password" style="padding-right:40px"><button type="button" id="eye-btn" onclick="const i=$('a-pin');const on=i.type==='password';i.type=on?'text':'password';this.innerHTML=on?'<svg width=20 height=20 viewBox=&quot;0 0 24 24&quot; fill=none stroke=currentColor stroke-width=2><path d=&quot;M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z&quot;/><circle cx=12 cy=12 r=3/><line x1=2 y1=2 x2=22 y2=22/></svg>':'<svg width=20 height=20 viewBox=&quot;0 0 24 24&quot; fill=none stroke=currentColor stroke-width=2><path d=&quot;M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z&quot;/><circle cx=12 cy=12 r=3/></svg>'" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text2);display:flex;align-items:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+    <div style="position:relative"><input id="a-pin" type="password" autocomplete="current-password" style="padding-right:40px"><button type="button" id="eye-btn" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text2);display:flex;align-items:center"></button></div>
+<script>
+const _eyeOn='<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+const _eyeOff='<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+document.getElementById('eye-btn').innerHTML=_eyeOn;
+document.getElementById('eye-btn').onclick=function(){const i=document.getElementById('a-pin');const show=i.type==='password';i.type=show?'text':'password';this.innerHTML=show?_eyeOff:_eyeOn};
+</script>
     <input id="a-org" placeholder="ID организации (напр: acme)" style="font-size:13px;padding:10px 16px">
     <button class="abtn abtn-p" id="btn-login"></button>
     <button class="abtn abtn-s" id="btn-reg"></button>
