@@ -163,6 +163,12 @@ func (a *ClientAPI) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Auto-subscribe to all channels in org
+	channels, _ := s.ListChannels()
+	for _, ch := range channels {
+		s.Subscribe(ch.ID, user.ID)
+	}
+
 	token, _ := a.jwt.Generate(user.ID, orgSlug, req.Username)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
