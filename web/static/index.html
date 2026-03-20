@@ -136,6 +136,12 @@ header h2{font-size:16px;flex:1}
 .mbtn-ok{background:var(--primary);color:#fff}
 .mbtn-no{background:transparent;color:var(--text2);border:1px solid var(--border)!important}
 .modal-msg{font-size:13px;margin-top:8px}
+
+/* Install banner */
+#install-banner{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);padding:12px 16px;z-index:500;text-align:center}
+#install-banner button{padding:10px 20px;border-radius:var(--radius);border:none;cursor:pointer;font-size:14px;margin:0 6px}
+.install-yes{background:var(--primary);color:#fff}
+.install-no{background:transparent;color:var(--text2);border:1px solid var(--border)!important}
 </style>
 </head>
 <body>
@@ -262,7 +268,39 @@ bot = Bot(token="my-token",
   </div>
 </div>
 
+<div id="install-banner">
+  <span>Установите Pusk для push-уведомлений</span><br style="margin-bottom:8px">
+  <button class="install-yes" id="install-btn">Установить</button>
+  <button class="install-no" id="install-dismiss">Не сейчас</button>
+</div>
+
 <script>
+// ── PWA Install Prompt ──
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();deferredPrompt=e;
+  if(!localStorage.getItem('pusk_install_dismissed')){
+    $('install-banner').style.display='block';
+  }
+});
+document.addEventListener('DOMContentLoaded',()=>{
+  const ib=document.getElementById('install-btn');
+  const id=document.getElementById('install-dismiss');
+  if(ib)ib.onclick=async()=>{
+    if(deferredPrompt){
+      deferredPrompt.prompt();
+      const r=await deferredPrompt.userChoice;
+      if(r.outcome==='accepted')console.log('[pwa] installed');
+      deferredPrompt=null;
+    }
+    document.getElementById('install-banner').style.display='none';
+  };
+  if(id)id.onclick=()=>{
+    document.getElementById('install-banner').style.display='none';
+    localStorage.setItem('pusk_install_dismissed','1');
+  };
+});
+
 // ── i18n ──
 const L={
   ru:{sub:'Бот-платформа',login:'Войти',reg:'Создать',demo:'Демо',user:'Логин',pin:'Пин-код',
