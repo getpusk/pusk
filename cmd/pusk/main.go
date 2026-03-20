@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -171,13 +172,32 @@ func main() {
 		}
 		ch, err := s.CreateChannel(bots[0].ID, req.Name, req.Description)
 		if err != nil {
-			w.WriteHeader(500)
-			json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": err.Error()})
+			errMsg := "Канал с таким именем уже существует"
+			if !strings.Contains(err.Error(), "UNIQUE") {
+				errMsg = err.Error()
+			}
+			w.WriteHeader(400)
+			json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": errMsg})
 			return
 		}
 		log.Printf("[admin] channel created: %s", ch.Name)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "result": ch})
+	})
+
+	mux.HandleFunc("DELETE /admin/channel/{channelID}", func(w http.ResponseWriter, r *http.Request) {
+		s, ok := getOrgStore(r)
+		if !ok {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
+		if err := s.DeleteChannel(channelID); err != nil {
+			json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": err.Error()})
+			return
+		}
+		log.Printf("[admin] channel deleted: %d", channelID)
+		json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
 	})
 
 	// Org registration
