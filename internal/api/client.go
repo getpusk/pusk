@@ -66,9 +66,7 @@ type ClientAPI struct {
 }
 
 func NewClientAPI(orgs *org.Manager, s *store.Store, hub *ws.Hub, push *notify.PushService, relay *bot.RelayHub, vapidPub string, jwtSvcParam *auth.JWTService) *ClientAPI {
-	svc := &ClientAPI{orgs: orgs, store: s, hub: hub, push: push, relay: relay, vapidPub: vapidPub, jwt: jwtSvcParam}
-	jwtSvc = jwtSvcParam
-	return svc
+	return &ClientAPI{orgs: orgs, store: s, hub: hub, push: push, relay: relay, vapidPub: vapidPub, jwt: jwtSvcParam}
 }
 
 // db returns the Store for the org derived from JWT claims in the request
@@ -77,8 +75,8 @@ func (a *ClientAPI) db(r *http.Request) *store.Store {
 	if tokenStr == "" {
 		tokenStr = r.URL.Query().Get("token")
 	}
-	if a.orgs != nil && jwtSvc != nil && tokenStr != "" {
-		if claims, err := jwtSvc.Validate(tokenStr); err == nil && claims.OrgID != "" {
+	if a.orgs != nil && a.jwt != nil && tokenStr != "" {
+		if claims, err := a.jwt.Validate(tokenStr); err == nil && claims.OrgID != "" {
 			if s, err := a.orgs.Get(claims.OrgID); err == nil {
 				return s
 			}
@@ -87,17 +85,25 @@ func (a *ClientAPI) db(r *http.Request) *store.Store {
 	return a.store
 }
 
+// limitBody wraps a handler with request body size limit (1MB)
+func limitBody(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+		next(w, r)
+	}
+}
+
 func (a *ClientAPI) Route(mux *http.ServeMux) {
 	authRL := NewRateLimiter(20, time.Minute) // 20 attempts per minute per IP
 	regRL := NewRateLimiter(10, time.Minute)  // 10 registrations per minute per IP
-	mux.HandleFunc("POST /api/auth", RateLimit(authRL, a.auth))
-	mux.HandleFunc("POST /api/register", RateLimit(regRL, a.register))
+	mux.HandleFunc("POST /api/auth", RateLimit(authRL, limitBody(a.auth)))
+	mux.HandleFunc("POST /api/register", RateLimit(regRL, limitBody(a.register)))
 	mux.HandleFunc("GET /api/bots", a.listBots)
 	mux.HandleFunc("GET /api/chats", a.listChats)
 	mux.HandleFunc("GET /api/chats/{chatID}/messages", a.chatMessages)
-	mux.HandleFunc("POST /api/chats/{chatID}/send", a.sendToBot)
-	mux.HandleFunc("POST /api/chats/{chatID}/callback", a.callback)
-	mux.HandleFunc("POST /api/bots/{botID}/start", a.startChat)
+	mux.HandleFunc("POST /api/chats/{chatID}/send", limitBody(a.sendToBot))
+	mux.HandleFunc("POST /api/chats/{chatID}/callback", limitBody(a.callback))
+	mux.HandleFunc("POST /api/bots/{botID}/start", limitBody(a.startChat))
 	mux.HandleFunc("GET /api/ws", a.websocket)
 	mux.HandleFunc("GET /api/health", a.health)
 	mux.HandleFunc("GET /api/channels", a.listChannels)
@@ -105,10 +111,10 @@ func (a *ClientAPI) Route(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/channels/{channelID}/unsubscribe", a.unsubscribe)
 	mux.HandleFunc("GET /api/channels/{channelID}/messages", a.channelMessages)
 	mux.HandleFunc("DELETE /api/messages/{msgID}", a.deleteMessage)
-	mux.HandleFunc("POST /api/push/subscribe", a.pushSubscribe)
+	mux.HandleFunc("POST /api/push/subscribe", limitBody(a.pushSubscribe))
 	mux.HandleFunc("GET /api/push/vapid", a.vapidKey)
-	mux.HandleFunc("POST /api/invite", a.createInvite)
-	mux.HandleFunc("POST /api/invite/accept", a.acceptInvite)
+	mux.HandleFunc("POST /api/invite", limitBody(a.createInvite))
+	mux.HandleFunc("POST /api/invite/accept", limitBody(a.acceptInvite))
 }
 
 func (a *ClientAPI) auth(w http.ResponseWriter, r *http.Request) {
@@ -181,7 +187,7 @@ func (a *ClientAPI) register(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) listBots(w http.ResponseWriter, r *http.Request) {
-	if requireAuth(w, r) == 0 {
+	if a.requireAuth(w, r) == 0 {
 		return
 	}
 	bots, err := a.db(r).ListBots()
@@ -203,7 +209,7 @@ func (a *ClientAPI) listBots(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) listChats(w http.ResponseWriter, r *http.Request) {
-	userID := requireAuth(w, r)
+	userID := a.requireAuth(w, r)
 	if userID == 0 {
 		return
 	}
@@ -216,7 +222,7 @@ func (a *ClientAPI) listChats(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) startChat(w http.ResponseWriter, r *http.Request) {
-	userID := requireAuth(w, r)
+	userID := a.requireAuth(w, r)
 	if userID == 0 {
 		return
 	}
@@ -262,6 +268,9 @@ func (a *ClientAPI) chatMessages(w http.ResponseWriter, r *http.Request) {
 	if l := r.URL.Query().Get("limit"); l != "" {
 		limit, _ = strconv.Atoi(l)
 	}
+	if limit > 200 {
+		limit = 200
+	}
 
 	msgs, err := a.db(r).ChatMessages(chatID, limit)
 	if err != nil {
@@ -279,7 +288,7 @@ func (a *ClientAPI) sendToBot(w http.ResponseWriter, r *http.Request) {
 	if !a.checkChatAccess(w, r, chatID) {
 		return
 	}
-	userID := getUserID(r)
+	userID := a.getUserID(r)
 
 	var req struct {
 		Text string `json:"text"`
@@ -304,7 +313,7 @@ func (a *ClientAPI) callback(w http.ResponseWriter, r *http.Request) {
 	if !a.checkChatAccess(w, r, chatID) {
 		return
 	}
-	userID := getUserID(r)
+	userID := a.getUserID(r)
 
 	var req struct {
 		Data      string `json:"data"`
@@ -320,7 +329,7 @@ func (a *ClientAPI) callback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) websocket(w http.ResponseWriter, r *http.Request) {
-	userID := getUserID(r)
+	userID := a.getUserID(r)
 	if userID == 0 {
 		jsonErr(w, "invalid credentials", 401)
 		return
@@ -347,7 +356,7 @@ func (a *ClientAPI) health(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) listChannels(w http.ResponseWriter, r *http.Request) {
-	userID := requireAuth(w, r)
+	userID := a.requireAuth(w, r)
 	if userID == 0 {
 		return
 	}
@@ -373,7 +382,7 @@ func (a *ClientAPI) listChannels(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) subscribe(w http.ResponseWriter, r *http.Request) {
-	userID := requireAuth(w, r)
+	userID := a.requireAuth(w, r)
 	if userID == 0 {
 		return
 	}
@@ -386,7 +395,7 @@ func (a *ClientAPI) subscribe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) unsubscribe(w http.ResponseWriter, r *http.Request) {
-	userID := requireAuth(w, r)
+	userID := a.requireAuth(w, r)
 	if userID == 0 {
 		return
 	}
@@ -399,13 +408,16 @@ func (a *ClientAPI) unsubscribe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) channelMessages(w http.ResponseWriter, r *http.Request) {
-	if requireAuth(w, r) == 0 {
+	if a.requireAuth(w, r) == 0 {
 		return
 	}
 	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
 	limit := 50
 	if l := r.URL.Query().Get("limit"); l != "" {
 		limit, _ = strconv.Atoi(l)
+	}
+	if limit > 200 {
+		limit = 200
 	}
 	msgs, err := a.db(r).ChannelMessages(channelID, limit)
 	if err != nil {
@@ -419,7 +431,7 @@ func (a *ClientAPI) channelMessages(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) pushSubscribe(w http.ResponseWriter, r *http.Request) {
-	userID := getUserID(r)
+	userID := a.getUserID(r)
 	var req struct {
 		Endpoint string `json:"endpoint"`
 		Keys     struct {
@@ -440,7 +452,7 @@ func (a *ClientAPI) vapidKey(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) createInvite(w http.ResponseWriter, r *http.Request) {
-	if requireAuth(w, r) == 0 {
+	if a.requireAuth(w, r) == 0 {
 		return
 	}
 	s := a.db(r)
@@ -509,7 +521,7 @@ func (a *ClientAPI) acceptInvite(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) deleteMessage(w http.ResponseWriter, r *http.Request) {
-	userID := getUserID(r)
+	userID := a.getUserID(r)
 	if userID == 0 {
 		jsonErr(w, "unauthorized", 401)
 		return
@@ -535,11 +547,9 @@ func (a *ClientAPI) deleteMessage(w http.ResponseWriter, r *http.Request) {
 
 // ── Internal ──
 
-// jwtSvc is set during init — package-level for getUserID access
+// ── Helpers ──
 // Version is set via -ldflags at build time
 var Version = "dev"
-
-var jwtSvc *auth.JWTService
 
 func jsonErr(w http.ResponseWriter, msg string, code int) {
 	w.Header().Set("Content-Type", "application/json")
@@ -547,7 +557,7 @@ func jsonErr(w http.ResponseWriter, msg string, code int) {
 	json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
 
-func getUserID(r *http.Request) int64 {
+func (a *ClientAPI) getUserID(r *http.Request) int64 {
 	tokenStr := r.Header.Get("Authorization")
 	if tokenStr == "" {
 		tokenStr = r.URL.Query().Get("token")
@@ -555,9 +565,8 @@ func getUserID(r *http.Request) int64 {
 	if tokenStr == "" {
 		return 0
 	}
-	// Try JWT first
-	if jwtSvc != nil {
-		claims, err := jwtSvc.Validate(tokenStr)
+	if a.jwt != nil {
+		claims, err := a.jwt.Validate(tokenStr)
 		if err == nil {
 			return claims.UserID
 		}
@@ -566,8 +575,8 @@ func getUserID(r *http.Request) int64 {
 }
 
 // requireAuth returns userID or writes 401 and returns 0
-func requireAuth(w http.ResponseWriter, r *http.Request) int64 {
-	uid := getUserID(r)
+func (a *ClientAPI) requireAuth(w http.ResponseWriter, r *http.Request) int64 {
+	uid := a.getUserID(r)
 	if uid == 0 {
 		jsonErr(w, "unauthorized", 401)
 	}
@@ -576,7 +585,7 @@ func requireAuth(w http.ResponseWriter, r *http.Request) int64 {
 
 // checkChatAccess verifies the requesting user owns the chat
 func (a *ClientAPI) checkChatAccess(w http.ResponseWriter, r *http.Request, chatID int64) bool {
-	userID := requireAuth(w, r)
+	userID := a.requireAuth(w, r)
 	if userID == 0 {
 		return false
 	}

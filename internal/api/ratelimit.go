@@ -15,6 +15,7 @@ type RateLimiter struct {
 	buckets  map[string]*bucket
 	rate     int // tokens per interval
 	interval time.Duration
+	stop     chan struct{}
 }
 
 type bucket struct {
@@ -27,12 +28,19 @@ func NewRateLimiter(rate int, interval time.Duration) *RateLimiter {
 		buckets:  make(map[string]*bucket),
 		rate:     rate,
 		interval: interval,
+		stop:     make(chan struct{}),
 	}
 	// Cleanup stale buckets every 5 minutes
 	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
 		for {
-			time.Sleep(5 * time.Minute)
-			rl.cleanup()
+			select {
+			case <-ticker.C:
+				rl.cleanup()
+			case <-rl.stop:
+				return
+			}
 		}
 	}()
 	return rl
@@ -66,6 +74,10 @@ func (rl *RateLimiter) Allow(key string) bool {
 	}
 	b.tokens--
 	return true
+}
+
+func (rl *RateLimiter) Stop() {
+	close(rl.stop)
 }
 
 func (rl *RateLimiter) cleanup() {
