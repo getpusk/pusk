@@ -125,6 +125,15 @@ header h2{font-size:16px;flex:1}
 #reply-bar{display:none;padding:4px 12px;background:var(--surface);border-top:1px solid var(--border);font-size:12px;color:var(--text2)}
 #reply-bar span{flex:1}
 #reply-bar button{background:none;border:none;color:var(--text2);cursor:pointer;font-size:16px}
+#edit-bar{display:none;padding:4px 12px;background:var(--primary);border-top:1px solid var(--border);font-size:12px;color:#fff}
+#edit-bar span{flex:1}
+#edit-bar button{background:none;border:none;color:#fff;cursor:pointer;font-size:16px}
+.m-edited{font-size:10px;color:var(--text2);margin-left:6px;font-style:italic}
+/* Context menu */
+#ctx-menu{display:none;position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:6px 0;z-index:400;box-shadow:0 8px 24px rgba(0,0,0,0.5);min-width:160px}
+.ctx-item{padding:10px 16px;font-size:14px;cursor:pointer;color:var(--text)}
+.ctx-item:hover{background:var(--bg)}
+.ctx-item.danger{color:#e05d44}
 
 /* Input bar */
 #input-bar{display:none;padding:8px 12px;background:var(--surface);border-top:1px solid var(--border);gap:8px;align-items:flex-end}
@@ -234,6 +243,7 @@ bot = Bot(token="my-token",
   <div id="main-list"></div>
   <div id="chat-view"><div id="msgs"></div></div>
   <div id="reply-bar"><span id="reply-text"></span><button id="reply-cancel">✕</button></div>
+  <div id="edit-bar"><span id="edit-text"></span><button id="edit-cancel">✕</button></div>
   <div id="input-bar">
     <textarea id="msg-in" rows="1"></textarea>
     <button id="msg-send">&#8594;</button>
@@ -290,6 +300,7 @@ bot = Bot(token="my-token",
   <button class="install-no" id="install-dismiss">Не сейчас</button>
 </div>
 
+<div id="ctx-menu"></div>
 <script>
 // ── PWA Install Prompt ──
 let deferredPrompt=null;
@@ -380,7 +391,7 @@ $('btn-login').onclick=async()=>{const u=$('a-user').value.trim(),p=$('a-pin').v
 $('btn-reg').onclick=async()=>{const u=$('a-user').value.trim(),p=$('a-pin').value.trim(),o=$('a-org').value.trim()||undefined;if(!u||!p){$('a-err').textContent=t('err_empty');return}let r;if(_invite){r=await api('POST','/api/invite/accept'+(o?'?org='+o:''),{code:_invite,username:u,pin:p,display_name:u})}else{r=await api('POST','/api/register',{username:u,pin:p,display_name:u,org:o})}if(r.error){$('a-err').textContent=r.error.includes('UNIQUE')?u+' '+t('err_taken'):te(r.error);return}auth(r)};
 $('btn-demo').onclick=async()=>{let r=await api('POST','/api/auth',{username:'guest',pin:'guest'});if(!r.token)r=await api('POST','/api/register',{username:'guest',pin:'guest',display_name:'Guest'});if(!r.token){$('a-err').textContent=t('err_demo');return}auth(r)};
 
-function auth(r){token=r.token;localStorage.setItem('pusk_token',token);localStorage.setItem('pusk_uid',r.user_id);localStorage.setItem('pusk_uname',r.username||'');if(r.org){localStorage.setItem('pusk_org',r.org);const orgs=JSON.parse(localStorage.getItem('pusk_orgs')||'{}');orgs[r.org]={token:r.token,user:r.username,name:r.org};localStorage.setItem('pusk_orgs',JSON.stringify(orgs))}showApp()}
+function auth(r){token=r.token;localStorage.setItem('pusk_token',token);localStorage.setItem('pusk_uid',r.user_id);localStorage.setItem('pusk_uname',r.username||'');if(r.role)localStorage.setItem('pusk_role',r.role);if(r.org){localStorage.setItem('pusk_org',r.org);const orgs=JSON.parse(localStorage.getItem('pusk_orgs')||'{}');orgs[r.org]={token:r.token,user:r.username,name:r.org,role:r.role||'member'};localStorage.setItem('pusk_orgs',JSON.stringify(orgs))}showApp()}
 function logout(){token=null;curChat=null;curChan=null;localStorage.removeItem('pusk_token');localStorage.removeItem('pusk_uid');localStorage.removeItem('pusk_uname');localStorage.removeItem('pusk_view');if(ws)ws.close();$('landing').style.display='flex';$('auth').style.display='none';$('app').style.display='none';$('fab').style.display='none';$('settings').style.display='none';$('settings-bg').style.display='none';initLandingChat()}
 
 // ── App ──
@@ -401,10 +412,11 @@ async function openChat(botId,name){localStorage.setItem('pusk_view',JSON.string
 async function openChan(chId,name){localStorage.setItem('pusk_view',JSON.stringify({t:'ch',id:chId,n:name}));$('fab').style.display='none';curChan=chId;curChat=null;replyToId=0;$('reply-bar').style.display='none';$('main-list').style.display='none';$('chat-view').style.display='flex';$('input-bar').style.display='flex';$('hdr-back').style.display='inline';$('hdr-title').textContent='# '+name;$('msg-in').placeholder='Написать в #'+name+'...';const msgs=await api('GET',`/api/channels/${chId}/messages`);$('msgs').innerHTML='';if(msgs&&msgs.length)msgs.reverse().forEach(m=>{if(!m.sender)m.sender='bot';addMsg(m)});else $('msgs').innerHTML=`<div class="m-empty">${t('no_msg')}</div>`;scrollDown()}
 
 function addMsg(m){const el=$('msgs');if(el.querySelector('.m-empty'))el.innerHTML='';const who=m.sender==='bot'?(m.bot_name||$('hdr-title').textContent.replace('# ','')||'Bot'):(m.sender_name||localStorage.getItem('pusk_uname')||'You');const tm=fmtTime(m.date);
-  const isBot=m.sender==='bot';
-  let h=`<div class="m${isBot?' m-bot':''}" id="m-${m.message_id}"><div class="m-ava" style="background:${nameColor(who)}">${who[0].toUpperCase()}</div>`;
+  const isBot=m.sender==='bot';const isMine=m.sender==='user'&&m.sender_name===localStorage.getItem('pusk_uname');
+  let h=`<div class="m${isBot?' m-bot':''}" id="m-${m.message_id}" data-sender="${esc(m.sender)}" data-sname="${esc(m.sender_name||'')}" data-mine="${isMine?1:0}"><div class="m-ava" style="background:${nameColor(who)}">${who[0].toUpperCase()}</div>`;
   if(m.reply_to){const orig=document.getElementById('m-'+m.reply_to);const qtext=orig?orig.querySelector('.m-text')?.textContent?.substring(0,40):'...';const qname=orig?orig.querySelector('.m-name')?.textContent:'';h+=`<div class="m-quote"><b>${esc(qname)}</b> ${esc(qtext)}</div>`}
-  h+=`<div class="m-head"><span class="m-name">${esc(who)}</span><span class="m-time">${tm}</span></div>`;
+  const editedTag=m.edited_at?`<span class="m-edited">(${lang==='ru'?'ред.':'edited'})</span>`:'';
+  h+=`<div class="m-head"><span class="m-name">${esc(who)}</span><span class="m-time">${tm}</span>${editedTag}</div>`;
   if(m.file_id){if(m.file_type==='photo')h+=`<img src="/file/${m.file_id}?token=${token}" style="max-width:100%;border-radius:8px;margin:4px 0">`;else if(m.file_type==='voice')h+=`<audio controls src="/file/${m.file_id}?token=${token}" style="width:100%"></audio>`;else if(m.file_type==='video')h+=`<video controls src="/file/${m.file_id}?token=${token}" style="max-width:100%;border-radius:8px"></video>`;else h+=`<a href="/file/${m.file_id}?token=${token}" style="color:var(--accent)">File</a><br>`}
   h+=`<div class="m-text">${md(m.text||'')}</div>`;
   if(m.reply_markup){try{const kb=typeof m.reply_markup==='string'?JSON.parse(m.reply_markup):m.reply_markup;if(kb.inline_keyboard){h+='<div class="m-kb">';kb.inline_keyboard.forEach(row=>{h+='<div class="m-kb-row">';row.forEach(btn=>{h+=`<button class="m-kb-btn" data-cb="${btn.callback_data}" data-mid="${m.message_id}" onclick="onCb(this)">${esc(btn.text)}</button>`});h+='</div>'});h+='</div>'}}catch{}}
@@ -423,7 +435,71 @@ document.addEventListener('touchstart',e=>{const m=e.target.closest('.m');if(m&&
 document.addEventListener('touchend',e=>{if(!_swipeEl)return;const dx=e.changedTouches[0].clientX-_swipeX;if(dx>80){const name=_swipeEl.querySelector('.m-name')?.textContent||'';const text=_swipeEl.querySelector('.m-text')?.textContent?.substring(0,40)||'';const mid=parseInt(_swipeEl.id.replace('m-',''));if(mid)startReply(mid,name,text)}_swipeEl.style.transform='';_swipeEl=null},{passive:true});
 document.addEventListener('touchmove',e=>{if(!_swipeEl)return;const dx=e.touches[0].clientX-_swipeX;if(dx>10)_swipeEl.style.transform=`translateX(${Math.min(dx,60)}px)`},{passive:true});
 $('reply-cancel').onclick=()=>{replyToId=0;$('reply-bar').style.display='none'};
-async function sendMsg(){const inp=$('msg-in');const txt=inp.value.trim();if(!txt)return;inp.value='';const uname=localStorage.getItem('pusk_uname')||'You';const rid=replyToId;replyToId=0;$('reply-bar').style.display='none';if(curChan){addMsg({sender:'user',sender_name:uname,text:txt,reply_to:rid,date:new Date().toISOString(),message_id:Date.now()});scrollDown();await api('POST',`/api/channels/${curChan}/send`,{text:txt,reply_to:rid})}else if(curChat){addMsg({sender:'user',text:txt,date:new Date().toISOString(),message_id:Date.now()});scrollDown();await api('POST',`/api/chats/${curChat}/send`,{text:txt})}}
+
+// ── Edit mode ──
+let editMsgId=0,editChanId=0;
+$('edit-cancel').onclick=cancelEdit;
+function cancelEdit(){editMsgId=0;editChanId=0;$('edit-bar').style.display='none';$('msg-in').value='';$('msg-send').textContent='\u2192'}
+function startEdit(mid,chanId,text){editMsgId=mid;editChanId=chanId;replyToId=0;$('reply-bar').style.display='none';$('edit-bar').style.display='flex';$('edit-text').innerHTML='<b>'+(lang==='ru'?'Редактирование':'Editing')+'</b>';$('msg-in').value=text;$('msg-in').focus();$('msg-send').textContent='\u2713'}
+
+async function sendMsg(){const inp=$('msg-in');const txt=inp.value.trim();if(!txt)return;inp.value='';
+  // Edit mode
+  if(editMsgId&&editChanId){const mid=editMsgId;const cid=editChanId;cancelEdit();await api('PUT',`/api/channels/${cid}/messages/${mid}`,{text:txt});return}
+  const uname=localStorage.getItem('pusk_uname')||'You';const rid=replyToId;replyToId=0;$('reply-bar').style.display='none';if(curChan){addMsg({sender:'user',sender_name:uname,text:txt,reply_to:rid,date:new Date().toISOString(),message_id:Date.now()});scrollDown();await api('POST',`/api/channels/${curChan}/send`,{text:txt,reply_to:rid})}else if(curChat){addMsg({sender:'user',text:txt,date:new Date().toISOString(),message_id:Date.now()});scrollDown();await api('POST',`/api/chats/${curChat}/send`,{text:txt})}}
+
+// ── Context menu ──
+let _longTimer=null,_ctxMsgEl=null;
+function showCtxMenu(x,y,msgEl){
+  const mid=parseInt(msgEl.id.replace('m-',''));
+  const isMine=msgEl.dataset.mine==='1';
+  const isAdmin=localStorage.getItem('pusk_role')==='admin'||localStorage.getItem('pusk_uid')==='1';
+  const sender=msgEl.dataset.sender;
+  const sname=msgEl.dataset.sname;
+  const text=msgEl.querySelector('.m-text')?.textContent||'';
+  const name=msgEl.querySelector('.m-name')?.textContent||'';
+  const menu=$('ctx-menu');
+  let items='';
+  if(curChan){
+    items+=`<div class="ctx-item" onclick="hideCtx();startReply(${mid},'${escJs(name)}','${escJs(text.substring(0,40))}')">${lang==='ru'?'Ответить':'Reply'}</div>`;
+    if(isMine&&sender==='user')items+=`<div class="ctx-item" onclick="hideCtx();startEdit(${mid},${curChan},ctxText())">${lang==='ru'?'Редактировать':'Edit'}</div>`;
+    if(isMine||isAdmin)items+=`<div class="ctx-item danger" onclick="hideCtx();delChanMsg(${mid})">${lang==='ru'?'Удалить':'Delete'}</div>`;
+  }
+  items+=`<div class="ctx-item" onclick="hideCtx();navigator.clipboard.writeText(ctxText())">${lang==='ru'?'Копировать':'Copy'}</div>`;
+  menu.innerHTML=items;
+  _ctxMsgEl=msgEl;
+  // Position
+  menu.style.display='block';
+  const mw=menu.offsetWidth,mh=menu.offsetHeight;
+  menu.style.left=Math.min(x,window.innerWidth-mw-8)+'px';
+  menu.style.top=Math.min(y,window.innerHeight-mh-8)+'px';
+}
+function ctxText(){return _ctxMsgEl?_ctxMsgEl.querySelector('.m-text')?.textContent||'':''}
+function hideCtx(){$('ctx-menu').style.display='none';_ctxMsgEl=null}
+document.addEventListener('click',e=>{if(!e.target.closest('#ctx-menu'))hideCtx()});
+
+// Long press for context menu (mobile)
+document.addEventListener('touchstart',e=>{
+  const m=e.target.closest('.m');
+  if(!m)return;
+  _longTimer=setTimeout(()=>{
+    _longTimer=null;_swipeEl=null; // cancel swipe
+    const t=e.touches[0];
+    showCtxMenu(t.clientX,t.clientY,m);
+  },500);
+},{passive:true});
+document.addEventListener('touchend',()=>{if(_longTimer){clearTimeout(_longTimer);_longTimer=null}},{passive:true});
+document.addEventListener('touchmove',()=>{if(_longTimer){clearTimeout(_longTimer);_longTimer=null}},{passive:true});
+
+// Right-click for context menu (desktop)
+document.addEventListener('contextmenu',e=>{
+  const m=e.target.closest('.m');
+  if(!m||!curChan)return;
+  e.preventDefault();
+  showCtxMenu(e.clientX,e.clientY,m);
+});
+
+// Delete channel message
+async function delChanMsg(mid){if(!confirm(lang==='ru'?'Удалить сообщение?':'Delete message?'))return;await api('DELETE',`/api/channels/messages/${mid}`);const el=document.getElementById('m-'+mid);if(el)el.remove()}
 async function onCb(el){if(curChan){await api('POST',`/api/channels/${curChan}/ack`,{action:el.dataset.cb,message_id:parseInt(el.dataset.mid)});el.closest('.m-kb').innerHTML='<span style="color:#3db887;font-size:12px">'+el.textContent+' ✓</span>'}else if(curChat){await api('POST',`/api/chats/${curChat}/callback`,{data:el.dataset.cb,message_id:parseInt(el.dataset.mid)})}}
 async function onDel(mid){if(!confirm('Удалить сообщение?'))return;await api('DELETE',`/api/messages/${mid}`);const el=document.getElementById('m-'+mid);if(el)el.remove()}
 
@@ -435,7 +511,7 @@ $('hdr-ava').onclick=$('hdr-name').onclick=()=>{const v=$('settings').style.disp
 function renderSettings(){const u=localStorage.getItem('pusk_uname')||'?';const o=localStorage.getItem('pusk_org')||'default';$('s-profile').textContent=u+' @ '+o;$('s-about').textContent='Pusk v'+($('hdr-dot')?'0.5.0':'?');$('s-push-btn').textContent=Notification.permission==='granted'?'ON':'OFF'}
 async function togglePush(){if(Notification.permission==='granted'){$('s-push-btn').textContent='ON (перезагрузите для отключения)'}else{const p=await Notification.requestPermission();if(p==='granted'){registerPush();$('s-push-btn').textContent='ON'}else{$('s-push-btn').textContent='Заблокировано'}}}
 function renderOrgSwitch(){const el=$('s-org-switch');const orgs=JSON.parse(localStorage.getItem('pusk_orgs')||'{}');const cur=localStorage.getItem('pusk_org')||'default';const keys=Object.keys(orgs);if(keys.length<=1){el.innerHTML='';return}el.innerHTML='<div style="font-size:12px;color:var(--text2);margin-bottom:4px">Организации:</div>'+keys.map(k=>{const o=orgs[k];return`<button class="s-btn" style="width:100%;margin-bottom:4px;padding:8px;text-align:left;${k===cur?'background:var(--primary);color:#fff':''}" onclick="switchOrg('${k}')"><b>${k}</b> <span style="opacity:0.7;font-size:12px">(${o.user||'?'})</span>${k===cur?' ✓':''}</button>`}).join('')}
-function switchOrg(slug){const orgs=JSON.parse(localStorage.getItem('pusk_orgs')||'{}');const o=orgs[slug];if(!o)return;token=o.token;localStorage.setItem('pusk_token',o.token);localStorage.setItem('pusk_uname',o.user);localStorage.setItem('pusk_org',slug);$('settings').style.display='none';$('settings-bg').style.display='none';if(ws)ws.close();showApp()}
+function switchOrg(slug){const orgs=JSON.parse(localStorage.getItem('pusk_orgs')||'{}');const o=orgs[slug];if(!o)return;token=o.token;localStorage.setItem('pusk_token',o.token);localStorage.setItem('pusk_uname',o.user);localStorage.setItem('pusk_org',slug);if(o.role)localStorage.setItem('pusk_role',o.role);$('settings').style.display='none';$('settings-bg').style.display='none';if(ws)ws.close();showApp()}
 $('settings-bg').onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none'};
 $('s-lang-btn').onclick=()=>{lang=lang==='ru'?'en':'ru';localStorage.setItem('pusk_lang',lang);setLang();if($('app').style.display==='flex')showList()};
 let _inviteUrl='';
@@ -453,7 +529,9 @@ $('m-ok').onclick=async()=>{const name=$('m-name').value.trim();if(!name){$('m-m
 // ── WebSocket ──
 let audioCtx;
 function beep(){try{if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);o.frequency.value=800;g.gain.value=0.1;o.start();g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.15);o.stop(audioCtx.currentTime+0.15)}catch{}}
-function connectWS(){if(!token)return;const p=location.protocol==='https:'?'wss:':'ws:';ws=new WebSocket(`${p}//${location.host}/api/ws?token=${token}`);ws.onopen=()=>$('hdr-dot').style.color='#3db887';ws.onclose=()=>{$('hdr-dot').style.color='#e05d44';setTimeout(connectWS,3000)};ws.onmessage=e=>{beep();const ev=JSON.parse(e.data);if(ev.type==='new_message'&&ev.chat_id===curChat){const d=JSON.parse(ev.payload);addMsg(d.message);scrollDown()}if(ev.type==='channel_message'){const d=JSON.parse(ev.payload);const myName=localStorage.getItem('pusk_uname');if(ev.chat_id===curChan){if(!d.message.sender)d.message.sender='bot';addMsg(d.message);scrollDown()}else if(d.message.sender_name!==myName){const badge=document.querySelector(`.ch-badge-${ev.chat_id}`);if(badge){badge.style.display='inline-block';const n=parseInt(badge.textContent||'0')+1;badge.textContent=n}}}if(ev.type==='edit_message'){const msg=JSON.parse(ev.payload);const old=document.getElementById('m-'+msg.message_id);if(old)old.remove();addMsg(msg);scrollDown()}}}
+function connectWS(){if(!token)return;const p=location.protocol==='https:'?'wss:':'ws:';ws=new WebSocket(`${p}//${location.host}/api/ws?token=${token}`);ws.onopen=()=>$('hdr-dot').style.color='#3db887';ws.onclose=()=>{$('hdr-dot').style.color='#e05d44';setTimeout(connectWS,3000)};ws.onmessage=e=>{beep();const ev=JSON.parse(e.data);if(ev.type==='new_message'&&ev.chat_id===curChat){const d=JSON.parse(ev.payload);addMsg(d.message);scrollDown()}if(ev.type==='channel_message'){const d=JSON.parse(ev.payload);const myName=localStorage.getItem('pusk_uname');if(ev.chat_id===curChan){if(!d.message.sender)d.message.sender='bot';addMsg(d.message);scrollDown()}else if(d.message.sender_name!==myName){const badge=document.querySelector(`.ch-badge-${ev.chat_id}`);if(badge){badge.style.display='inline-block';const n=parseInt(badge.textContent||'0')+1;badge.textContent=n}}}if(ev.type==='edit_message'){const msg=JSON.parse(ev.payload);const old=document.getElementById('m-'+msg.message_id);if(old)old.remove();addMsg(msg);scrollDown()}
+if(ev.type==='channel_message_edit'){const msg=JSON.parse(ev.payload);const old=document.getElementById('m-'+msg.message_id);if(old){const txt=old.querySelector('.m-text');if(txt)txt.innerHTML=md(msg.text||'');const head=old.querySelector('.m-head');if(head&&!head.querySelector('.m-edited')){const s=document.createElement('span');s.className='m-edited';s.textContent=lang==='ru'?'(ред.)':'(edited)';head.appendChild(s)}}}
+if(ev.type==='channel_message_delete'){const d=JSON.parse(ev.payload);const el=document.getElementById('m-'+d.message_id);if(el)el.remove()}}}
 
 // ── Push ──
 async function registerPush(){
