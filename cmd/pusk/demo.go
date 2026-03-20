@@ -83,9 +83,30 @@ func initDemo(db *store.Store) {
 	}
 
 	// ── Channels ──
+	seedChannel(db, demoBot, guest, "general", "Team chat", generalChanMessages)
 	seedChannel(db, demoBot, guest, "updates", "Pusk release notes", updatesChanMessages)
-	seedChannel(db, monBot, guest, "alerts", "Server monitoring alerts", alertsChanMessages)
+	seedChannelWithMarkup(db, monBot, guest, "alerts", "Monitoring alerts", alertsChanMsgs)
 	seedChannel(db, monBot, guest, "deploys", "Deploy notifications", deploysChanMessages)
+}
+
+type chanMsg struct {
+	text   string
+	markup string
+}
+
+func seedChannelWithMarkup(db *store.Store, bot *store.Bot, guest *store.User, name, desc string, messages []chanMsg) {
+	_, err := db.ChannelByName(bot.ID, name)
+	if err != nil {
+		ch, err := db.CreateChannel(bot.ID, name, desc)
+		if err != nil {
+			return
+		}
+		db.Subscribe(ch.ID, guest.ID)
+		for _, m := range messages {
+			db.SaveChannelMessage(ch.ID, m.text, m.markup, "", "")
+		}
+		slog.Info("demo channel seeded", "channel", name, "messages", len(messages))
+	}
 }
 
 func seedChannel(db *store.Store, bot *store.Bot, guest *store.User, name, desc string, messages []string) {
@@ -128,11 +149,17 @@ var updatesChanMessages = []string{
 	"**Pusk v0.3.0**\n\nНовое:\n• Каналы с подпиской\n• Отправка файлов (фото, видео, голос)\n• JWT авторизация\n• i18n (русский / английский)",
 }
 
-var alertsChanMessages = []string{
-	"**ALERT #1043** `HighCPU`\nСервер: *web-01*\nCPU: 94% более 5 минут\nПричина: индексация поисковым ботом",
-	"**Resolved #1043** `HighCPU` на *web-01* — нагрузка снизилась до 31%",
-	"**ALERT #1044** `DiskSpace`\nСервер: *db-01*\nДиск: 89% занято (178/200 GB)\nРекомендация: очистить старые бекапы",
-	"**Resolved #1044** `DiskSpace` на *db-01* — удалены бекапы старше 30 дней, занято 52%",
+var ackButtons = `{"inline_keyboard":[[{"text":"✓ ACK","callback_data":"ack"},{"text":"⏸ Mute 1h","callback_data":"mute"},{"text":"✓ Resolved","callback_data":"resolved"}]]}`
+
+var alertsChanMsgs = []chanMsg{
+	{text: "Alertmanager: 1 alert(s), status: firing\n\n**ALERT** `HighCPU` [warning]\nInstance: *web-01:9100*\nCPU usage above 90% for 5 minutes\n\n", markup: ackButtons},
+	{text: "Alertmanager: 1 alert(s), status: resolved\n\n**Resolved** `HighCPU`\nInstance: *web-01:9100*\nCPU usage normalized\n\n"},
+	{text: "Alertmanager: 1 alert(s), status: firing\n\n**ALERT** `DiskSpace` [critical]\nInstance: *db-01:9100*\nDisk usage 89% on /var/lib/mysql\n\n", markup: ackButtons},
+	{text: "Alertmanager: 1 alert(s), status: resolved\n\n**Resolved** `DiskSpace`\nInstance: *db-01:9100*\nDisk cleaned, usage 52%\n\n"},
+}
+
+var generalChanMessages = []string{
+	"Добро пожаловать в **Pusk**!\n\nЭто #general — канал для обсуждений вашей команды.\n\nPusk получает алерты через webhook и показывает их в каналах с кнопками ACK/Mute/Resolved.\n\nОтправьте webhook:\n```bash\ncurl -X POST https://getpusk.ru/hook/YOUR-BOT-TOKEN \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"text\": \"Hello from curl!\"}'\n```\n\nАлерт от Alertmanager:\n```bash\ncurl -X POST 'https://getpusk.ru/hook/YOUR-TOKEN?format=alertmanager' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"status\":\"firing\",\"alerts\":[{\"status\":\"firing\",\"labels\":{\"alertname\":\"Test\"},\"annotations\":{\"summary\":\"Test alert\"}}]}'\n```",
 }
 
 var deploysChanMessages = []string{
