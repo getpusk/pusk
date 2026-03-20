@@ -293,7 +293,71 @@ test.describe('Health & Infra', () => {
 });
 
 // ══════════════════════════════════════════
-// 8. RATE LIMITING (last — consumes quota)
+// 8. WEBHOOK ENDPOINTS
+// ══════════════════════════════════════════
+test.describe('Webhook Endpoints', () => {
+  test('Alertmanager webhook → channel message', async () => {
+    const r = await fetch(`${BASE}/hook/demo-bot-token?format=alertmanager`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: 'firing',
+        alerts: [{
+          status: 'firing',
+          labels: { alertname: 'TestAlert', severity: 'critical', instance: 'test:9090' },
+          annotations: { summary: 'E2E test alert' }
+        }]
+      })
+    });
+    expect(r.status).toBe(200);
+    const data = await r.json();
+    expect(data.status).toBe('ok');
+  });
+
+  test('Zabbix webhook → channel message', async () => {
+    const r = await fetch(`${BASE}/hook/demo-bot-token?format=zabbix`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subject: 'E2E Zabbix Test', message: 'Test alert from E2E', severity: 'High', host: 'test-host' })
+    });
+    expect(r.status).toBe(200);
+  });
+
+  test('Grafana webhook → channel message', async () => {
+    const r = await fetch(`${BASE}/hook/demo-bot-token?format=grafana`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'E2E Grafana', state: 'alerting', message: 'Test from E2E' })
+    });
+    expect(r.status).toBe(200);
+  });
+
+  test('Raw webhook → JSON code block', async () => {
+    const r = await fetch(`${BASE}/hook/demo-bot-token?format=raw`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ system: 'e2e-test', status: 'ok' })
+    });
+    expect(r.status).toBe(200);
+  });
+
+  test('Invalid token → 401', async () => {
+    const r = await fetch(`${BASE}/hook/fake-token?format=raw`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ test: true })
+    });
+    expect(r.status).toBe(401);
+  });
+
+  test('Webhook messages appear in channel', async () => {
+    const guest = await api('POST', '/api/auth', { username: 'guest', pin: 'guest' });
+    if (guest.status === 429) { test.skip(); return; }
+    const chs = await api('GET', '/api/channels', null, guest.data.token);
+    const alertsCh = chs.data.find(c => c.name === 'alerts' && c.description === 'Webhook alerts');
+    if (!alertsCh) { test.skip(); return; }
+    const msgs = await api('GET', `/api/channels/${alertsCh.id}/messages`, null, guest.data.token);
+    expect(msgs.data.length).toBeGreaterThanOrEqual(4); // AM + Zabbix + Grafana + Raw
+  });
+});
+
+// ══════════════════════════════════════════
+// 9. RATE LIMITING (last — consumes quota)
 // ══════════════════════════════════════════
 test.describe('Rate Limiting', () => {
   test('rate limiting after 20 auth attempts', async () => {
