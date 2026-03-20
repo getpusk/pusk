@@ -5,7 +5,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -16,13 +16,13 @@ import (
 func (a *ClientAPI) forwardToBot(s *store.Store, chatID, userID int64, msg *store.Message) {
 	botID, err := s.ChatBotID(chatID)
 	if err != nil || botID == 0 {
-		log.Printf("[webhook] no bot for chat %d", chatID)
+		slog.Warn("no bot for chat", "chat_id", chatID)
 		return
 	}
 
 	b, err := s.BotByID(botID)
 	if err != nil {
-		log.Printf("[webhook] bot %d not found", botID)
+		slog.Warn("bot not found", "bot_id", botID)
 		return
 	}
 
@@ -38,12 +38,12 @@ func (a *ClientAPI) forwardToBot(s *store.Store, chatID, userID int64, msg *stor
 	}
 
 	if a.relay != nil && a.relay.Send(botID, update) {
-		log.Printf("[relay] forwarded to bot %s (ws)", b.Name)
+		slog.Info("relay forwarded", "bot", b.Name, "transport", "ws")
 		return
 	}
 
 	if b.WebhookURL == "" || bot.IsLocalURL(b.WebhookURL) {
-		log.Printf("[webhook] bot %s: no webhook and not connected via relay", b.Name)
+		slog.Warn("bot unreachable", "bot", b.Name, "reason", "no webhook and not connected via relay")
 		return
 	}
 	sendWebhook(b.WebhookURL, update)
@@ -87,9 +87,9 @@ func sendWebhook(url string, payload interface{}) {
 	data, _ := json.Marshal(payload)
 	resp, err := http.Post(url, "application/json", bytes.NewReader(data))
 	if err != nil {
-		log.Printf("[webhook] error sending to %s: %v", url, err)
+		slog.Error("webhook send failed", "url", url, "error", err)
 		return
 	}
 	resp.Body.Close()
-	log.Printf("[webhook] sent to %s: %d", url, resp.StatusCode)
+	slog.Info("webhook sent", "url", url, "status", resp.StatusCode)
 }
