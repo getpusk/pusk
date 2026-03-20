@@ -635,6 +635,14 @@ func (s *Store) DeleteChannelMessage(id int64) error {
 	return err
 }
 
+func (s *Store) DeleteChannel(id int64) error {
+	s.db.Exec("DELETE FROM channel_messages WHERE channel_id=?", id)
+	s.db.Exec("DELETE FROM channel_subscribers WHERE channel_id=?", id)
+	s.db.Exec("DELETE FROM channel_reads WHERE channel_id=?", id)
+	_, err := s.db.Exec("DELETE FROM channels WHERE id=?", id)
+	return err
+}
+
 func (s *Store) GetChannelMessage(id int64) (*ChannelMessage, error) {
 	m := &ChannelMessage{}
 	err := s.db.QueryRow("SELECT id, channel_id, COALESCE(sender,'bot'), COALESCE(sender_name,''), COALESCE(text,''), created_at FROM channel_messages WHERE id=?", id).
