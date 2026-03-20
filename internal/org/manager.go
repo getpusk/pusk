@@ -186,10 +186,24 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 	if sysBot != nil {
 		m.registerTokenLocked(botToken, slug)
 
-		// Create #general channel
+		// Create #general channel with welcome message
 		ch, _ := s.CreateChannel(sysBot.ID, "general", "General channel")
 		if ch != nil {
 			s.Subscribe(ch.ID, 1) // admin user_id = 1
+			welcome := fmt.Sprintf("Welcome to **%s**! / Добро пожаловать в **%s**!\n\n"+
+				"This is #general — your team's chat channel.\nЭто #general — канал для общения команды.\n\n"+
+				"Send a webhook / Отправьте webhook:\n"+
+				"```bash\ncurl -X POST https://your-server/hook/%s \\\n"+
+				"  -H 'Content-Type: application/json' \\\n"+
+				"  -d '{\"text\": \"Hello from curl!\"}'\n```\n\n"+
+				"Alertmanager:\n"+
+				"```bash\ncurl -X POST 'https://your-server/hook/%s?format=alertmanager' \\\n"+
+				"  -H 'Content-Type: application/json' \\\n"+
+				"  -d '{\"status\":\"firing\",\"alerts\":[{\"status\":\"firing\","+
+				"\"labels\":{\"alertname\":\"Test\"},"+
+				"\"annotations\":{\"summary\":\"Test alert\"}}]}'\n```",
+				name, name, botToken, botToken)
+			s.SaveChannelMessage(ch.ID, welcome, "", "", "")
 		}
 
 		// Welcome message from system bot

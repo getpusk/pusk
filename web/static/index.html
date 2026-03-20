@@ -160,6 +160,7 @@ header h2{font-size:16px;flex:1}
 #install-banner button{padding:10px 20px;border-radius:var(--radius);border:none;cursor:pointer;font-size:14px;margin:0 6px}
 .install-yes{background:var(--primary);color:#fff}
 .install-no{background:transparent;color:var(--text2);border:1px solid var(--border)!important}
+#toast{display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#3db887;color:#fff;padding:10px 24px;border-radius:var(--radius);font-size:14px;z-index:600;box-shadow:0 4px 12px rgba(0,0,0,0.3)}
 </style>
 </head>
 <body>
@@ -307,6 +308,7 @@ document.getElementById('eye-btn').onclick=function(){const i=document.getElemen
 </div>
 
 <div id="ctx-menu"></div>
+<div id="toast"></div>
 <script>
 // ── PWA Install Prompt ──
 let deferredPrompt=null;
@@ -482,18 +484,19 @@ function ctxCopy(){const t=_ctxSavedText;hideCtx();navigator.clipboard.writeText
 function hideCtx(){$('ctx-menu').style.display='none';_ctxMsgEl=null;_ctxSavedText=''}
 document.addEventListener('click',e=>{if(!e.target.closest('#ctx-menu'))hideCtx()});
 
-// Long press for context menu (mobile)
+// Long press for context menu (mobile) — 600ms timer, 10px deadzone
+let _longX=0,_longY=0;
 document.addEventListener('touchstart',e=>{
   const m=e.target.closest('.m');
   if(!m)return;
+  _longX=e.touches[0].clientX;_longY=e.touches[0].clientY;
   _longTimer=setTimeout(()=>{
-    _longTimer=null;_swipeEl=null; // cancel swipe
-    const t=e.touches[0];
-    showCtxMenu(t.clientX,t.clientY,m);
-  },500);
+    _longTimer=null;_swipeEl=null;
+    showCtxMenu(_longX,_longY,m);
+  },600);
 },{passive:true});
 document.addEventListener('touchend',()=>{if(_longTimer){clearTimeout(_longTimer);_longTimer=null}},{passive:true});
-document.addEventListener('touchmove',()=>{if(_longTimer){clearTimeout(_longTimer);_longTimer=null}},{passive:true});
+document.addEventListener('touchmove',e=>{if(_longTimer){const dx=e.touches[0].clientX-_longX,dy=e.touches[0].clientY-_longY;if(dx*dx+dy*dy>100){clearTimeout(_longTimer);_longTimer=null}}},{passive:true});
 
 // Right-click for context menu (desktop)
 document.addEventListener('contextmenu',e=>{
@@ -505,7 +508,8 @@ document.addEventListener('contextmenu',e=>{
 
 // Delete channel message
 async function delChanMsg(mid){if(!confirm(lang==='ru'?'Удалить сообщение?':'Delete message?'))return;await api('DELETE',`/api/channels/messages/${mid}`);const el=document.getElementById('m-'+mid);if(el)el.remove()}
-async function onCb(el){if(curChan){await api('POST',`/api/channels/${curChan}/ack`,{action:el.dataset.cb,message_id:parseInt(el.dataset.mid)});el.closest('.m-kb').innerHTML='<span style="color:#3db887;font-size:12px">'+el.textContent+' ✓</span>'}else if(curChat){await api('POST',`/api/chats/${curChat}/callback`,{data:el.dataset.cb,message_id:parseInt(el.dataset.mid)})}}
+function toast(msg){const t=$('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',2000)}
+async function onCb(el){if(curChan){await api('POST',`/api/channels/${curChan}/ack`,{action:el.dataset.cb,message_id:parseInt(el.dataset.mid)});el.closest('.m-kb').innerHTML='<span style="color:#3db887;font-size:12px">'+el.textContent+' ✓</span>';toast(el.textContent+' ✓')}else if(curChat){await api('POST',`/api/chats/${curChat}/callback`,{data:el.dataset.cb,message_id:parseInt(el.dataset.mid)})}}
 async function onDel(mid){if(!confirm('Удалить сообщение?'))return;await api('DELETE',`/api/messages/${mid}`);const el=document.getElementById('m-'+mid);if(el)el.remove()}
 
 // ── Navigation ──
@@ -513,7 +517,7 @@ $('hdr-back').onclick=showList;
 
 // ── Settings ──
 $('hdr-ava').onclick=$('hdr-name').onclick=()=>{const v=$('settings').style.display==='block';$('settings').style.display=v?'none':'block';$('settings-bg').style.display=v?'none':'block';if(!v){renderOrgSwitch();renderSettings()}};
-function renderSettings(){const u=localStorage.getItem('pusk_uname')||'?';const o=localStorage.getItem('pusk_org')||'default';$('s-profile').textContent=u+' @ '+o;$('s-about').textContent='Pusk v'+($('hdr-dot')?'0.5.0':'?');$('s-push-btn').textContent=Notification.permission==='granted'?'ON':'OFF'}
+async function renderSettings(){const u=localStorage.getItem('pusk_uname')||'?';const o=localStorage.getItem('pusk_org')||'default';$('s-profile').textContent=u+' @ '+o;const h=await api('GET','/api/health');$('s-about').innerHTML='Pusk '+(h.version||'?')+' <a href="https://github.com/getpusk/pusk" target="_blank" style="color:var(--accent);text-decoration:none;margin-left:8px">GitHub</a> <a href="https://github.com/getpusk/pusk#readme" target="_blank" style="color:var(--accent);text-decoration:none;margin-left:8px">Docs</a>';$('s-push-btn').textContent=Notification.permission==='granted'?'ON':'OFF'}
 async function togglePush(){if(Notification.permission==='granted'){$('s-push-btn').textContent='ON (перезагрузите для отключения)'}else{const p=await Notification.requestPermission();if(p==='granted'){registerPush();$('s-push-btn').textContent='ON'}else{$('s-push-btn').textContent='Заблокировано'}}}
 function renderOrgSwitch(){const el=$('s-org-switch');const orgs=JSON.parse(localStorage.getItem('pusk_orgs')||'{}');const cur=localStorage.getItem('pusk_org')||'default';const keys=Object.keys(orgs);if(keys.length<=1){el.innerHTML='';return}el.innerHTML='<div style="font-size:12px;color:var(--text2);margin-bottom:4px">Организации:</div>'+keys.map(k=>{const o=orgs[k];return`<button class="s-btn" style="width:100%;margin-bottom:4px;padding:8px;text-align:left;${k===cur?'background:var(--primary);color:#fff':''}" onclick="switchOrg('${k}')"><b>${k}</b> <span style="opacity:0.7;font-size:12px">(${o.user||'?'})</span>${k===cur?' ✓':''}</button>`}).join('')}
 function switchOrg(slug){const orgs=JSON.parse(localStorage.getItem('pusk_orgs')||'{}');const o=orgs[slug];if(!o)return;token=o.token;localStorage.setItem('pusk_token',o.token);localStorage.setItem('pusk_uname',o.user);localStorage.setItem('pusk_org',slug);if(o.role)localStorage.setItem('pusk_role',o.role);$('settings').style.display='none';$('settings-bg').style.display='none';if(ws)ws.close();showApp()}
