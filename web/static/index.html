@@ -334,6 +334,23 @@ const L={
 };
 let lang=localStorage.getItem('pusk_lang')||'ru';
 function t(k){return L[lang][k]||L.en[k]||k}
+const ERR={
+  'forbidden':'Доступ запрещён / Access denied',
+  'unauthorized':'Не авторизован / Unauthorized',
+  'not found':'Не найдено / Not found',
+  'internal error':'Ошибка сервера / Server error',
+  'org not found':'Организация не найдена / Org not found',
+  'invalid credentials':'Неверный логин или пароль / Wrong credentials',
+  'not subscribed':'Не подписаны на канал / Not subscribed',
+  'text required':'Введите текст / Text required',
+  'admin only':'Только для админа / Admin only',
+  'can only edit own messages':'Можно редактировать только свои / Can only edit own',
+  'Channel already exists':'Канал уже существует / Channel already exists',
+  'invite already used':'Приглашение уже использовано / Invite already used',
+  'invite expired':'Приглашение истекло / Invite expired',
+  'invite not found':'Приглашение не найдено / Invite not found',
+};
+function te(s){return ERR[s]||s}
 function setLang(){
   const a=t;
   $('auth-sub').textContent=a('sub');$('a-user').placeholder=a('user');$('a-pin').placeholder=a('pin');
@@ -360,7 +377,7 @@ async function api(method,path,body){const o={method,headers:{'Content-Type':'ap
 
 // ── Auth ──
 $('btn-login').onclick=async()=>{const u=$('a-user').value.trim(),p=$('a-pin').value.trim(),o=$('a-org').value.trim()||undefined;if(!u||!p){$('a-err').textContent=t('err_empty');return}$('btn-login').textContent='...';$('btn-login').disabled=true;const r=await api('POST','/api/auth',{username:u,pin:p,org:o});$('btn-login').textContent=t('login');$('btn-login').disabled=false;if(r.error||!r.token){$('a-err').textContent=t('err_wrong');return}auth(r)};
-$('btn-reg').onclick=async()=>{const u=$('a-user').value.trim(),p=$('a-pin').value.trim(),o=$('a-org').value.trim()||undefined;if(!u||!p){$('a-err').textContent=t('err_empty');return}let r;if(_invite){r=await api('POST','/api/invite/accept'+(o?'?org='+o:''),{code:_invite,username:u,pin:p,display_name:u})}else{r=await api('POST','/api/register',{username:u,pin:p,display_name:u,org:o})}if(r.error){$('a-err').textContent=r.error.includes('UNIQUE')?u+' '+t('err_taken'):r.error;return}auth(r)};
+$('btn-reg').onclick=async()=>{const u=$('a-user').value.trim(),p=$('a-pin').value.trim(),o=$('a-org').value.trim()||undefined;if(!u||!p){$('a-err').textContent=t('err_empty');return}let r;if(_invite){r=await api('POST','/api/invite/accept'+(o?'?org='+o:''),{code:_invite,username:u,pin:p,display_name:u})}else{r=await api('POST','/api/register',{username:u,pin:p,display_name:u,org:o})}if(r.error){$('a-err').textContent=r.error.includes('UNIQUE')?u+' '+t('err_taken'):te(r.error);return}auth(r)};
 $('btn-demo').onclick=async()=>{let r=await api('POST','/api/auth',{username:'guest',pin:'guest'});if(!r.token)r=await api('POST','/api/register',{username:'guest',pin:'guest',display_name:'Guest'});if(!r.token){$('a-err').textContent=t('err_demo');return}auth(r)};
 
 function auth(r){token=r.token;localStorage.setItem('pusk_token',token);localStorage.setItem('pusk_uid',r.user_id);localStorage.setItem('pusk_uname',r.username||'');if(r.org){localStorage.setItem('pusk_org',r.org);const orgs=JSON.parse(localStorage.getItem('pusk_orgs')||'{}');orgs[r.org]={token:r.token,user:r.username,name:r.org};localStorage.setItem('pusk_orgs',JSON.stringify(orgs))}showApp()}
@@ -431,7 +448,7 @@ $('m-cancel').onclick=()=>$('modal-bg').classList.remove('open');
 $('modal-bg').onclick=e=>{if(e.target===$('modal-bg'))$('modal-bg').classList.remove('open')};
 $('m-type').onchange=updModal;
 function updModal(){const ch=$('m-type').value==='channel';$('m-title').textContent=ch?t('new_ch'):t('new_bot');$('m-tok-row').style.display=ch?'none':'block';$('m-name').placeholder=ch?'alerts':'MonitorBot';$('m-desc').placeholder=ch?'Description':'Webhook URL'}
-$('m-ok').onclick=async()=>{const name=$('m-name').value.trim();if(!name){$('m-msg').textContent=t('name_req');$('m-msg').style.color='#e05d44';return}$('m-msg').textContent='';const type=$('m-type').value;if(type==='channel'){const r=await api('POST','/admin/channel',{name,description:$('m-desc').value.trim()});if(r&&r.ok){$('m-msg').textContent='# '+name+' ✓';$('m-msg').style.color='#3db887';setTimeout(()=>{$('modal-bg').classList.remove('open');showList()},800)}else{$('m-msg').textContent=r.error||r.description||'Error';$('m-msg').style.color='#e05d44'}}else{const tok=$('m-tok').value.trim()||name.toLowerCase().replace(/[^a-z0-9]/g,'-')+'-'+Math.random().toString(36).substr(2,6);const r=await api('POST','/admin/bots',{token:tok,name});if(r&&r.id){$('m-msg').textContent=name+' ✓ token: '+tok;$('m-msg').style.color='#3db887';setTimeout(()=>{$('modal-bg').classList.remove('open');showList()},1200)}else{$('m-msg').textContent=r.error||'Error';$('m-msg').style.color='#e05d44'}}};
+$('m-ok').onclick=async()=>{const name=$('m-name').value.trim();if(!name){$('m-msg').textContent=t('name_req');$('m-msg').style.color='#e05d44';return}$('m-msg').textContent='';const type=$('m-type').value;if(type==='channel'){const r=await api('POST','/admin/channel',{name,description:$('m-desc').value.trim()});if(r&&r.ok){$('m-msg').textContent='# '+name+' ✓';$('m-msg').style.color='#3db887';setTimeout(()=>{$('modal-bg').classList.remove('open');showList()},800)}else{$('m-msg').textContent=te(r.error||r.description||'Error');$('m-msg').style.color='#e05d44'}}else{const tok=$('m-tok').value.trim()||name.toLowerCase().replace(/[^a-z0-9]/g,'-')+'-'+Math.random().toString(36).substr(2,6);const r=await api('POST','/admin/bots',{token:tok,name});if(r&&r.id){$('m-msg').textContent=name+' ✓ token: '+tok;$('m-msg').style.color='#3db887';setTimeout(()=>{$('modal-bg').classList.remove('open');showList()},1200)}else{$('m-msg').textContent=te(r.error||'Error');$('m-msg').style.color='#e05d44'}}};
 
 // ── WebSocket ──
 let audioCtx;
@@ -517,7 +534,7 @@ $('org-ok').onclick=async()=>{
     msg.textContent=name+' создана!';msg.style.color='#3db887';
     setTimeout(()=>{$('org-modal-bg').classList.remove('open');hideLanding();auth(r)},800);
   } else {
-    msg.textContent=r.error||'Ошибка';msg.style.color='#e05d44';
+    msg.textContent=te(r.error||'Error');msg.style.color='#e05d44';
   }
 };
 
