@@ -119,6 +119,11 @@ header h2{font-size:16px;flex:1}
 .m-del{display:none;position:absolute;top:6px;right:4px;background:rgba(0,0,0,0.3);border:none;color:var(--text2);cursor:pointer;border-radius:50%;width:20px;height:20px;font-size:11px;line-height:20px;text-align:center}
 .m:hover .m-del{display:block}
 .m-empty{padding:40px;text-align:center;color:var(--text2)}
+.m-quote{border-left:3px solid var(--primary);padding:4px 8px;margin-bottom:4px;font-size:12px;color:var(--text2);background:rgba(64,130,188,0.1);border-radius:0 4px 4px 0}
+.m-quote b{color:var(--accent)}
+#reply-bar{display:none;padding:4px 12px;background:var(--surface);border-top:1px solid var(--border);font-size:12px;color:var(--text2)}
+#reply-bar span{flex:1}
+#reply-bar button{background:none;border:none;color:var(--text2);cursor:pointer;font-size:16px}
 
 /* Input bar */
 #input-bar{display:none;padding:8px 12px;background:var(--surface);border-top:1px solid var(--border);gap:8px;align-items:flex-end}
@@ -227,6 +232,7 @@ bot = Bot(token="my-token",
   </header>
   <div id="main-list"></div>
   <div id="chat-view"><div id="msgs"></div></div>
+  <div id="reply-bar"><span id="reply-text"></span><button id="reply-cancel">✕</button></div>
   <div id="input-bar">
     <textarea id="msg-in" rows="1"></textarea>
     <button id="msg-send">&#8594;</button>
@@ -337,7 +343,7 @@ function setLang(){
 
 // ── State ──
 let token=localStorage.getItem('pusk_token');
-let curChat=null,curChan=null,ws=null;
+let curChat=null,curChan=null,ws=null,replyToId=0,replyToText='';
 
 // ── DOM ──
 function $(id){return document.getElementById(id)}
@@ -374,7 +380,9 @@ async function openChat(botId,name){localStorage.setItem('pusk_view',JSON.string
 async function openChan(chId,name){localStorage.setItem('pusk_view',JSON.stringify({t:'ch',id:chId,n:name}));$('fab').style.display='none';curChan=chId;curChat=null;$('main-list').style.display='none';$('chat-view').style.display='flex';$('input-bar').style.display='flex';$('hdr-back').style.display='inline';$('hdr-title').textContent='# '+name;$('msg-in').placeholder='Написать в #'+name+'...';const msgs=await api('GET',`/api/channels/${chId}/messages`);$('msgs').innerHTML='';if(msgs&&msgs.length)msgs.reverse().forEach(m=>{if(!m.sender)m.sender='bot';addMsg(m)});else $('msgs').innerHTML=`<div class="m-empty">${t('no_msg')}</div>`;scrollDown()}
 
 function addMsg(m){const el=$('msgs');if(el.querySelector('.m-empty'))el.innerHTML='';const who=m.sender==='bot'?(m.bot_name||$('hdr-title').textContent.replace('# ','')||'Bot'):(m.sender_name||localStorage.getItem('pusk_uname')||'You');const tm=fmtTime(m.date);
-  let h=`<div class="m" id="m-${m.message_id}"><div class="m-ava" style="background:${nameColor(who)}">${who[0].toUpperCase()}</div><div class="m-head"><span class="m-name">${esc(who)}</span><span class="m-time">${tm}</span></div>`;
+  let h=`<div class="m" id="m-${m.message_id}" onclick="startReply(${m.message_id},'${escJs(who)}','${escJs((m.text||'').substring(0,40))}')"><div class="m-ava" style="background:${nameColor(who)}">${who[0].toUpperCase()}</div>`;
+  if(m.reply_to){const orig=document.getElementById('m-'+m.reply_to);const qtext=orig?orig.querySelector('.m-text')?.textContent?.substring(0,40):'...';const qname=orig?orig.querySelector('.m-name')?.textContent:'';h+=`<div class="m-quote"><b>${esc(qname)}</b> ${esc(qtext)}</div>`}
+  h+=`<div class="m-head"><span class="m-name">${esc(who)}</span><span class="m-time">${tm}</span></div>`;
   if(m.file_id){if(m.file_type==='photo')h+=`<img src="/file/${m.file_id}?token=${token}" style="max-width:100%;border-radius:8px;margin:4px 0">`;else if(m.file_type==='voice')h+=`<audio controls src="/file/${m.file_id}?token=${token}" style="width:100%"></audio>`;else if(m.file_type==='video')h+=`<video controls src="/file/${m.file_id}?token=${token}" style="max-width:100%;border-radius:8px"></video>`;else h+=`<a href="/file/${m.file_id}?token=${token}" style="color:var(--accent)">File</a><br>`}
   h+=`<div class="m-text">${md(m.text||'')}</div>`;
   if(m.reply_markup){try{const kb=typeof m.reply_markup==='string'?JSON.parse(m.reply_markup):m.reply_markup;if(kb.inline_keyboard){h+='<div class="m-kb">';kb.inline_keyboard.forEach(row=>{h+='<div class="m-kb-row">';row.forEach(btn=>{h+=`<button class="m-kb-btn" data-cb="${btn.callback_data}" data-mid="${m.message_id}" onclick="onCb(this)">${esc(btn.text)}</button>`});h+='</div>'});h+='</div>'}}catch{}}
@@ -385,7 +393,9 @@ function scrollDown(){const el=$('msgs');setTimeout(()=>el.scrollTop=el.scrollHe
 // ── Actions ──
 $('msg-send').onclick=sendMsg;
 $('msg-in').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg()}};
-async function sendMsg(){const inp=$('msg-in');const txt=inp.value.trim();if(!txt)return;inp.value='';const uname=localStorage.getItem('pusk_uname')||'You';if(curChan){addMsg({sender:'user',sender_name:uname,text:txt,date:new Date().toISOString(),message_id:Date.now()});scrollDown();await api('POST',`/api/channels/${curChan}/send`,{text:txt})}else if(curChat){addMsg({sender:'user',text:txt,date:new Date().toISOString(),message_id:Date.now()});scrollDown();await api('POST',`/api/chats/${curChat}/send`,{text:txt})}}
+function startReply(mid,name,text){if(!curChan)return;replyToId=mid;replyToText=text;$('reply-text').innerHTML='<b>'+esc(name)+'</b>: '+esc(text);$('reply-bar').style.display='flex';$('msg-in').focus()}
+$('reply-cancel').onclick=()=>{replyToId=0;$('reply-bar').style.display='none'};
+async function sendMsg(){const inp=$('msg-in');const txt=inp.value.trim();if(!txt)return;inp.value='';const uname=localStorage.getItem('pusk_uname')||'You';const rid=replyToId;replyToId=0;$('reply-bar').style.display='none';if(curChan){addMsg({sender:'user',sender_name:uname,text:txt,reply_to:rid,date:new Date().toISOString(),message_id:Date.now()});scrollDown();await api('POST',`/api/channels/${curChan}/send`,{text:txt,reply_to:rid})}else if(curChat){addMsg({sender:'user',text:txt,date:new Date().toISOString(),message_id:Date.now()});scrollDown();await api('POST',`/api/chats/${curChat}/send`,{text:txt})}}
 async function onCb(el){if(curChan){await api('POST',`/api/channels/${curChan}/ack`,{action:el.dataset.cb,message_id:parseInt(el.dataset.mid)});el.closest('.m-kb').innerHTML='<span style="color:#3db887;font-size:12px">'+el.textContent+' ✓</span>'}else if(curChat){await api('POST',`/api/chats/${curChat}/callback`,{data:el.dataset.cb,message_id:parseInt(el.dataset.mid)})}}
 async function onDel(mid){if(!confirm('Удалить сообщение?'))return;await api('DELETE',`/api/messages/${mid}`);const el=document.getElementById('m-'+mid);if(el)el.remove()}
 
