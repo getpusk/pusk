@@ -5,7 +5,7 @@ package bot
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 )
@@ -79,14 +79,14 @@ func (h *Handler) webhook(w http.ResponseWriter, r *http.Request) {
 		// Try creating the channel
 		ch, err = s.CreateChannel(bot.ID, channelName, "Webhook alerts")
 		if err != nil {
-			log.Printf("[webhook] cannot create channel %s: %v", channelName, err)
+			slog.Error("webhook channel create failed", "channel", channelName, "error", err)
 			w.WriteHeader(200)
 			json.NewEncoder(w).Encode(map[string]string{"status": "ok", "error": "channel error"})
 			return
 		}
 		// Auto-subscribe admin (user_id=1) to new channel
 		s.Subscribe(ch.ID, 1)
-		log.Printf("[webhook] auto-created channel #%s for bot %s", channelName, bot.Name)
+		slog.Info("webhook auto-created channel", "channel", channelName, "bot", bot.Name)
 	}
 
 	// Add ACK buttons for alert formats
@@ -98,7 +98,7 @@ func (h *Handler) webhook(w http.ResponseWriter, r *http.Request) {
 	// Send message to channel
 	msg, err := s.SaveChannelMessage(ch.ID, text, markup, "", "")
 	if err != nil {
-		log.Printf("[webhook] save error: %v", err)
+		slog.Error("webhook save failed", "error", err)
 	}
 
 	// Push to subscribers via WebSocket (reuse existing push logic)
@@ -106,7 +106,7 @@ func (h *Handler) webhook(w http.ResponseWriter, r *http.Request) {
 		h.pushChannelMessage(s, ch, bot, msg)
 	}
 
-	log.Printf("[webhook] %s → #%s (%s)", format, channelName, bot.Name)
+	slog.Info("webhook received", "format", format, "channel", channelName, "bot", bot.Name)
 	w.WriteHeader(200)
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }

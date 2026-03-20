@@ -6,7 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -65,7 +65,7 @@ func NewManager(dataDir string) (*Manager, error) {
 		m.save()
 	}
 
-	log.Printf("  Orgs:       %d registered", len(m.orgs))
+	slog.Info("orgs loaded", "count", len(m.orgs))
 	return m, nil
 }
 
@@ -139,7 +139,7 @@ func (m *Manager) Get(slug string) (*store.Store, error) {
 		return nil, fmt.Errorf("open org db %s: %w", slug, err)
 	}
 	m.stores[slug] = s
-	log.Printf("[org] loaded: %s", slug)
+	slog.Info("org loaded", "slug", slug)
 	return s, nil
 }
 
@@ -202,7 +202,7 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 			}
 		}
 
-		log.Printf("[org] system bot created: %s (token: %s)", sysBot.Name, botToken)
+		slog.Info("org system bot created", "bot", sysBot.Name, "token", botToken)
 	}
 
 	m.orgs = append(m.orgs, Org{
@@ -215,7 +215,7 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 	m.orgs[len(m.orgs)-1].Created = store.Now()
 
 	m.save()
-	log.Printf("[org] registered: %s (%s)", slug, name)
+	slog.Info("org registered", "slug", slug, "name", name)
 	return nil
 }
 
@@ -234,7 +234,7 @@ func (m *Manager) Close() {
 	defer m.mu.Unlock()
 	for slug, s := range m.stores {
 		s.Close()
-		log.Printf("[org] closed: %s", slug)
+		slog.Info("org closed", "slug", slug)
 	}
 	if m.tokDB != nil {
 		m.tokDB.Close()

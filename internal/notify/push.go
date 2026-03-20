@@ -4,7 +4,7 @@ package notify
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
 	"github.com/pusk-platform/pusk/internal/store"
@@ -59,10 +59,10 @@ func (p *PushService) SendToUser(userID int64, payload PushPayload) {
 			TTL:             3600,
 		})
 		if err != nil {
-			log.Printf("[push] error sending to user %d: %v", userID, err)
+			slog.Error("push send failed", "user_id", userID, "error", err)
 			if resp != nil && (resp.StatusCode == 410 || resp.StatusCode == 404) {
 				p.store.DeletePushSubscription(sub.Endpoint)
-				log.Printf("[push] removed stale subscription for user %d", userID)
+				slog.Info("push stale subscription removed", "user_id", userID)
 			}
 			continue
 		}
