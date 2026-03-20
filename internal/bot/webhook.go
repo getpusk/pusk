@@ -89,8 +89,14 @@ func (h *Handler) webhook(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[webhook] auto-created channel #%s for bot %s", channelName, bot.Name)
 	}
 
+	// Add ACK buttons for alert formats
+	markup := ""
+	if format != "raw" {
+		markup = `{"inline_keyboard":[[{"text":"✓ ACK","callback_data":"ack"},{"text":"⏸ Mute 1h","callback_data":"mute"},{"text":"✓ Resolved","callback_data":"resolved"}]]}`
+	}
+
 	// Send message to channel
-	msg, err := s.SaveChannelMessage(ch.ID, text, "", "", "")
+	msg, err := s.SaveChannelMessage(ch.ID, text, markup, "", "")
 	if err != nil {
 		log.Printf("[webhook] save error: %v", err)
 	}

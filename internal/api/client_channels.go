@@ -4,13 +4,57 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/pusk-platform/pusk/internal/auth"
 	"github.com/pusk-platform/pusk/internal/store"
 	"github.com/pusk-platform/pusk/internal/ws"
 )
+
+func (a *ClientAPI) ackChannelMessage(w http.ResponseWriter, r *http.Request) {
+	userID := a.requireAuth(w, r)
+	if userID == 0 {
+		return
+	}
+	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
+	s := a.db(r)
+
+	var req struct {
+		MessageID int64  `json:"message_id"`
+		Action    string `json:"action"` // ack, mute, resolved
+	}
+	json.NewDecoder(r.Body).Decode(&req)
+
+	username := ""
+	if claims := a.getJWTClaims(r); claims != nil {
+		username = claims.Username
+	}
+
+	// Get current message text and append ACK status
+	msgs, _ := s.ChannelMessages(channelID, 200)
+	for _, m := range msgs {
+		if m.ID == req.MessageID {
+			now := time.Now().Format("15:04")
+			status := ""
+			switch req.Action {
+			case "ack":
+				status = fmt.Sprintf("\n\n**ACK**: @%s в %s", username, now)
+			case "mute":
+				status = fmt.Sprintf("\n\n**Muted 1h**: @%s в %s", username, now)
+			case "resolved":
+				status = fmt.Sprintf("\n\n**Resolved**: @%s в %s", username, now)
+			}
+			newText := m.Text + status
+			s.UpdateChannelMessageText(m.ID, newText, "")
+			json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+			return
+		}
+	}
+	jsonErr(w, "message not found", 404)
+}
 
 func (a *ClientAPI) getJWTClaims(r *http.Request) *auth.Claims {
 	tokenStr := r.Header.Get("Authorization")
