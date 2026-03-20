@@ -83,6 +83,12 @@ func main() {
 	clientAPI := api.NewClientAPI(orgs, db, hub, push, botHandler.Relay(), vapidPub, jwtSvc)
 	clientAPI.Route(mux)
 
+	// Invite redirect → PWA with invite param
+	mux.HandleFunc("GET /invite/", func(w http.ResponseWriter, r *http.Request) {
+		code := strings.TrimPrefix(r.URL.Path, "/invite/")
+		http.Redirect(w, r, "/?invite="+code, http.StatusFound)
+	})
+
 	// Static files (PWA)
 	mux.Handle("GET /", http.FileServer(http.Dir(*staticDir)))
 
