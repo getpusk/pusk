@@ -209,7 +209,7 @@ bot = Bot(token="my-token",
     <div class="auth-logo">Pusk</div>
     <p class="auth-sub" id="auth-sub"></p>
     <input id="a-user" autocomplete="username">
-    <input id="a-pin" type="password" autocomplete="current-password">
+    <div style="position:relative"><input id="a-pin" type="password" autocomplete="current-password" style="padding-right:40px"><button type="button" onclick="const i=$('a-pin');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'👁‍🗨'" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2)">👁</button></div>
     <input id="a-org" placeholder="ID организации (напр: acme)" style="font-size:13px;padding:10px 16px">
     <button class="abtn abtn-p" id="btn-login"></button>
     <button class="abtn abtn-s" id="btn-reg"></button>
@@ -244,10 +244,13 @@ bot = Bot(token="my-token",
 
 <div id="settings-bg"></div>
 <div id="settings">
+  <div style="font-size:13px;color:var(--text2);padding:4px 0" id="s-profile"></div>
   <div class="s-row"><span id="s-lang-lbl"></span><button class="s-btn" id="s-lang-btn"></button></div>
+  <div class="s-row"><span>Push</span><button class="s-btn" id="s-push-btn" onclick="togglePush()">...</button></div>
   <div id="s-org-switch" style="margin-top:8px"></div>
   <button class="s-btn" id="s-invite" style="width:100%;margin-top:8px;padding:10px;text-align:center"></button>
   <div id="s-invite-result" style="font-size:12px;color:var(--accent);margin-top:4px;word-break:break-all"></div>
+  <div style="font-size:11px;color:var(--text2);margin-top:12px;text-align:center" id="s-about"></div>
   <button class="s-out" id="s-out"></button>
 </div>
 
@@ -397,6 +400,11 @@ function scrollDown(){const el=$('msgs');setTimeout(()=>el.scrollTop=el.scrollHe
 $('msg-send').onclick=sendMsg;
 $('msg-in').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg()}};
 function startReply(mid,name,text){if(!curChan)return;replyToId=mid;replyToText=text;$('reply-text').innerHTML='<b>'+esc(name)+'</b>: '+esc(text);$('reply-bar').style.display='flex';$('msg-in').focus()}
+// Swipe right to reply (mobile Telegram-style)
+let _swipeX=0,_swipeEl=null;
+document.addEventListener('touchstart',e=>{const m=e.target.closest('.m');if(m&&curChan){_swipeX=e.touches[0].clientX;_swipeEl=m}},{passive:true});
+document.addEventListener('touchend',e=>{if(!_swipeEl)return;const dx=e.changedTouches[0].clientX-_swipeX;if(dx>80){const name=_swipeEl.querySelector('.m-name')?.textContent||'';const text=_swipeEl.querySelector('.m-text')?.textContent?.substring(0,40)||'';const mid=parseInt(_swipeEl.id.replace('m-',''));if(mid)startReply(mid,name,text)}_swipeEl.style.transform='';_swipeEl=null},{passive:true});
+document.addEventListener('touchmove',e=>{if(!_swipeEl)return;const dx=e.touches[0].clientX-_swipeX;if(dx>10)_swipeEl.style.transform=`translateX(${Math.min(dx,60)}px)`},{passive:true});
 $('reply-cancel').onclick=()=>{replyToId=0;$('reply-bar').style.display='none'};
 async function sendMsg(){const inp=$('msg-in');const txt=inp.value.trim();if(!txt)return;inp.value='';const uname=localStorage.getItem('pusk_uname')||'You';const rid=replyToId;replyToId=0;$('reply-bar').style.display='none';if(curChan){addMsg({sender:'user',sender_name:uname,text:txt,reply_to:rid,date:new Date().toISOString(),message_id:Date.now()});scrollDown();await api('POST',`/api/channels/${curChan}/send`,{text:txt,reply_to:rid})}else if(curChat){addMsg({sender:'user',text:txt,date:new Date().toISOString(),message_id:Date.now()});scrollDown();await api('POST',`/api/chats/${curChat}/send`,{text:txt})}}
 async function onCb(el){if(curChan){await api('POST',`/api/channels/${curChan}/ack`,{action:el.dataset.cb,message_id:parseInt(el.dataset.mid)});el.closest('.m-kb').innerHTML='<span style="color:#3db887;font-size:12px">'+el.textContent+' ✓</span>'}else if(curChat){await api('POST',`/api/chats/${curChat}/callback`,{data:el.dataset.cb,message_id:parseInt(el.dataset.mid)})}}
@@ -406,7 +414,9 @@ async function onDel(mid){if(!confirm('Удалить сообщение?'))retu
 $('hdr-back').onclick=showList;
 
 // ── Settings ──
-$('hdr-ava').onclick=$('hdr-name').onclick=()=>{const v=$('settings').style.display==='block';$('settings').style.display=v?'none':'block';$('settings-bg').style.display=v?'none':'block';if(!v)renderOrgSwitch()};
+$('hdr-ava').onclick=$('hdr-name').onclick=()=>{const v=$('settings').style.display==='block';$('settings').style.display=v?'none':'block';$('settings-bg').style.display=v?'none':'block';if(!v){renderOrgSwitch();renderSettings()}};
+function renderSettings(){const u=localStorage.getItem('pusk_uname')||'?';const o=localStorage.getItem('pusk_org')||'default';$('s-profile').textContent=u+' @ '+o;$('s-about').textContent='Pusk v'+($('hdr-dot')?'0.5.0':'?');$('s-push-btn').textContent=Notification.permission==='granted'?'ON':'OFF'}
+async function togglePush(){if(Notification.permission==='granted'){$('s-push-btn').textContent='ON (перезагрузите для отключения)'}else{const p=await Notification.requestPermission();if(p==='granted'){registerPush();$('s-push-btn').textContent='ON'}else{$('s-push-btn').textContent='Заблокировано'}}}
 function renderOrgSwitch(){const el=$('s-org-switch');const orgs=JSON.parse(localStorage.getItem('pusk_orgs')||'{}');const cur=localStorage.getItem('pusk_org')||'default';const keys=Object.keys(orgs);if(keys.length<=1){el.innerHTML='';return}el.innerHTML='<div style="font-size:12px;color:var(--text2);margin-bottom:4px">Организации:</div>'+keys.map(k=>{const o=orgs[k];return`<button class="s-btn" style="width:100%;margin-bottom:4px;padding:8px;text-align:left;${k===cur?'background:var(--primary);color:#fff':''}" onclick="switchOrg('${k}')"><b>${k}</b> <span style="opacity:0.7;font-size:12px">(${o.user||'?'})</span>${k===cur?' ✓':''}</button>`}).join('')}
 function switchOrg(slug){const orgs=JSON.parse(localStorage.getItem('pusk_orgs')||'{}');const o=orgs[slug];if(!o)return;token=o.token;localStorage.setItem('pusk_token',o.token);localStorage.setItem('pusk_uname',o.user);localStorage.setItem('pusk_org',slug);$('settings').style.display='none';$('settings-bg').style.display='none';if(ws)ws.close();showApp()}
 $('settings-bg').onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none'};
