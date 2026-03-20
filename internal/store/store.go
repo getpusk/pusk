@@ -145,8 +145,9 @@ func (s *Store) migrate() error {
 	if err != nil {
 		return err
 	}
-	// Migration: add sender fields to channel_messages
+	// Migrations
 	s.db.Exec("ALTER TABLE channel_messages ADD COLUMN sender TEXT DEFAULT 'bot'")
+	s.db.Exec("CREATE TABLE IF NOT EXISTS channel_reads (channel_id INTEGER, user_id INTEGER, last_read_id INTEGER DEFAULT 0, PRIMARY KEY(channel_id, user_id))")
 	s.db.Exec("ALTER TABLE channel_messages ADD COLUMN sender_name TEXT DEFAULT ''")
 	return nil
 }
@@ -577,6 +578,20 @@ func (s *Store) CreateInvite(code string, ttl time.Duration) error {
 	expires := time.Now().Add(ttl).UTC().Format(time.RFC3339)
 	_, err := s.db.Exec("INSERT INTO invites (code, expires_at) VALUES (?, ?)", code, expires)
 	return err
+}
+
+// ── Channel Reads ──
+
+func (s *Store) MarkChannelRead(channelID, userID, lastMsgID int64) {
+	s.db.Exec("INSERT INTO channel_reads (channel_id, user_id, last_read_id) VALUES (?,?,?) ON CONFLICT(channel_id,user_id) DO UPDATE SET last_read_id=?",
+		channelID, userID, lastMsgID, lastMsgID)
+}
+
+func (s *Store) UnreadCount(channelID, userID int64) int {
+	var count int
+	s.db.QueryRow("SELECT COUNT(*) FROM channel_messages WHERE channel_id=? AND id > COALESCE((SELECT last_read_id FROM channel_reads WHERE channel_id=? AND user_id=?), 0)",
+		channelID, channelID, userID).Scan(&count)
+	return count
 }
 
 func (s *Store) UseInvite(code string) error {
