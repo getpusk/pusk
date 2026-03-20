@@ -150,6 +150,7 @@ func (s *Store) migrate() error {
 	s.db.Exec("CREATE TABLE IF NOT EXISTS channel_reads (channel_id INTEGER, user_id INTEGER, last_read_id INTEGER DEFAULT 0, PRIMARY KEY(channel_id, user_id))")
 	s.db.Exec("ALTER TABLE channel_messages ADD COLUMN sender_name TEXT DEFAULT ''")
 	s.db.Exec("ALTER TABLE channel_messages ADD COLUMN reply_to INTEGER DEFAULT 0")
+	s.db.Exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'member'")
 	return nil
 }
 
@@ -209,6 +210,7 @@ type User struct {
 	ID          int64  `json:"id"`
 	Username    string `json:"username"`
 	DisplayName string `json:"display_name,omitempty"`
+	Role        string `json:"role"`
 }
 
 func (s *Store) CreateUser(username, pin, displayName string) (*User, error) {
@@ -598,6 +600,46 @@ func (s *Store) UnreadCount(channelID, userID int64) int {
 	s.db.QueryRow("SELECT COUNT(*) FROM channel_messages WHERE channel_id=? AND id > COALESCE((SELECT last_read_id FROM channel_reads WHERE channel_id=? AND user_id=?), 0)",
 		channelID, channelID, userID).Scan(&count)
 	return count
+}
+
+// ── Users & Roles ──
+
+func (s *Store) ListUsers() ([]User, error) {
+	rows, err := s.db.Query("SELECT id, username, COALESCE(display_name,''), COALESCE(role,'member') FROM users")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var users []User
+	for rows.Next() {
+		var u User
+		rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.Role)
+		users = append(users, u)
+	}
+	return users, nil
+}
+
+func (s *Store) SetUserRole(userID int64, role string) error {
+	_, err := s.db.Exec("UPDATE users SET role=? WHERE id=?", role, userID)
+	return err
+}
+
+func (s *Store) IsAdmin(userID int64) bool {
+	var role string
+	s.db.QueryRow("SELECT COALESCE(role,'member') FROM users WHERE id=?", userID).Scan(&role)
+	return role == "admin" || userID == 1
+}
+
+func (s *Store) DeleteChannelMessage(id int64) error {
+	_, err := s.db.Exec("DELETE FROM channel_messages WHERE id=?", id)
+	return err
+}
+
+func (s *Store) GetChannelMessage(id int64) (*ChannelMessage, error) {
+	m := &ChannelMessage{}
+	err := s.db.QueryRow("SELECT id, channel_id, COALESCE(sender,'bot'), COALESCE(sender_name,''), COALESCE(text,''), created_at FROM channel_messages WHERE id=?", id).
+		Scan(&m.ID, &m.ChannelID, &m.Sender, &m.SenderName, &m.Text, &m.CreatedAt)
+	return m, err
 }
 
 func (s *Store) UseInvite(code string) error {
