@@ -93,6 +93,7 @@ header h2{font-size:16px;flex:1}
 .ch-hash{font-size:18px;color:var(--text2);flex-shrink:0}
 .ch-body{flex:1;min-width:0}
 .ch-name{font-weight:600;font-size:14px}
+.ch-badge{display:inline-block;width:8px;height:8px;border-radius:50%;background:#3db887;margin-left:6px;vertical-align:middle}
 .ch-desc{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sub-btn{padding:4px 12px;border-radius:8px;border:1px solid var(--primary);background:transparent;color:var(--accent);cursor:pointer;font-size:12px;white-space:nowrap;min-width:80px;text-align:center;flex-shrink:0}
 .sub-btn.on{background:var(--primary);color:#fff}
@@ -154,7 +155,7 @@ header h2{font-size:16px;flex:1}
     <div class="land-tag">Self-hosted Telegram Bot API</div>
     <p class="land-desc">Бот-платформа, совместимая с Telegram. Ваши боты, ваш сервер, ваши данные. Один бинарник, без зависимостей.</p>
     <div class="land-stats">
-      <div class="land-stat"><b>16 MB</b><span>бинарник</span></div>
+      <div class="land-stat"><b>11 MB</b><span>бинарник</span></div>
       <div class="land-stat"><b>3 MB</b><span>RAM</span></div>
       <div class="land-stat"><b>21</b><span>API endpoint</span></div>
       <div class="land-stat"><b>1 сек</b><span>старт</span></div>
@@ -203,7 +204,7 @@ bot = Bot(token="my-token",
     <p class="auth-sub" id="auth-sub"></p>
     <input id="a-user" autocomplete="username">
     <input id="a-pin" type="password" autocomplete="current-password">
-    <input id="a-org" placeholder="Организация (slug при создании)" style="font-size:13px;padding:10px 16px">
+    <input id="a-org" placeholder="ID организации (напр: acme)" style="font-size:13px;padding:10px 16px">
     <button class="abtn abtn-p" id="btn-login"></button>
     <button class="abtn abtn-s" id="btn-reg"></button>
     <button class="abtn abtn-g" id="btn-demo"></button>
@@ -261,7 +262,7 @@ bot = Bot(token="my-token",
     <input id="org-slug" placeholder="ID организации (латиница, напр: acme)">
     <input id="org-name" placeholder="Название (напр: Acme Corp)">
     <input id="org-user" placeholder="Логин администратора">
-    <input id="org-pin" type="password" placeholder="Пин-код">
+    <input id="org-pin" type="password" placeholder="Пароль">
     <div class="modal-btns">
       <button class="mbtn-no" id="org-cancel">Отмена</button>
       <button class="mbtn-ok" id="org-ok">Создать</button>
@@ -305,13 +306,13 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 // ── i18n ──
 const L={
-  ru:{sub:'Бот-платформа',login:'Войти',reg:'Создать',demo:'Демо',user:'Логин',pin:'Пин-код',
+  ru:{sub:'Бот-платформа',login:'Войти',reg:'Регистрация',demo:'Демо',user:'Логин',pin:'Пароль',
     err_empty:'Введите логин и пин-код',err_wrong:'Неверный логин или пин-код',err_taken:'занят',
     err_demo:'Демо недоступно',main:'Главная',ch:'Каналы',bots:'Боты',sub_on:'Подписан',sub_off:'Подписка',
     no_msg:'Пока нет сообщений',no_items:'Пока пусто',msg:'Сообщение...',lang:'Язык',out:'Выход',
     new_ch:'Новый канал',new_bot:'Новый бот',cancel:'Отмена',create:'Создать',name_req:'Введите имя',
     ch_lbl:'Канал',bot_lbl:'Бот',yest:'Вчера',foot:(b,c,o)=>`Pusk · ${b} бот. · ${c} кан. · ${o} онлайн`},
-  en:{sub:'Bot platform',login:'Login',reg:'Register',demo:'Demo',user:'Username',pin:'PIN',
+  en:{sub:'Bot platform',login:'Login',reg:'Register',demo:'Demo',user:'Username',pin:'Password',
     err_empty:'Enter username and PIN',err_wrong:'Wrong username or PIN',err_taken:'taken',
     err_demo:'Demo unavailable',main:'Home',ch:'Channels',bots:'Bots',sub_on:'Joined',sub_off:'Join',
     no_msg:'No messages yet',no_items:'Nothing here yet',msg:'Message...',lang:'Language',out:'Logout',
@@ -357,7 +358,7 @@ async function showApp(){$('auth').style.display='none';$('app').style.display='
 async function showList(){curChat=null;curChan=null;localStorage.removeItem('pusk_view');$('main-list').style.display='block';$('chat-view').style.display='none';$('input-bar').style.display='none';$('hdr-back').style.display='none';$('hdr-title').textContent=t('main');const isGuest=localStorage.getItem('pusk_uname')==='guest';$('fab').style.display=isGuest?'none':'flex';
   const[bots,chs,health]=await Promise.all([api('GET','/api/bots'),api('GET','/api/channels'),api('GET','/api/health')]);
   const el=$('main-list');el.innerHTML='';
-  if(chs&&chs.length){el.innerHTML+=`<div class="sec-title">${t('ch')}</div>`;for(const c of chs){const cls=c.subscribed?'sub-btn on':'sub-btn';const txt=c.subscribed?t('sub_on'):t('sub_off');el.innerHTML+=`<div class="ch-row"><span class="ch-hash" onclick="openChan(${c.id},'${escJs(c.name)}')">#</span><div class="ch-body" onclick="openChan(${c.id},'${escJs(c.name)}')"><div class="ch-name">${esc(c.name)}</div><div class="ch-desc">${esc(c.description||'')}</div></div><button class="${cls}" onclick="toggleSub(event,${c.id})">${txt}</button></div>`}}
+  if(chs&&chs.length){el.innerHTML+=`<div class="sec-title">${t('ch')}</div>`;for(const c of chs){const cls=c.subscribed?'sub-btn on':'sub-btn';const txt=c.subscribed?t('sub_on'):t('sub_off');el.innerHTML+=`<div class="ch-row"><span class="ch-hash" onclick="openChan(${c.id},'${escJs(c.name)}')">#</span><div class="ch-body" onclick="openChan(${c.id},'${escJs(c.name)}')"><div class="ch-name">${esc(c.name)}<span class="ch-badge ch-badge-${c.id}" style="display:none"></span></div><div class="ch-desc">${esc(c.description||'')}</div></div><button class="${cls}" onclick="toggleSub(event,${c.id})">${txt}</button></div>`}}
   if(bots&&bots.length){el.innerHTML+=`<div class="sec-title">${t('bots')}</div>`;for(const b of bots){el.innerHTML+=`<div class="bot-row" onclick="openChat(${b.id},'${escJs(b.name)}')"><div class="bot-ava" style="background:${nameColor(b.name)}">${b.name[0].toUpperCase()}</div><div class="bot-name">${esc(b.name)}</div></div>`}}
   if((!bots||!bots.length)&&(!chs||!chs.length))el.innerHTML=`<div class="m-empty">${t('no_items')}</div>`;
   const v=health||{};el.innerHTML+=`<div class="list-foot">${t('foot')(bots?bots.length:0,chs?chs.length:0,v.online||0)}</div>`}
@@ -404,7 +405,7 @@ $('m-ok').onclick=async()=>{const name=$('m-name').value.trim();if(!name){$('m-m
 // ── WebSocket ──
 let audioCtx;
 function beep(){try{if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);o.frequency.value=800;g.gain.value=0.1;o.start();g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.15);o.stop(audioCtx.currentTime+0.15)}catch{}}
-function connectWS(){if(!token)return;const p=location.protocol==='https:'?'wss:':'ws:';ws=new WebSocket(`${p}//${location.host}/api/ws?token=${token}`);ws.onopen=()=>$('hdr-dot').style.color='#3db887';ws.onclose=()=>{$('hdr-dot').style.color='#e05d44';setTimeout(connectWS,3000)};ws.onmessage=e=>{beep();const ev=JSON.parse(e.data);if(ev.type==='new_message'&&ev.chat_id===curChat){const d=JSON.parse(ev.payload);addMsg(d.message);scrollDown()}if(ev.type==='channel_message'&&ev.chat_id===curChan){const d=JSON.parse(ev.payload);d.message.sender='bot';addMsg(d.message);scrollDown()}if(ev.type==='edit_message'){const msg=JSON.parse(ev.payload);const old=document.getElementById('m-'+msg.message_id);if(old)old.remove();addMsg(msg);scrollDown()}}}
+function connectWS(){if(!token)return;const p=location.protocol==='https:'?'wss:':'ws:';ws=new WebSocket(`${p}//${location.host}/api/ws?token=${token}`);ws.onopen=()=>$('hdr-dot').style.color='#3db887';ws.onclose=()=>{$('hdr-dot').style.color='#e05d44';setTimeout(connectWS,3000)};ws.onmessage=e=>{beep();const ev=JSON.parse(e.data);if(ev.type==='new_message'&&ev.chat_id===curChat){const d=JSON.parse(ev.payload);addMsg(d.message);scrollDown()}if(ev.type==='channel_message'){const d=JSON.parse(ev.payload);if(ev.chat_id===curChan){if(!d.message.sender)d.message.sender='bot';addMsg(d.message);scrollDown()}else{const badge=document.querySelector(`.ch-badge-${ev.chat_id}`);if(badge)badge.style.display='inline-block'}}if(ev.type==='edit_message'){const msg=JSON.parse(ev.payload);const old=document.getElementById('m-'+msg.message_id);if(old)old.remove();addMsg(msg);scrollDown()}}}
 
 // ── Push ──
 async function registerPush(){
