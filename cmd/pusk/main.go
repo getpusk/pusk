@@ -172,7 +172,7 @@ func main() {
 		}
 		ch, err := s.CreateChannel(bots[0].ID, req.Name, req.Description)
 		if err != nil {
-			errMsg := "Канал с таким именем уже существует"
+			errMsg := "Channel already exists / Канал уже существует"
 			if !strings.Contains(err.Error(), "UNIQUE") {
 				errMsg = err.Error()
 			}
