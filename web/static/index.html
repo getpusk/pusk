@@ -238,6 +238,8 @@ bot = Bot(token="my-token",
 <div id="settings-bg"></div>
 <div id="settings">
   <div class="s-row"><span id="s-lang-lbl"></span><button class="s-btn" id="s-lang-btn"></button></div>
+  <button class="s-btn" id="s-invite" style="width:100%;margin-top:8px;padding:10px;text-align:center">Пригласить коллегу</button>
+  <div id="s-invite-result" style="font-size:12px;color:var(--accent);margin-top:4px;word-break:break-all"></div>
   <button class="s-out" id="s-out"></button>
 </div>
 
@@ -345,7 +347,7 @@ function md(s){if(!s)return'';let h=s;const bl=[];h=h.replace(/```([\s\S]*?)```/
 async function api(method,path,body){const o={method,headers:{'Content-Type':'application/json'}};if(token)o.headers.Authorization=token;if(body)o.body=JSON.stringify(body);try{const r=await fetch(path,o);const txt=await r.text();if(!r.ok)console.warn('[pusk]',method,path,r.status);try{return JSON.parse(txt)}catch{return{error:txt}}}catch(e){return{error:e.message}}}
 
 // ── Auth ──
-$('btn-login').onclick=async()=>{const u=$('a-user').value.trim(),p=$('a-pin').value.trim(),o=$('a-org').value.trim()||undefined;if(!u||!p){$('a-err').textContent=t('err_empty');return}const r=await api('POST','/api/auth',{username:u,pin:p,org:o});if(r.error||!r.token){$('a-err').textContent=t('err_wrong');return}auth(r)};
+$('btn-login').onclick=async()=>{const u=$('a-user').value.trim(),p=$('a-pin').value.trim(),o=$('a-org').value.trim()||undefined;if(!u||!p){$('a-err').textContent=t('err_empty');return}$('btn-login').textContent='...';$('btn-login').disabled=true;const r=await api('POST','/api/auth',{username:u,pin:p,org:o});$('btn-login').textContent=t('login');$('btn-login').disabled=false;if(r.error||!r.token){$('a-err').textContent=t('err_wrong');return}auth(r)};
 $('btn-reg').onclick=async()=>{const u=$('a-user').value.trim(),p=$('a-pin').value.trim(),o=$('a-org').value.trim()||undefined;if(!u||!p){$('a-err').textContent=t('err_empty');return}const r=await api('POST','/api/register',{username:u,pin:p,display_name:u,org:o});if(r.error){$('a-err').textContent=r.error.includes('UNIQUE')?u+' '+t('err_taken'):r.error;return}auth(r)};
 $('btn-demo').onclick=async()=>{let r=await api('POST','/api/auth',{username:'guest',pin:'guest'});if(!r.token)r=await api('POST','/api/register',{username:'guest',pin:'guest',display_name:'Guest'});if(!r.token){$('a-err').textContent=t('err_demo');return}auth(r)};
 
@@ -382,7 +384,7 @@ function scrollDown(){const el=$('msgs');setTimeout(()=>el.scrollTop=el.scrollHe
 $('msg-send').onclick=sendMsg;
 $('msg-in').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg()}};
 async function sendMsg(){const inp=$('msg-in');const txt=inp.value.trim();if(!txt)return;inp.value='';const uname=localStorage.getItem('pusk_uname')||'You';if(curChan){addMsg({sender:'user',sender_name:uname,text:txt,date:new Date().toISOString(),message_id:Date.now()});scrollDown();await api('POST',`/api/channels/${curChan}/send`,{text:txt})}else if(curChat){addMsg({sender:'user',text:txt,date:new Date().toISOString(),message_id:Date.now()});scrollDown();await api('POST',`/api/chats/${curChat}/send`,{text:txt})}}
-async function onCb(el){const id=curChat||curChan;if(!id)return;await api('POST',`/api/chats/${id}/callback`,{data:el.dataset.cb,message_id:parseInt(el.dataset.mid)})}
+async function onCb(el){if(curChan){await api('POST',`/api/channels/${curChan}/ack`,{action:el.dataset.cb,message_id:parseInt(el.dataset.mid)});el.closest('.m-kb').innerHTML='<span style="color:#3db887;font-size:12px">'+el.textContent+' ✓</span>'}else if(curChat){await api('POST',`/api/chats/${curChat}/callback`,{data:el.dataset.cb,message_id:parseInt(el.dataset.mid)})}}
 async function onDel(mid){await api('DELETE',`/api/messages/${mid}`);const el=document.getElementById('m-'+mid);if(el)el.remove()}
 
 // ── Navigation ──
@@ -392,6 +394,7 @@ $('hdr-back').onclick=showList;
 $('hdr-ava').onclick=$('hdr-name').onclick=()=>{const v=$('settings').style.display==='block';$('settings').style.display=v?'none':'block';$('settings-bg').style.display=v?'none':'block'};
 $('settings-bg').onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none'};
 $('s-lang-btn').onclick=()=>{lang=lang==='ru'?'en':'ru';localStorage.setItem('pusk_lang',lang);setLang();if($('app').style.display==='flex')showList()};
+$('s-invite').onclick=async()=>{const r=await api('POST','/api/invite');if(r.code){const url=location.origin+r.url;$('s-invite-result').textContent=url;if(navigator.clipboard)navigator.clipboard.writeText(url);$('s-invite').textContent='Скопировано!';setTimeout(()=>{$('s-invite').textContent='Пригласить коллегу';$('s-invite-result').textContent=''},5000)}};
 $('s-out').onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none';logout()};
 
 // ── FAB / Create ──

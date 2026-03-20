@@ -79,6 +79,7 @@ func (a *ClientAPI) Route(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/channels/{channelID}/unsubscribe", a.unsubscribe)
 	mux.HandleFunc("GET /api/channels/{channelID}/messages", a.channelMessages)
 	mux.HandleFunc("POST /api/channels/{channelID}/send", limitBody(a.sendToChannel))
+	mux.HandleFunc("POST /api/channels/{channelID}/ack", limitBody(a.ackChannelMessage))
 
 	// Infra
 	mux.HandleFunc("GET /api/ws", a.websocket)
