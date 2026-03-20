@@ -63,7 +63,8 @@ fi
 
 echo ""
 echo "=== Build ==="
-go build -o pusk ./cmd/pusk/
-echo "BUILD OK ($(ls -lh pusk | awk '{print $5}'))"
+VERSION=$(git describe --tags --always 2>/dev/null || echo dev)
+go build -ldflags "-X github.com/pusk-platform/pusk/internal/api.Version=$VERSION" -o pusk ./cmd/pusk/
+echo "BUILD OK ($(ls -lh pusk | awk '{print $5}')) version=$VERSION"
 echo ""
 echo "=== All checks passed ==="
