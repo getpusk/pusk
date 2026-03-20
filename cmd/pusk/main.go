@@ -86,7 +86,12 @@ func main() {
 	// Invite redirect → PWA with invite param
 	mux.HandleFunc("GET /invite/", func(w http.ResponseWriter, r *http.Request) {
 		code := strings.TrimPrefix(r.URL.Path, "/invite/")
-		http.Redirect(w, r, "/?invite="+code, http.StatusFound)
+		org := r.URL.Query().Get("org")
+		target := "/?invite=" + code
+		if org != "" {
+			target += "&org=" + org
+		}
+		http.Redirect(w, r, target, http.StatusFound)
 	})
 
 	// Static files (PWA)
