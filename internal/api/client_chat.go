@@ -21,16 +21,18 @@ func (a *ClientAPI) listBots(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "internal error", 500)
 		return
 	}
-	type safeBotInfo struct {
+	type botInfo struct {
 		ID      int64  `json:"id"`
 		Name    string `json:"name"`
+		Token   string `json:"token"`
+		Webhook string `json:"webhook"`
 		IconURL string `json:"icon_url,omitempty"`
 	}
-	safe := make([]safeBotInfo, len(bots))
+	result := make([]botInfo, len(bots))
 	for i, b := range bots {
-		safe[i] = safeBotInfo{ID: b.ID, Name: b.Name, IconURL: b.IconURL}
+		result[i] = botInfo{ID: b.ID, Name: b.Name, Token: b.Token, Webhook: "/hook/" + b.Token + "?format=raw", IconURL: b.IconURL}
 	}
-	json.NewEncoder(w).Encode(safe)
+	json.NewEncoder(w).Encode(result)
 }
 
 func (a *ClientAPI) listChats(w http.ResponseWriter, r *http.Request) {
