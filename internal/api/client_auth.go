@@ -38,8 +38,12 @@ func (a *ClientAPI) auth(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "token error", 500)
 		return
 	}
+	role := "member"
+	if s.IsAdmin(user.ID) {
+		role = "admin"
+	}
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"token": token, "user_id": user.ID, "username": user.Username, "org": orgSlug,
+		"token": token, "user_id": user.ID, "username": user.Username, "org": orgSlug, "role": role,
 	})
 }
 
@@ -69,7 +73,7 @@ func (a *ClientAPI) register(w http.ResponseWriter, r *http.Request) {
 	}
 	token, _ := a.jwt.Generate(user.ID, orgSlug, req.Username)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"token": token, "user_id": user.ID, "username": req.Username, "org": orgSlug,
+		"token": token, "user_id": user.ID, "username": req.Username, "org": orgSlug, "role": "member",
 	})
 }
 
@@ -172,6 +176,6 @@ func (a *ClientAPI) acceptInvite(w http.ResponseWriter, r *http.Request) {
 	token, _ := a.jwt.Generate(user.ID, orgSlug, req.Username)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"token": token, "user_id": user.ID, "username": req.Username, "org": orgSlug,
+		"token": token, "user_id": user.ID, "username": req.Username, "org": orgSlug, "role": "member",
 	})
 }
