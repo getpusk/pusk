@@ -203,7 +203,7 @@ bot = Bot(token="my-token",
     <p class="auth-sub" id="auth-sub"></p>
     <input id="a-user" autocomplete="username">
     <input id="a-pin" type="password" autocomplete="current-password">
-    <input id="a-org" placeholder="Организация (необязательно)" style="font-size:13px;padding:10px 16px">
+    <input id="a-org" placeholder="Организация (slug при создании)" style="font-size:13px;padding:10px 16px">
     <button class="abtn abtn-p" id="btn-login"></button>
     <button class="abtn abtn-s" id="btn-reg"></button>
     <button class="abtn abtn-g" id="btn-demo"></button>
@@ -348,7 +348,7 @@ $('btn-login').onclick=async()=>{const u=$('a-user').value.trim(),p=$('a-pin').v
 $('btn-reg').onclick=async()=>{const u=$('a-user').value.trim(),p=$('a-pin').value.trim(),o=$('a-org').value.trim()||undefined;if(!u||!p){$('a-err').textContent=t('err_empty');return}const r=await api('POST','/api/register',{username:u,pin:p,display_name:u,org:o});if(r.error){$('a-err').textContent=r.error.includes('UNIQUE')?u+' '+t('err_taken'):r.error;return}auth(r)};
 $('btn-demo').onclick=async()=>{let r=await api('POST','/api/auth',{username:'guest',pin:'guest'});if(!r.token)r=await api('POST','/api/register',{username:'guest',pin:'guest',display_name:'Guest'});if(!r.token){$('a-err').textContent=t('err_demo');return}auth(r)};
 
-function auth(r){token=r.token;localStorage.setItem('pusk_token',token);localStorage.setItem('pusk_uid',r.user_id);localStorage.setItem('pusk_uname',r.username||'');showApp()}
+function auth(r){token=r.token;localStorage.setItem('pusk_token',token);localStorage.setItem('pusk_uid',r.user_id);localStorage.setItem('pusk_uname',r.username||'');if(r.org)localStorage.setItem('pusk_org',r.org);showApp()}
 function logout(){token=null;curChat=null;curChan=null;localStorage.removeItem('pusk_token');localStorage.removeItem('pusk_uid');localStorage.removeItem('pusk_uname');localStorage.removeItem('pusk_view');if(ws)ws.close();$('landing').style.display='flex';$('auth').style.display='none';$('app').style.display='none';$('fab').style.display='none';$('settings').style.display='none';$('settings-bg').style.display='none';initLandingChat()}
 
 // ── App ──
@@ -445,7 +445,7 @@ async function landSend(){
   await landApi('POST',`/api/chats/${landChat}/send`,{text:txt});
 }
 function hideLanding(){$('landing').style.display='none'}
-$('land-login').onclick=()=>{hideLanding();$('auth').style.display='flex'}
+$('land-login').onclick=()=>{hideLanding();$('auth').style.display='flex';const savedOrg=localStorage.getItem('pusk_org');if(savedOrg)$('a-org').value=savedOrg}
 $('land-demo').onclick=async()=>{
   let r=await api('POST','/api/auth',{username:'guest',pin:'guest'});
   if(!r.token)r=await api('POST','/api/register',{username:'guest',pin:'guest',display_name:'Guest'});
