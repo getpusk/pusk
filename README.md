@@ -134,6 +134,43 @@ See [examples/](examples/) for complete working bots.
 
 Try it: [getpusk.ru](https://getpusk.ru) — click "Demo", no registration needed.
 
+## Integrations
+
+### Uptime Kuma
+1. Notifications → Add → Type: **Webhook**
+2. URL: `https://your-pusk/hook/BOT-TOKEN?format=raw&channel=alerts`
+3. Method: POST, Content-Type: application/json
+
+### Alertmanager
+```yaml
+receivers:
+  - name: pusk
+    webhook_configs:
+      - url: 'https://your-pusk/hook/BOT-TOKEN?format=alertmanager'
+```
+
+### Zabbix
+1. Administration → Media types → Create: **Webhook**
+2. URL: `https://your-pusk/hook/BOT-TOKEN?format=zabbix`
+3. Parameters: `{ALERT.SUBJECT}`, `{ALERT.MESSAGE}`, `{EVENT.SEVERITY}`
+
+### Grafana
+1. Alerting → Contact points → New → Type: **Webhook**
+2. URL: `https://your-pusk/hook/BOT-TOKEN?format=grafana`
+
+### Any system with Telegram support
+If the system has a built-in "Telegram" notification type:
+1. Bot Token: your Pusk bot token
+2. Chat ID: use **negative channel ID** (e.g., `-2` for channel with ID 2)
+3. API URL: `https://your-pusk` (if the system supports custom base URL)
+
+### Generic webhook
+```bash
+curl -X POST https://your-pusk/hook/BOT-TOKEN?format=raw \
+  -H 'Content-Type: application/json' \
+  -d '{"status":"down","name":"my-service"}'
+```
+
 ## License
 
 BSL 1.1 - Copyright (c) 2026 Volkov Pavel | DevITWay
