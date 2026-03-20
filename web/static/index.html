@@ -410,13 +410,18 @@ function connectWS(){if(!token)return;const p=location.protocol==='https:'?'wss:
 async function registerPush(){
   if(!('serviceWorker' in navigator)||!('PushManager' in window)||!token)return;
   try{
+    // Explicitly request permission first
+    const perm=await Notification.requestPermission();
+    console.log('[push] permission:',perm);
+    if(perm!=='granted')return;
     const reg=await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
     const r=await fetch('/api/push/vapid');const{key}=await r.json();if(!key)return;
     let sub=await reg.pushManager.getSubscription();
     if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:Uint8Array.from(atob(key.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-key.length%4)%4)),c=>c.charCodeAt(0))});
-    await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json',Authorization:token},body:JSON.stringify(sub.toJSON())});
-    console.log('[push] subscribed');
-  }catch(e){console.log('Push:',e)}
+    const resp=await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json',Authorization:token},body:JSON.stringify(sub.toJSON())});
+    console.log('[push] subscribed:',resp.status);
+  }catch(e){console.log('[push] error:',e)}
 }
 
 // ── Landing live chat ──
