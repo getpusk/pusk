@@ -20,9 +20,9 @@ jobs:
       - run: go build -o pusk ./cmd/pusk/
       - run: go vet ./...
       - name: staticcheck
-        uses: dominikh/staticcheck-action@v1
-        with:
-          version: latest
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+          staticcheck ./...
       - name: gofmt
         run: test -z "$(gofmt -l .)"
       - name: JS function integrity
@@ -48,11 +48,12 @@ jobs:
         with:
           go-version: 'stable'
 
-      - name: Gitleaks — scan for hardcoded secrets
+      - name: Gitleaks — scan working tree for secrets
         run: |
-          curl -sL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz \
+          GITLEAKS_VERSION=8.24.3
+          curl -sL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
             | tar xz -C /usr/local/bin gitleaks
-          gitleaks detect --source . --config .gitleaks.toml --exit-code 1 --no-git
+          gitleaks dir --source . --config .gitleaks.toml --exit-code 1
 
       - name: govulncheck — Go vulnerability database
         run: |
