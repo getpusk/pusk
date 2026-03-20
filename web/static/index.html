@@ -178,12 +178,12 @@ bot = Bot(token="my-token",
       <button class="land-btn-s" id="land-create-org">Создать организацию</button>
     </div>
     <div class="land-btns" style="margin-top:0">
-      <a class="land-btn-s" href="https://github.com/getpusk/pusk" target="_blank" style="font-size:13px;padding:10px 16px;color:var(--text2)">GitHub</a>
+      <button class="land-btn-s" id="land-login" style="flex:1">Войти</button>
+      <a class="land-btn-s" href="https://github.com/getpusk/pusk" target="_blank" style="flex:1;font-size:13px;color:var(--text2)">GitHub</a>
     </div>
     <div class="land-links">
       <a href="https://github.com/getpusk/pusk#readme">Документация</a>
       <a href="https://github.com/getpusk/pusk#migrating-from-telegram">Миграция</a>
-      <a href="#" id="land-login">Войти</a>
       <span id="land-ver"></span>
     </div>
   </div>
@@ -445,7 +445,7 @@ async function landSend(){
   await landApi('POST',`/api/chats/${landChat}/send`,{text:txt});
 }
 function hideLanding(){$('landing').style.display='none'}
-$('land-login').onclick=e=>{e.preventDefault();hideLanding();$('auth').style.display='flex'}
+$('land-login').onclick=()=>{hideLanding();$('auth').style.display='flex'}
 $('land-demo').onclick=async()=>{
   let r=await api('POST','/api/auth',{username:'guest',pin:'guest'});
   if(!r.token)r=await api('POST','/api/register',{username:'guest',pin:'guest',display_name:'Guest'});
