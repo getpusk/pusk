@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pusk-platform/pusk/internal/auth"
 	"github.com/pusk-platform/pusk/internal/metrics"
@@ -31,12 +32,31 @@ type Handler struct {
 	push     *notify.PushService
 	relay    *RelayHub
 	jwt      *auth.JWTService
+	debounce *Debouncer
 	filesDir string
 }
 
 func NewHandler(orgs *org.Manager, defaultStore *store.Store, hub *ws.Hub, push *notify.PushService, jwtSvc *auth.JWTService, filesDir string) *Handler {
 	os.MkdirAll(filesDir, 0755)
-	return &Handler{orgs: orgs, store: defaultStore, hub: hub, push: push, jwt: jwtSvc, relay: NewRelayHub(), filesDir: filesDir}
+
+	// Webhook debounce: PUSK_WEBHOOK_DEBOUNCE env (default 10s, "0" to disable)
+	var deb *Debouncer
+	if debStr := os.Getenv("PUSK_WEBHOOK_DEBOUNCE"); debStr == "0" {
+		slog.Info("webhook debounce disabled")
+	} else {
+		window := 10 * time.Second
+		if debStr != "" {
+			if d, err := time.ParseDuration(debStr); err == nil {
+				window = d
+			} else {
+				slog.Warn("invalid PUSK_WEBHOOK_DEBOUNCE, using default", "value", debStr, "error", err)
+			}
+		}
+		deb = NewDebouncer(window)
+		slog.Info("webhook debounce enabled", "window", window)
+	}
+
+	return &Handler{orgs: orgs, store: defaultStore, hub: hub, push: push, jwt: jwtSvc, debounce: deb, relay: NewRelayHub(), filesDir: filesDir}
 }
 
 // storeForJWT resolves org store from JWT token string
