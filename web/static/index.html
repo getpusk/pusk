@@ -348,7 +348,7 @@ async function api(method,path,body){const o={method,headers:{'Content-Type':'ap
 
 // ── Auth ──
 $('btn-login').onclick=async()=>{const u=$('a-user').value.trim(),p=$('a-pin').value.trim(),o=$('a-org').value.trim()||undefined;if(!u||!p){$('a-err').textContent=t('err_empty');return}$('btn-login').textContent='...';$('btn-login').disabled=true;const r=await api('POST','/api/auth',{username:u,pin:p,org:o});$('btn-login').textContent=t('login');$('btn-login').disabled=false;if(r.error||!r.token){$('a-err').textContent=t('err_wrong');return}auth(r)};
-$('btn-reg').onclick=async()=>{const u=$('a-user').value.trim(),p=$('a-pin').value.trim(),o=$('a-org').value.trim()||undefined;if(!u||!p){$('a-err').textContent=t('err_empty');return}const r=await api('POST','/api/register',{username:u,pin:p,display_name:u,org:o});if(r.error){$('a-err').textContent=r.error.includes('UNIQUE')?u+' '+t('err_taken'):r.error;return}auth(r)};
+$('btn-reg').onclick=async()=>{const u=$('a-user').value.trim(),p=$('a-pin').value.trim(),o=$('a-org').value.trim()||undefined;if(!u||!p){$('a-err').textContent=t('err_empty');return}let r;if(_invite){r=await api('POST','/api/invite/accept'+(o?'?org='+o:''),{code:_invite,username:u,pin:p,display_name:u})}else{r=await api('POST','/api/register',{username:u,pin:p,display_name:u,org:o})}if(r.error){$('a-err').textContent=r.error.includes('UNIQUE')?u+' '+t('err_taken'):r.error;return}auth(r)};
 $('btn-demo').onclick=async()=>{let r=await api('POST','/api/auth',{username:'guest',pin:'guest'});if(!r.token)r=await api('POST','/api/register',{username:'guest',pin:'guest',display_name:'Guest'});if(!r.token){$('a-err').textContent=t('err_demo');return}auth(r)};
 
 function auth(r){token=r.token;localStorage.setItem('pusk_token',token);localStorage.setItem('pusk_uid',r.user_id);localStorage.setItem('pusk_uname',r.username||'');if(r.org)localStorage.setItem('pusk_org',r.org);showApp()}
@@ -502,7 +502,11 @@ setLang();
   if($('land-ver'))$('land-ver').textContent=ver;
 })();
 const _p=new URLSearchParams(location.search);
-if(_p.get('demo')==='1'&&!token){
+const _invite=_p.get('invite');
+if(_invite&&!token){
+  hideLanding();$('auth').style.display='flex';
+  $('a-err').style.color='var(--accent)';$('a-err').textContent='Регистрация по приглашению';
+} else if(_p.get('demo')==='1'&&!token){
   hideLanding();$('auth').style.display='flex';$('btn-demo').click();
 } else if(token){
   hideLanding();api('GET','/api/bots').then(r=>{if(r&&!r.error)showApp();else logout()}).catch(logout);
