@@ -204,7 +204,7 @@ type User struct {
 }
 
 func (s *Store) CreateUser(username, pin, displayName string) (*User, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(pin), 12)
+	hash, err := bcrypt.GenerateFromPassword([]byte(pin), bcrypt.DefaultCost) // cost 10, ~0.3s
 	if err != nil {
 		return nil, fmt.Errorf("hash pin: %w", err)
 	}
