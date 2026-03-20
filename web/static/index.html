@@ -238,6 +238,7 @@ bot = Bot(token="my-token",
 <div id="settings-bg"></div>
 <div id="settings">
   <div class="s-row"><span id="s-lang-lbl"></span><button class="s-btn" id="s-lang-btn"></button></div>
+  <div id="s-org-switch" style="margin-top:8px"></div>
   <button class="s-btn" id="s-invite" style="width:100%;margin-top:8px;padding:10px;text-align:center">Пригласить коллегу</button>
   <div id="s-invite-result" style="font-size:12px;color:var(--accent);margin-top:4px;word-break:break-all"></div>
   <button class="s-out" id="s-out"></button>
@@ -351,7 +352,7 @@ $('btn-login').onclick=async()=>{const u=$('a-user').value.trim(),p=$('a-pin').v
 $('btn-reg').onclick=async()=>{const u=$('a-user').value.trim(),p=$('a-pin').value.trim(),o=$('a-org').value.trim()||undefined;if(!u||!p){$('a-err').textContent=t('err_empty');return}let r;if(_invite){r=await api('POST','/api/invite/accept'+(o?'?org='+o:''),{code:_invite,username:u,pin:p,display_name:u})}else{r=await api('POST','/api/register',{username:u,pin:p,display_name:u,org:o})}if(r.error){$('a-err').textContent=r.error.includes('UNIQUE')?u+' '+t('err_taken'):r.error;return}auth(r)};
 $('btn-demo').onclick=async()=>{let r=await api('POST','/api/auth',{username:'guest',pin:'guest'});if(!r.token)r=await api('POST','/api/register',{username:'guest',pin:'guest',display_name:'Guest'});if(!r.token){$('a-err').textContent=t('err_demo');return}auth(r)};
 
-function auth(r){token=r.token;localStorage.setItem('pusk_token',token);localStorage.setItem('pusk_uid',r.user_id);localStorage.setItem('pusk_uname',r.username||'');if(r.org)localStorage.setItem('pusk_org',r.org);showApp()}
+function auth(r){token=r.token;localStorage.setItem('pusk_token',token);localStorage.setItem('pusk_uid',r.user_id);localStorage.setItem('pusk_uname',r.username||'');if(r.org){localStorage.setItem('pusk_org',r.org);const orgs=JSON.parse(localStorage.getItem('pusk_orgs')||'{}');orgs[r.org]={token:r.token,user:r.username};localStorage.setItem('pusk_orgs',JSON.stringify(orgs))}showApp()}
 function logout(){token=null;curChat=null;curChan=null;localStorage.removeItem('pusk_token');localStorage.removeItem('pusk_uid');localStorage.removeItem('pusk_uname');localStorage.removeItem('pusk_view');if(ws)ws.close();$('landing').style.display='flex';$('auth').style.display='none';$('app').style.display='none';$('fab').style.display='none';$('settings').style.display='none';$('settings-bg').style.display='none';initLandingChat()}
 
 // ── App ──
@@ -360,7 +361,7 @@ async function showApp(){$('auth').style.display='none';$('app').style.display='
 async function showList(){curChat=null;curChan=null;localStorage.removeItem('pusk_view');$('main-list').style.display='block';$('chat-view').style.display='none';$('input-bar').style.display='none';$('hdr-back').style.display='none';$('hdr-title').textContent=t('main');const isGuest=localStorage.getItem('pusk_uname')==='guest';$('fab').style.display=isGuest?'none':'flex';
   const[bots,chs,health]=await Promise.all([api('GET','/api/bots'),api('GET','/api/channels'),api('GET','/api/health')]);
   const el=$('main-list');el.innerHTML='';
-  if(chs&&chs.length){el.innerHTML+=`<div class="sec-title">${t('ch')}</div>`;for(const c of chs){const cls=c.subscribed?'sub-btn on':'sub-btn';const txt=c.subscribed?t('sub_on'):t('sub_off');el.innerHTML+=`<div class="ch-row"><span class="ch-hash" onclick="openChan(${c.id},'${escJs(c.name)}')">#</span><div class="ch-body" onclick="openChan(${c.id},'${escJs(c.name)}')"><div class="ch-name">${esc(c.name)}<span class="ch-badge ch-badge-${c.id}" style="display:none"></span></div><div class="ch-desc">${esc(c.description||'')}</div></div><button class="${cls}" onclick="toggleSub(event,${c.id})">${txt}</button></div>`}}
+  if(chs&&chs.length){el.innerHTML+=`<div class="sec-title">${t('ch')}</div>`;for(const c of chs){const cls=c.subscribed?'sub-btn on':'sub-btn';const txt=c.subscribed?t('sub_on'):t('sub_off');el.innerHTML+=`<div class="ch-row"><span class="ch-hash" onclick="openChan(${c.id},'${escJs(c.name)}')">#</span><div class="ch-body" onclick="openChan(${c.id},'${escJs(c.name)}')"><div class="ch-name">${esc(c.name)}${c.unread>0?`<span class="ch-badge ch-badge-${c.id}" style="display:inline-block;min-width:16px;text-align:center;font-size:11px;color:#fff;background:#3db887;border-radius:8px;padding:1px 5px;margin-left:6px">${c.unread}</span>`:`<span class="ch-badge ch-badge-${c.id}" style="display:none"></span>`}</div><div class="ch-desc">${esc(c.description||'')}</div></div><button class="${cls}" onclick="toggleSub(event,${c.id})">${txt}</button></div>`}}
   if(bots&&bots.length){el.innerHTML+=`<div class="sec-title">${t('bots')}</div>`;for(const b of bots){el.innerHTML+=`<div class="bot-row" onclick="openChat(${b.id},'${escJs(b.name)}')"><div class="bot-ava" style="background:${nameColor(b.name)}">${b.name[0].toUpperCase()}</div><div class="bot-name">${esc(b.name)}</div></div>`}}
   if((!bots||!bots.length)&&(!chs||!chs.length))el.innerHTML=`<div class="m-empty">${t('no_items')}</div>`;
   const v=health||{};el.innerHTML+=`<div class="list-foot">${t('foot')(bots?bots.length:0,chs?chs.length:0,v.online||0)}</div>`}
@@ -385,13 +386,15 @@ $('msg-send').onclick=sendMsg;
 $('msg-in').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg()}};
 async function sendMsg(){const inp=$('msg-in');const txt=inp.value.trim();if(!txt)return;inp.value='';const uname=localStorage.getItem('pusk_uname')||'You';if(curChan){addMsg({sender:'user',sender_name:uname,text:txt,date:new Date().toISOString(),message_id:Date.now()});scrollDown();await api('POST',`/api/channels/${curChan}/send`,{text:txt})}else if(curChat){addMsg({sender:'user',text:txt,date:new Date().toISOString(),message_id:Date.now()});scrollDown();await api('POST',`/api/chats/${curChat}/send`,{text:txt})}}
 async function onCb(el){if(curChan){await api('POST',`/api/channels/${curChan}/ack`,{action:el.dataset.cb,message_id:parseInt(el.dataset.mid)});el.closest('.m-kb').innerHTML='<span style="color:#3db887;font-size:12px">'+el.textContent+' ✓</span>'}else if(curChat){await api('POST',`/api/chats/${curChat}/callback`,{data:el.dataset.cb,message_id:parseInt(el.dataset.mid)})}}
-async function onDel(mid){await api('DELETE',`/api/messages/${mid}`);const el=document.getElementById('m-'+mid);if(el)el.remove()}
+async function onDel(mid){if(!confirm('Удалить сообщение?'))return;await api('DELETE',`/api/messages/${mid}`);const el=document.getElementById('m-'+mid);if(el)el.remove()}
 
 // ── Navigation ──
 $('hdr-back').onclick=showList;
 
 // ── Settings ──
-$('hdr-ava').onclick=$('hdr-name').onclick=()=>{const v=$('settings').style.display==='block';$('settings').style.display=v?'none':'block';$('settings-bg').style.display=v?'none':'block'};
+$('hdr-ava').onclick=$('hdr-name').onclick=()=>{const v=$('settings').style.display==='block';$('settings').style.display=v?'none':'block';$('settings-bg').style.display=v?'none':'block';if(!v)renderOrgSwitch()};
+function renderOrgSwitch(){const el=$('s-org-switch');const orgs=JSON.parse(localStorage.getItem('pusk_orgs')||'{}');const cur=localStorage.getItem('pusk_org')||'default';const keys=Object.keys(orgs);if(keys.length<=1){el.innerHTML='';return}el.innerHTML='<div style="font-size:12px;color:var(--text2);margin-bottom:4px">Организации:</div>'+keys.map(k=>`<button class="s-btn" style="width:100%;margin-bottom:4px;padding:8px;${k===cur?'background:var(--primary);color:#fff':''}" onclick="switchOrg('${k}')">${k}${k===cur?' ✓':''}</button>`).join('')}
+function switchOrg(slug){const orgs=JSON.parse(localStorage.getItem('pusk_orgs')||'{}');const o=orgs[slug];if(!o)return;token=o.token;localStorage.setItem('pusk_token',o.token);localStorage.setItem('pusk_uname',o.user);localStorage.setItem('pusk_org',slug);$('settings').style.display='none';$('settings-bg').style.display='none';if(ws)ws.close();showApp()}
 $('settings-bg').onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none'};
 $('s-lang-btn').onclick=()=>{lang=lang==='ru'?'en':'ru';localStorage.setItem('pusk_lang',lang);setLang();if($('app').style.display==='flex')showList()};
 $('s-invite').onclick=async()=>{const r=await api('POST','/api/invite');if(r.code){const o=localStorage.getItem('pusk_org')||'default';const url=location.origin+r.url+'?org='+o;$('s-invite-result').textContent=url;if(navigator.clipboard)navigator.clipboard.writeText(url);$('s-invite').textContent='Скопировано!';setTimeout(()=>{$('s-invite').textContent='Пригласить коллегу';$('s-invite-result').textContent=''},5000)}};
