@@ -40,6 +40,12 @@ var (
 		},
 		[]string{"format"},
 	)
+	WebhooksDedupedTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "pusk_webhooks_deduped_total",
+			Help: "Webhooks deduplicated by debounce",
+		},
+	)
 )
 
 func init() {
@@ -49,5 +55,6 @@ func init() {
 		WSConnections,
 		MessagesSent,
 		WebhooksReceived,
+		WebhooksDedupedTotal,
 	)
 }
