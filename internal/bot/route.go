@@ -14,6 +14,7 @@ func (h *Handler) Route(mux *http.ServeMux) {
 	mux.HandleFunc("POST /bot/", h.dispatch)
 	mux.HandleFunc("GET /bot/", h.dispatchGet)
 	mux.HandleFunc("GET /file/{fileID}", h.serveFile)
+	mux.HandleFunc("POST /hook/", h.dispatchHook)
 }
 
 func (h *Handler) dispatchGet(w http.ResponseWriter, r *http.Request) {
@@ -31,6 +32,18 @@ func (h *Handler) dispatchGet(w http.ResponseWriter, r *http.Request) {
 	default:
 		jsonResp(w, 400, APIResponse{OK: false, Error: "unknown GET method: " + parts[1]})
 	}
+}
+
+func (h *Handler) dispatchHook(w http.ResponseWriter, r *http.Request) {
+	// Path: /hook/<token>
+	token := strings.TrimPrefix(r.URL.Path, "/hook/")
+	token = strings.TrimSuffix(token, "/")
+	if token == "" {
+		http.Error(w, "missing token", 400)
+		return
+	}
+	r.Header.Set("X-Bot-Token", token)
+	h.webhook(w, r)
 }
 
 func (h *Handler) dispatch(w http.ResponseWriter, r *http.Request) {

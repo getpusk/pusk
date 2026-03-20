@@ -418,6 +418,24 @@ func (h *Handler) pushEditToChat(s *store.Store, chatID int64, bot *store.Bot, m
 	h.hub.SendToUser(userID, ws.Event{Type: "edit_message", ChatID: chatID, Payload: payload})
 }
 
+func (h *Handler) pushChannelMessage(s *store.Store, ch *store.Channel, bot *store.Bot, msg *store.ChannelMessage) {
+	subs, _ := s.ChannelSubscribers(ch.ID)
+	payload, _ := json.Marshal(map[string]interface{}{
+		"message":      msg,
+		"channel_name": ch.Name,
+		"bot_name":     bot.Name,
+	})
+	for _, userID := range subs {
+		h.hub.SendToUser(userID, ws.Event{Type: "channel_message", ChatID: ch.ID, Payload: payload})
+		h.push.SendToUser(userID, notify.PushPayload{
+			Title: "#" + ch.Name,
+			Body:  truncate(msg.Text, 100),
+			Tag:   "channel-" + ch.Name,
+			URL:   "/",
+		})
+	}
+}
+
 // ── Channel handlers ──
 
 type CreateChannelRequest struct {
@@ -484,23 +502,9 @@ func (h *Handler) sendChannel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Push to all subscribers via WebSocket
-	subs, _ := h.db(r).ChannelSubscribers(ch.ID)
-	payload, _ := json.Marshal(map[string]interface{}{
-		"message":      msg,
-		"channel_name": ch.Name,
-		"bot_name":     bot.Name,
-	})
-	for _, userID := range subs {
-		h.hub.SendToUser(userID, ws.Event{Type: "channel_message", ChatID: ch.ID, Payload: payload})
-		h.push.SendToUser(userID, notify.PushPayload{
-			Title: "#" + ch.Name,
-			Body:  truncate(req.Text, 100),
-			Tag:   "channel-" + ch.Name,
-			URL:   "/",
-		})
-	}
+	// Push to all subscribers
+	h.pushChannelMessage(h.db(r), ch, bot, msg)
 
-	log.Printf("[channel] %s: sent to %d subscribers", ch.Name, len(subs))
+	log.Printf("[channel] %s: message sent", ch.Name)
 	jsonResp(w, 200, APIResponse{OK: true, Result: msg})
 }
