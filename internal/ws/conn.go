@@ -3,7 +3,7 @@
 package ws
 
 import (
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -34,7 +34,7 @@ func (c *Conn) Send(data []byte) {
 	select {
 	case c.send <- data:
 	default:
-		log.Printf("[ws] dropping message for user %d (buffer full)", c.UserID)
+		slog.Warn("ws message dropped", "user_id", c.UserID, "reason", "buffer full")
 	}
 }
 

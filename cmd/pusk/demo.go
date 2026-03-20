@@ -3,7 +3,7 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 
 	"github.com/pusk-platform/pusk/internal/store"
 )
@@ -22,7 +22,7 @@ func initDemo(db *store.Store) {
 		if err != nil {
 			return
 		}
-		log.Printf("[demo] DemoBot created")
+		slog.Info("demo bot created", "bot", "DemoBot")
 	}
 
 	monBot, err := db.BotByToken("monitor-bot-token")
@@ -31,7 +31,7 @@ func initDemo(db *store.Store) {
 		if err != nil {
 			return
 		}
-		log.Printf("[demo] MonitorBot created")
+		slog.Info("demo bot created", "bot", "MonitorBot")
 	}
 
 	// ── Users ──
@@ -41,7 +41,7 @@ func initDemo(db *store.Store) {
 		if err != nil {
 			return
 		}
-		log.Printf("[demo] guest user created")
+		slog.Info("demo user created", "user", "guest")
 	}
 
 	// Test users (admin uses ADMIN_TOKEN, these are regular users for demo)
@@ -52,7 +52,7 @@ func initDemo(db *store.Store) {
 	} {
 		if _, err := db.AuthUser(u.name, u.pin); err != nil {
 			db.CreateUser(u.name, u.pin, u.display)
-			log.Printf("[demo] user %s created", u.name)
+			slog.Info("demo user created", "user", u.name)
 		}
 	}
 
@@ -66,7 +66,7 @@ func initDemo(db *store.Store) {
 		for _, m := range demoBotMessages {
 			db.SaveMessage(demoChat.ID, m.sender, m.text, m.markup, "", "")
 		}
-		log.Printf("[demo] DemoBot chat seeded")
+		slog.Info("demo chat seeded", "bot", "DemoBot")
 	}
 
 	// ── MonitorBot chat ──
@@ -79,7 +79,7 @@ func initDemo(db *store.Store) {
 		for _, m := range monitorBotMessages {
 			db.SaveMessage(monChat.ID, m.sender, m.text, m.markup, "", "")
 		}
-		log.Printf("[demo] MonitorBot chat seeded")
+		slog.Info("demo chat seeded", "bot", "MonitorBot")
 	}
 
 	// ── Channels ──
@@ -99,7 +99,7 @@ func seedChannel(db *store.Store, bot *store.Bot, guest *store.User, name, desc 
 		for _, text := range messages {
 			db.SaveChannelMessage(ch.ID, text, "", "", "")
 		}
-		log.Printf("[demo] #%s channel created with %d messages", name, len(messages))
+		slog.Info("demo channel seeded", "channel", name, "messages", len(messages))
 	}
 }
 

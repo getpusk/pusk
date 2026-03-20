@@ -4,7 +4,7 @@ package ws
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"sync"
 )
 
@@ -29,7 +29,7 @@ func (h *Hub) Register(userID int64, c *Conn) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.conns[userID] = append(h.conns[userID], c)
-	log.Printf("[ws] user %d connected (%d total)", userID, len(h.conns[userID]))
+	slog.Info("ws user connected", "user_id", userID, "total", len(h.conns[userID]))
 }
 
 func (h *Hub) Unregister(userID int64, c *Conn) {

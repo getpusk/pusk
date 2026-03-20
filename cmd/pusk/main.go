@@ -8,7 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"flag"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -27,6 +27,15 @@ import (
 )
 
 func main() {
+	// Structured logging
+	var handler slog.Handler
+	if os.Getenv("PUSK_LOG_FORMAT") == "json" {
+		handler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
+	} else {
+		handler = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
+	}
+	slog.SetDefault(slog.New(handler))
+
 	addr := flag.String("addr", ":8443", "listen address")
 	filesDir := flag.String("files", "data/files", "uploaded files directory")
 	staticDir := flag.String("static", "web/static", "PWA static files")
@@ -41,14 +50,16 @@ func main() {
 	// Multi-tenant org manager
 	orgs, err := org.NewManager("data")
 	if err != nil {
-		log.Fatalf("Failed to init org manager: %v", err)
+		slog.Error("failed to init org manager", "error", err)
+		os.Exit(1)
 	}
 	defer orgs.Close()
 
 	// Default org store (backwards compatible)
 	db, err := orgs.Get("default")
 	if err != nil {
-		log.Fatalf("Failed to init default org: %v", err)
+		slog.Error("failed to init default org", "error", err)
+		os.Exit(1)
 	}
 
 	// Demo mode: create guest user + DemoBot on first start
@@ -64,7 +75,7 @@ func main() {
 	vapidEmail := os.Getenv("VAPID_EMAIL")
 	push := notify.NewPushService(db, vapidPub, vapidPriv, vapidEmail)
 	if vapidPub != "" {
-		log.Printf("  Push:       VAPID configured")
+		slog.Info("push notifications configured", "provider", "VAPID")
 	}
 
 	// JWT auth
@@ -144,7 +155,7 @@ func main() {
 		} else {
 			orgs.RegisterToken(req.Token, "default")
 		}
-		log.Printf("[admin] bot registered: %s (token: %s...)", b.Name, b.Token[:8])
+		slog.Info("bot registered", "bot", b.Name, "token_prefix", b.Token[:8])
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(b)
 	})
@@ -180,7 +191,7 @@ func main() {
 			json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": errMsg})
 			return
 		}
-		log.Printf("[admin] channel created: %s", ch.Name)
+		slog.Info("channel created", "channel", ch.Name)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "result": ch})
 	})
@@ -196,7 +207,7 @@ func main() {
 			json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": err.Error()})
 			return
 		}
-		log.Printf("[admin] channel deleted: %d", channelID)
+		slog.Info("channel deleted", "channel_id", channelID)
 		json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
 	})
 
@@ -233,23 +244,25 @@ func main() {
 			"user_id":  user.ID,
 			"username": req.Username,
 		})
-		log.Printf("[org] registered: %s by %s", req.Slug, req.Username)
+		slog.Info("org registered", "slug", req.Slug, "admin", req.Username)
 	}))
 
-	log.Printf("Pusk server starting on %s", *addr)
-	log.Printf("  Bot API:    POST /bot{token}/sendMessage")
-	log.Printf("  Client API: GET  /api/health")
-	log.Printf("  PWA:        GET  /")
-	log.Printf("  Admin:      POST /admin/bots")
+	slog.Info("server starting", "addr", *addr)
+	slog.Info("routes",
+		"bot_api", "POST /bot{token}/sendMessage",
+		"client_api", "GET /api/health",
+		"pwa", "GET /",
+		"admin", "POST /admin/bots",
+	)
 
-	srv := &http.Server{Addr: *addr, Handler: mux}
+	srv := &http.Server{Addr: *addr, Handler: api.RequestLogger(mux)}
 
 	// Graceful shutdown on SIGTERM/SIGINT
 	go func() {
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
 		sig := <-sigCh
-		log.Printf("Received %s, shutting down...", sig)
+		slog.Info("shutting down", "signal", sig.String())
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -257,9 +270,10 @@ func main() {
 	}()
 
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("Server error: %v", err)
+		slog.Error("server error", "error", err)
+		os.Exit(1)
 	}
-	log.Printf("Pusk stopped gracefully")
+	slog.Info("server stopped gracefully")
 }
 
 func loadOrGenerateSecret(path string) string {
@@ -272,10 +286,11 @@ func loadOrGenerateSecret(path string) string {
 	}
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
-		log.Fatalf("Failed to generate JWT secret: %v", err)
+		slog.Error("failed to generate JWT secret", "error", err)
+		os.Exit(1)
 	}
 	secret := hex.EncodeToString(b)
 	os.WriteFile(path, []byte(secret+"\n"), 0600)
-	log.Printf("  JWT:        generated new secret → %s", path)
+	slog.Info("JWT secret generated", "path", path)
 	return secret
 }
