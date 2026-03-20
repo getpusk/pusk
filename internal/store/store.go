@@ -314,6 +314,11 @@ func (s *Store) UpdateMessageText(id int64, text, replyMarkup string) error {
 	return err
 }
 
+func (s *Store) UpdateChannelMessageText(id int64, text, replyMarkup string) error {
+	_, err := s.db.Exec("UPDATE channel_messages SET text=?, reply_markup=? WHERE id=?", text, replyMarkup, id)
+	return err
+}
+
 func (s *Store) DeleteMessage(id int64) error {
 	_, err := s.db.Exec("DELETE FROM messages WHERE id=?", id)
 	return err
