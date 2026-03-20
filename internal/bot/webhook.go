@@ -52,8 +52,13 @@ func (h *Handler) webhook(w http.ResponseWriter, r *http.Request) {
 	case "grafana":
 		text = formatGrafana(payload)
 	case "raw":
-		raw, _ := json.MarshalIndent(payload, "", "  ")
-		text = "```json\n" + string(raw) + "\n```"
+		// Smart extract: if payload has msg/message/text field, use it as plain text
+		if t := extractText(payload); t != "" {
+			text = t
+		} else {
+			raw, _ := json.MarshalIndent(payload, "", "  ")
+			text = "```json\n" + string(raw) + "\n```"
+		}
 	default:
 		text = fmt.Sprintf("Webhook (%s):\n```json\n%s\n```", format, truncateStr(fmt.Sprintf("%v", payload), 500))
 	}
@@ -79,6 +84,8 @@ func (h *Handler) webhook(w http.ResponseWriter, r *http.Request) {
 			json.NewEncoder(w).Encode(map[string]string{"status": "ok", "error": "channel error"})
 			return
 		}
+		// Auto-subscribe admin (user_id=1) to new channel
+		s.Subscribe(ch.ID, 1)
 		log.Printf("[webhook] auto-created channel #%s for bot %s", channelName, bot.Name)
 	}
 
@@ -245,6 +252,17 @@ func getStr(m map[string]interface{}, key string) string {
 	if v, ok := m[key]; ok {
 		if s, ok := v.(string); ok {
 			return s
+		}
+	}
+	return ""
+}
+
+// extractText tries to find a human-readable text field in webhook payload.
+// Covers: Uptime Kuma (msg), generic webhooks (message, text).
+func extractText(p map[string]interface{}) string {
+	for _, key := range []string{"msg", "message", "text"} {
+		if v := getStr(p, key); v != "" {
+			return v
 		}
 	}
 	return ""
