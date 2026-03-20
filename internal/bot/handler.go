@@ -26,14 +26,15 @@ import (
 
 // Handler implements Telegram-compatible Bot API endpoints
 type Handler struct {
-	orgs     *org.Manager
-	store    *store.Store // default org store (backwards compat)
-	hub      *ws.Hub
-	push     *notify.PushService
-	relay    *RelayHub
-	jwt      *auth.JWTService
-	debounce *Debouncer
-	filesDir string
+	orgs      *org.Manager
+	store     *store.Store // default org store (backwards compat)
+	hub       *ws.Hub
+	push      *notify.PushService
+	relay     *RelayHub
+	jwt       *auth.JWTService
+	debounce  *Debouncer
+	templates *TemplateEngine
+	filesDir  string
 }
 
 func NewHandler(orgs *org.Manager, defaultStore *store.Store, hub *ws.Hub, push *notify.PushService, jwtSvc *auth.JWTService, filesDir string) *Handler {
@@ -56,7 +57,7 @@ func NewHandler(orgs *org.Manager, defaultStore *store.Store, hub *ws.Hub, push 
 		slog.Info("webhook debounce enabled", "window", window)
 	}
 
-	return &Handler{orgs: orgs, store: defaultStore, hub: hub, push: push, jwt: jwtSvc, debounce: deb, relay: NewRelayHub(), filesDir: filesDir}
+	return &Handler{orgs: orgs, store: defaultStore, hub: hub, push: push, jwt: jwtSvc, debounce: deb, relay: NewRelayHub(), templates: NewTemplateEngine(), filesDir: filesDir}
 }
 
 // storeForJWT resolves org store from JWT token string
