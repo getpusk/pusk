@@ -506,7 +506,9 @@ const _invite=_p.get('invite');
 if(_invite&&!token){
   hideLanding();$('auth').style.display='flex';
   const _invOrg=_p.get('org');if(_invOrg)$('a-org').value=_invOrg;
-  $('a-err').style.color='var(--accent)';$('a-err').textContent='Регистрация по приглашению — введите логин и пароль';
+  $('btn-login').style.display='none';$('btn-demo').style.display='none';
+  $('btn-reg').className='abtn abtn-p';$('btn-reg').textContent='Зарегистрироваться';
+  $('a-err').style.color='var(--accent)';$('a-err').textContent='Создайте логин и пароль для входа';
 } else if(_p.get('demo')==='1'&&!token){
   hideLanding();$('auth').style.display='flex';$('btn-demo').click();
 } else if(token){
