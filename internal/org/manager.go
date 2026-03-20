@@ -174,10 +174,11 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 	m.stores[slug] = s
 
 	// Create admin user
-	_, err = s.CreateUser(adminUser, adminPin, adminUser)
+	admin, err := s.CreateUser(adminUser, adminPin, adminUser)
 	if err != nil {
 		return fmt.Errorf("create admin: %w", err)
 	}
+	s.SetUserRole(admin.ID, "admin")
 
 	// Create default system bot (needed for channels)
 	botToken := slug + "-system-" + fmt.Sprintf("%d", len(m.orgs))
