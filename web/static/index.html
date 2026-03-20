@@ -411,7 +411,8 @@ function renderOrgSwitch(){const el=$('s-org-switch');const orgs=JSON.parse(loca
 function switchOrg(slug){const orgs=JSON.parse(localStorage.getItem('pusk_orgs')||'{}');const o=orgs[slug];if(!o)return;token=o.token;localStorage.setItem('pusk_token',o.token);localStorage.setItem('pusk_uname',o.user);localStorage.setItem('pusk_org',slug);$('settings').style.display='none';$('settings-bg').style.display='none';if(ws)ws.close();showApp()}
 $('settings-bg').onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none'};
 $('s-lang-btn').onclick=()=>{lang=lang==='ru'?'en':'ru';localStorage.setItem('pusk_lang',lang);setLang();if($('app').style.display==='flex')showList()};
-$('s-invite').onclick=async()=>{const r=await api('POST','/api/invite');if(r.code){const o=localStorage.getItem('pusk_org')||'default';const url=location.origin+r.url+'?org='+o;$('s-invite-result').textContent=url;if(navigator.clipboard)navigator.clipboard.writeText(url);$('s-invite').textContent=t('invited');setTimeout(()=>{$('s-invite').textContent=t('invite')},3000)}};
+let _inviteUrl='';
+$('s-invite').onclick=async()=>{if(_inviteUrl){navigator.clipboard.writeText(_inviteUrl);$('s-invite').textContent=t('invited');setTimeout(()=>{$('s-invite').textContent=t('invite')},2000);return}const r=await api('POST','/api/invite');if(r.code){const o=localStorage.getItem('pusk_org')||'default';_inviteUrl=location.origin+r.url+'?org='+o;$('s-invite-result').textContent=_inviteUrl;navigator.clipboard.writeText(_inviteUrl);$('s-invite').textContent=t('invited');setTimeout(()=>{$('s-invite').textContent=t('invite')},2000)}};
 $('s-out').onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none';logout()};
 
 // ── FAB / Create ──
