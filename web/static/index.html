@@ -352,7 +352,7 @@ function auth(r){token=r.token;localStorage.setItem('pusk_token',token);localSto
 function logout(){token=null;curChat=null;curChan=null;localStorage.removeItem('pusk_token');localStorage.removeItem('pusk_uid');localStorage.removeItem('pusk_uname');localStorage.removeItem('pusk_view');if(ws)ws.close();$('landing').style.display='flex';$('auth').style.display='none';$('app').style.display='none';$('fab').style.display='none';$('settings').style.display='none';$('settings-bg').style.display='none';initLandingChat()}
 
 // ── App ──
-async function showApp(){$('auth').style.display='none';$('app').style.display='flex';const u=localStorage.getItem('pusk_uname')||'?';$('hdr-ava').textContent=u[0].toUpperCase();$('hdr-ava').style.background=nameColor(u);$('hdr-name').textContent=u;connectWS();await showList();const v=localStorage.getItem('pusk_view');if(v){try{const o=JSON.parse(v);if(o.t==='chat')openChat(o.id,o.n);else if(o.t==='ch')openChan(o.id,o.n)}catch{}}}
+async function showApp(){$('auth').style.display='none';$('app').style.display='flex';const u=localStorage.getItem('pusk_uname')||'?';$('hdr-ava').textContent=u[0].toUpperCase();$('hdr-ava').style.background=nameColor(u);$('hdr-name').textContent=u;connectWS();registerPush();await showList();const v=localStorage.getItem('pusk_view');if(v){try{const o=JSON.parse(v);if(o.t==='chat')openChat(o.id,o.n);else if(o.t==='ch')openChan(o.id,o.n)}catch{}}}
 
 async function showList(){curChat=null;curChan=null;localStorage.removeItem('pusk_view');$('main-list').style.display='block';$('chat-view').style.display='none';$('input-bar').style.display='none';$('hdr-back').style.display='none';$('hdr-title').textContent=t('main');const isGuest=localStorage.getItem('pusk_uname')==='guest';$('fab').style.display=isGuest?'none':'flex';
   const[bots,chs,health]=await Promise.all([api('GET','/api/bots'),api('GET','/api/channels'),api('GET','/api/health')]);
@@ -407,7 +407,17 @@ function beep(){try{if(!audioCtx)audioCtx=new(window.AudioContext||window.webkit
 function connectWS(){if(!token)return;const p=location.protocol==='https:'?'wss:':'ws:';ws=new WebSocket(`${p}//${location.host}/api/ws?token=${token}`);ws.onopen=()=>$('hdr-dot').style.color='#3db887';ws.onclose=()=>{$('hdr-dot').style.color='#e05d44';setTimeout(connectWS,3000)};ws.onmessage=e=>{beep();const ev=JSON.parse(e.data);if(ev.type==='new_message'&&ev.chat_id===curChat){const d=JSON.parse(ev.payload);addMsg(d.message);scrollDown()}if(ev.type==='channel_message'&&ev.chat_id===curChan){const d=JSON.parse(ev.payload);d.message.sender='bot';addMsg(d.message);scrollDown()}if(ev.type==='edit_message'){const msg=JSON.parse(ev.payload);const old=document.getElementById('m-'+msg.message_id);if(old)old.remove();addMsg(msg);scrollDown()}}}
 
 // ── Push ──
-if('serviceWorker' in navigator&&'PushManager' in window){navigator.serviceWorker.register('/sw.js').then(async reg=>{try{const r=await fetch('/api/push/vapid');const{key}=await r.json();if(!key)return;let sub=await reg.pushManager.getSubscription();if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:Uint8Array.from(atob(key.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-key.length%4)%4)),c=>c.charCodeAt(0))});fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json',Authorization:token},body:JSON.stringify(sub.toJSON())})}catch(e){console.log('Push:',e)}}).catch(()=>{})}
+async function registerPush(){
+  if(!('serviceWorker' in navigator)||!('PushManager' in window)||!token)return;
+  try{
+    const reg=await navigator.serviceWorker.register('/sw.js');
+    const r=await fetch('/api/push/vapid');const{key}=await r.json();if(!key)return;
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:Uint8Array.from(atob(key.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-key.length%4)%4)),c=>c.charCodeAt(0))});
+    await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json',Authorization:token},body:JSON.stringify(sub.toJSON())});
+    console.log('[push] subscribed');
+  }catch(e){console.log('Push:',e)}
+}
 
 // ── Landing live chat ──
 let landToken=null,landChat=null;
