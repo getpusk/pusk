@@ -5,3 +5,4 @@ data/
 *.db
 .env
 *.secret
+tests/e2e/node_modules/

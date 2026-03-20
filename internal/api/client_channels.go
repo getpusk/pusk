@@ -297,6 +297,17 @@ func (a *ClientAPI) editChannelMessage(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewDecoder(r.Body).Decode(&req)
 	s.UpdateChannelMessageText(msgID, req.Text, "")
+
+	// Broadcast edit to channel subscribers via WS
+	updated, _ := s.GetChannelMessage(msgID)
+	if updated != nil {
+		subs, _ := s.ChannelSubscribers(channelID)
+		payload, _ := json.Marshal(updated)
+		for _, uid := range subs {
+			a.hub.SendToUser(uid, ws.Event{Type: "channel_message_edit", ChatID: channelID, Payload: payload})
+		}
+	}
+
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
@@ -321,6 +332,13 @@ func (a *ClientAPI) deleteChannelMessage(w http.ResponseWriter, r *http.Request)
 	if !isAuthor && !isAdmin {
 		jsonErr(w, "forbidden", 403)
 		return
+	}
+
+	// Broadcast delete to channel subscribers via WS
+	subs, _ := s.ChannelSubscribers(msg.ChannelID)
+	payload, _ := json.Marshal(map[string]int64{"message_id": msgID})
+	for _, uid := range subs {
+		a.hub.SendToUser(uid, ws.Event{Type: "channel_message_delete", ChatID: msg.ChannelID, Payload: payload})
 	}
 
 	s.DeleteChannelMessage(msgID)
