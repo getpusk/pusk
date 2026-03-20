@@ -13,9 +13,6 @@ import (
 )
 
 func (a *ClientAPI) listBots(w http.ResponseWriter, r *http.Request) {
-	if a.requireAuth(w, r) == 0 {
-		return
-	}
 	bots, err := a.db(r).ListBots()
 	if err != nil {
 		jsonErr(w, "internal error", 500)
@@ -36,10 +33,7 @@ func (a *ClientAPI) listBots(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) listChats(w http.ResponseWriter, r *http.Request) {
-	userID := a.requireAuth(w, r)
-	if userID == 0 {
-		return
-	}
+	userID := UserIDFromCtx(r.Context())
 	chats, err := a.db(r).UserChats(userID)
 	if err != nil {
 		jsonErr(w, "internal error", 500)
@@ -49,19 +43,17 @@ func (a *ClientAPI) listChats(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) startChat(w http.ResponseWriter, r *http.Request) {
-	userID := a.requireAuth(w, r)
-	if userID == 0 {
-		return
-	}
+	userID := UserIDFromCtx(r.Context())
 	botID, _ := strconv.ParseInt(r.PathValue("botID"), 10, 64)
 
-	chat, err := a.db(r).GetOrCreateChat(userID, botID)
+	s := a.db(r)
+	chat, err := s.GetOrCreateChat(userID, botID)
 	if err != nil {
 		jsonErr(w, "internal error", 500)
 		return
 	}
 
-	b, _ := a.db(r).BotByID(botID)
+	b, _ := s.BotByID(botID)
 	if b != nil {
 		update := map[string]interface{}{
 			"update_id": chat.ID,
@@ -114,20 +106,20 @@ func (a *ClientAPI) sendToBot(w http.ResponseWriter, r *http.Request) {
 	if !a.checkChatAccess(w, r, chatID) {
 		return
 	}
-	userID := a.getUserID(r)
+	userID := UserIDFromCtx(r.Context())
 
 	var req struct {
 		Text string `json:"text"`
 	}
 	json.NewDecoder(r.Body).Decode(&req)
 
-	msg, err := a.db(r).SaveMessage(chatID, "user", req.Text, "", "", "")
+	s := a.db(r)
+	msg, err := s.SaveMessage(chatID, "user", req.Text, "", "", "")
 	if err != nil {
 		jsonErr(w, "internal error", 500)
 		return
 	}
 
-	s := a.db(r)
 	go a.forwardToBot(s, chatID, userID, msg)
 
 	json.NewEncoder(w).Encode(msg)
@@ -138,7 +130,7 @@ func (a *ClientAPI) callback(w http.ResponseWriter, r *http.Request) {
 	if !a.checkChatAccess(w, r, chatID) {
 		return
 	}
-	userID := a.getUserID(r)
+	userID := UserIDFromCtx(r.Context())
 
 	var req struct {
 		Data      string `json:"data"`
@@ -153,23 +145,20 @@ func (a *ClientAPI) callback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) deleteMessage(w http.ResponseWriter, r *http.Request) {
-	userID := a.getUserID(r)
-	if userID == 0 {
-		jsonErr(w, "unauthorized", 401)
-		return
-	}
+	userID := UserIDFromCtx(r.Context())
 	msgID, _ := strconv.ParseInt(r.PathValue("msgID"), 10, 64)
-	msg, err := a.db(r).GetMessage(msgID)
+	s := a.db(r)
+	msg, err := s.GetMessage(msgID)
 	if err != nil {
 		jsonErr(w, "not found", 404)
 		return
 	}
-	ownerID, _ := a.db(r).ChatUserID(msg.ChatID)
+	ownerID, _ := s.ChatUserID(msg.ChatID)
 	if ownerID != userID {
 		jsonErr(w, "forbidden", 403)
 		return
 	}
-	if err := a.db(r).DeleteMessage(msgID); err != nil {
+	if err := s.DeleteMessage(msgID); err != nil {
 		jsonErr(w, "internal error", 500)
 		return
 	}
@@ -177,7 +166,7 @@ func (a *ClientAPI) deleteMessage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) websocket(w http.ResponseWriter, r *http.Request) {
-	userID := a.getUserID(r)
+	userID := UserIDFromCtx(r.Context())
 	if userID == 0 {
 		jsonErr(w, "invalid credentials", 401)
 		return

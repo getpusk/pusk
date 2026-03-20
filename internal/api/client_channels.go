@@ -9,36 +9,31 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/pusk-platform/pusk/internal/auth"
 	"github.com/pusk-platform/pusk/internal/store"
 	"github.com/pusk-platform/pusk/internal/ws"
 )
 
 func (a *ClientAPI) ackChannelMessage(w http.ResponseWriter, r *http.Request) {
-	userID := a.requireAuth(w, r)
-	if userID == 0 {
-		return
-	}
 	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
 	s := a.db(r)
 
 	var req struct {
 		MessageID int64  `json:"message_id"`
-		Action    string `json:"action"` // ack, mute, resolved
+		Action    string `json:"action"`
 	}
 	json.NewDecoder(r.Body).Decode(&req)
 
+	claims := ClaimsFromCtx(r.Context())
 	username := ""
-	if claims := a.getJWTClaims(r); claims != nil {
+	if claims != nil {
 		username = claims.Username
 	}
 
-	// Get current message text and append ACK status
 	msgs, _ := s.ChannelMessages(channelID, 200)
 	for _, m := range msgs {
 		if m.ID == req.MessageID {
 			now := time.Now().Format("15:04")
-			status := ""
+			var status string
 			switch req.Action {
 			case "ack":
 				status = fmt.Sprintf("\n\n**ACK**: @%s в %s", username, now)
@@ -56,25 +51,8 @@ func (a *ClientAPI) ackChannelMessage(w http.ResponseWriter, r *http.Request) {
 	jsonErr(w, "message not found", 404)
 }
 
-func (a *ClientAPI) getJWTClaims(r *http.Request) *auth.Claims {
-	tokenStr := r.Header.Get("Authorization")
-	if tokenStr == "" {
-		tokenStr = r.URL.Query().Get("token")
-	}
-	if a.jwt != nil && tokenStr != "" {
-		claims, err := a.jwt.Validate(tokenStr)
-		if err == nil {
-			return claims
-		}
-	}
-	return nil
-}
-
 func (a *ClientAPI) listChannels(w http.ResponseWriter, r *http.Request) {
-	userID := a.requireAuth(w, r)
-	if userID == 0 {
-		return
-	}
+	userID := UserIDFromCtx(r.Context())
 	channels, err := a.db(r).ListChannels()
 	if err != nil {
 		jsonErr(w, "internal error", 500)
@@ -87,22 +65,20 @@ func (a *ClientAPI) listChannels(w http.ResponseWriter, r *http.Request) {
 		Subscribed  bool   `json:"subscribed"`
 		Unread      int    `json:"unread"`
 	}
+	s := a.db(r)
 	result := make([]channelInfo, 0, len(channels))
 	for _, ch := range channels {
 		result = append(result, channelInfo{
 			ID: ch.ID, Name: ch.Name, Description: ch.Description,
-			Subscribed: a.db(r).IsSubscribed(ch.ID, userID),
-			Unread:     a.db(r).UnreadCount(ch.ID, userID),
+			Subscribed: s.IsSubscribed(ch.ID, userID),
+			Unread:     s.UnreadCount(ch.ID, userID),
 		})
 	}
 	json.NewEncoder(w).Encode(result)
 }
 
 func (a *ClientAPI) subscribe(w http.ResponseWriter, r *http.Request) {
-	userID := a.requireAuth(w, r)
-	if userID == 0 {
-		return
-	}
+	userID := UserIDFromCtx(r.Context())
 	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
 	if err := a.db(r).Subscribe(channelID, userID); err != nil {
 		jsonErr(w, "internal error", 500)
@@ -112,10 +88,7 @@ func (a *ClientAPI) subscribe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) unsubscribe(w http.ResponseWriter, r *http.Request) {
-	userID := a.requireAuth(w, r)
-	if userID == 0 {
-		return
-	}
+	userID := UserIDFromCtx(r.Context())
 	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
 	if err := a.db(r).Unsubscribe(channelID, userID); err != nil {
 		jsonErr(w, "internal error", 500)
@@ -125,10 +98,7 @@ func (a *ClientAPI) unsubscribe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) channelMessages(w http.ResponseWriter, r *http.Request) {
-	userID := a.requireAuth(w, r)
-	if userID == 0 {
-		return
-	}
+	userID := UserIDFromCtx(r.Context())
 	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
 	limit := 50
 	if l := r.URL.Query().Get("limit"); l != "" {
@@ -137,7 +107,8 @@ func (a *ClientAPI) channelMessages(w http.ResponseWriter, r *http.Request) {
 	if limit > 200 {
 		limit = 200
 	}
-	msgs, err := a.db(r).ChannelMessages(channelID, limit)
+	s := a.db(r)
+	msgs, err := s.ChannelMessages(channelID, limit)
 	if err != nil {
 		jsonErr(w, "internal error", 500)
 		return
@@ -145,22 +116,17 @@ func (a *ClientAPI) channelMessages(w http.ResponseWriter, r *http.Request) {
 	if msgs == nil {
 		msgs = []store.ChannelMessage{}
 	}
-	// Mark channel as read
 	if len(msgs) > 0 {
-		a.db(r).MarkChannelRead(channelID, userID, msgs[0].ID) // msgs[0] = newest (DESC order)
+		s.MarkChannelRead(channelID, userID, msgs[0].ID)
 	}
 	json.NewEncoder(w).Encode(msgs)
 }
 
 func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
-	userID := a.requireAuth(w, r)
-	if userID == 0 {
-		return
-	}
+	userID := UserIDFromCtx(r.Context())
 	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
 	s := a.db(r)
 
-	// Must be subscribed to send
 	if !s.IsSubscribed(channelID, userID) {
 		jsonErr(w, "not subscribed", 403)
 		return
@@ -176,9 +142,9 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get username for sender_name
+	claims := ClaimsFromCtx(r.Context())
 	username := ""
-	if claims := a.getJWTClaims(r); claims != nil {
+	if claims != nil {
 		username = claims.Username
 	}
 
@@ -191,12 +157,10 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "internal error", 500)
 		return
 	}
-	// Mark channel as read for sender (own messages shouldn't count as unread)
 	if msg != nil {
 		s.MarkChannelRead(channelID, userID, msg.ID)
 	}
 
-	// Push to all subscribers via WebSocket
 	ch, _ := s.ChannelByID(channelID)
 	if ch != nil {
 		subs, _ := s.ChannelSubscribers(ch.ID)
@@ -214,7 +178,7 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) pushSubscribe(w http.ResponseWriter, r *http.Request) {
-	userID := a.getUserID(r)
+	userID := UserIDFromCtx(r.Context())
 	var req struct {
 		Endpoint string `json:"endpoint"`
 		Keys     struct {
@@ -234,12 +198,7 @@ func (a *ClientAPI) vapidKey(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"key": a.vapidPub})
 }
 
-// ── Users & Roles ──
-
 func (a *ClientAPI) listUsers(w http.ResponseWriter, r *http.Request) {
-	if a.requireAuth(w, r) == 0 {
-		return
-	}
 	users, err := a.db(r).ListUsers()
 	if err != nil {
 		jsonErr(w, "internal error", 500)
@@ -249,10 +208,7 @@ func (a *ClientAPI) listUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) setUserRole(w http.ResponseWriter, r *http.Request) {
-	userID := a.requireAuth(w, r)
-	if userID == 0 {
-		return
-	}
+	userID := UserIDFromCtx(r.Context())
 	s := a.db(r)
 	if !s.IsAdmin(userID) {
 		jsonErr(w, "admin only", 403)
@@ -271,13 +227,7 @@ func (a *ClientAPI) setUserRole(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
-// ── Channel Message Management ──
-
 func (a *ClientAPI) editChannelMessage(w http.ResponseWriter, r *http.Request) {
-	userID := a.requireAuth(w, r)
-	if userID == 0 {
-		return
-	}
 	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
 	msgID, _ := strconv.ParseInt(r.PathValue("msgID"), 10, 64)
 	s := a.db(r)
@@ -288,13 +238,11 @@ func (a *ClientAPI) editChannelMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Only author can edit
-	claims := a.getJWTClaims(r)
+	claims := ClaimsFromCtx(r.Context())
 	if claims == nil || msg.SenderName != claims.Username {
 		jsonErr(w, "can only edit own messages", 403)
 		return
 	}
-	_ = channelID
 
 	var req struct {
 		Text string `json:"text"`
@@ -302,7 +250,6 @@ func (a *ClientAPI) editChannelMessage(w http.ResponseWriter, r *http.Request) {
 	json.NewDecoder(r.Body).Decode(&req)
 	s.UpdateChannelMessageText(msgID, req.Text, "")
 
-	// Broadcast edit to channel subscribers via WS
 	updated, _ := s.GetChannelMessage(msgID)
 	if updated != nil {
 		subs, _ := s.ChannelSubscribers(channelID)
@@ -316,10 +263,7 @@ func (a *ClientAPI) editChannelMessage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) deleteChannelMessage(w http.ResponseWriter, r *http.Request) {
-	userID := a.requireAuth(w, r)
-	if userID == 0 {
-		return
-	}
+	userID := UserIDFromCtx(r.Context())
 	msgID, _ := strconv.ParseInt(r.PathValue("msgID"), 10, 64)
 	s := a.db(r)
 
@@ -329,8 +273,7 @@ func (a *ClientAPI) deleteChannelMessage(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Author or admin can delete
-	claims := a.getJWTClaims(r)
+	claims := ClaimsFromCtx(r.Context())
 	isAuthor := claims != nil && msg.SenderName == claims.Username
 	isAdmin := s.IsAdmin(userID)
 	if !isAuthor && !isAdmin {
@@ -338,7 +281,6 @@ func (a *ClientAPI) deleteChannelMessage(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Broadcast delete to channel subscribers via WS
 	subs, _ := s.ChannelSubscribers(msg.ChannelID)
 	payload, _ := json.Marshal(map[string]int64{"message_id": msgID})
 	for _, uid := range subs {

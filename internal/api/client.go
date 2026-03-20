@@ -40,8 +40,17 @@ func NewClientAPI(orgs *org.Manager, s *store.Store, hub *ws.Hub, push *notify.P
 	return &ClientAPI{orgs: orgs, store: s, hub: hub, push: push, relay: relay, vapidPub: vapidPub, jwt: jwtSvc}
 }
 
-// db returns the Store for the org derived from JWT claims
+// db returns the Store for the org derived from JWT claims in context.
+// Falls back to parsing the token from request if claims are not in context.
 func (a *ClientAPI) db(r *http.Request) *store.Store {
+	if claims := ClaimsFromCtx(r.Context()); claims != nil && claims.OrgID != "" {
+		if a.orgs != nil {
+			if s, err := a.orgs.Get(claims.OrgID); err == nil {
+				return s
+			}
+		}
+	}
+	// Fallback: parse token directly (for routes without AuthRequired)
 	tokenStr := r.Header.Get("Authorization")
 	if tokenStr == "" {
 		tokenStr = r.URL.Query().Get("token")
@@ -60,42 +69,42 @@ func (a *ClientAPI) Route(mux *http.ServeMux) {
 	authRL := NewRateLimiter(20, time.Minute)
 	regRL := NewRateLimiter(10, time.Minute)
 
-	// Auth
+	// Public routes (no auth required)
 	mux.HandleFunc("POST /api/auth", RateLimit(authRL, limitBody(a.auth)))
 	mux.HandleFunc("POST /api/register", RateLimit(regRL, limitBody(a.register)))
-
-	// Chat
-	mux.HandleFunc("GET /api/bots", a.listBots)
-	mux.HandleFunc("GET /api/chats", a.listChats)
-	mux.HandleFunc("GET /api/chats/{chatID}/messages", a.chatMessages)
-	mux.HandleFunc("POST /api/chats/{chatID}/send", limitBody(a.sendToBot))
-	mux.HandleFunc("POST /api/chats/{chatID}/callback", limitBody(a.callback))
-	mux.HandleFunc("POST /api/bots/{botID}/start", limitBody(a.startChat))
-	mux.HandleFunc("DELETE /api/messages/{msgID}", a.deleteMessage)
-
-	// Channels
-	mux.HandleFunc("GET /api/channels", a.listChannels)
-	mux.HandleFunc("POST /api/channels/{channelID}/subscribe", a.subscribe)
-	mux.HandleFunc("POST /api/channels/{channelID}/unsubscribe", a.unsubscribe)
-	mux.HandleFunc("GET /api/channels/{channelID}/messages", a.channelMessages)
-	mux.HandleFunc("POST /api/channels/{channelID}/send", limitBody(a.sendToChannel))
-	mux.HandleFunc("POST /api/channels/{channelID}/ack", limitBody(a.ackChannelMessage))
-	mux.HandleFunc("PUT /api/channels/{channelID}/messages/{msgID}", limitBody(a.editChannelMessage))
-	mux.HandleFunc("DELETE /api/channels/messages/{msgID}", a.deleteChannelMessage)
-
-	// Users & Roles
-	mux.HandleFunc("GET /api/users", a.listUsers)
-	mux.HandleFunc("POST /api/users/{userID}/role", limitBody(a.setUserRole))
-
-	// Infra
-	mux.HandleFunc("GET /api/ws", a.websocket)
 	mux.HandleFunc("GET /api/health", a.health)
-	mux.HandleFunc("POST /api/push/subscribe", limitBody(a.pushSubscribe))
 	mux.HandleFunc("GET /api/push/vapid", a.vapidKey)
-
-	// Invites
-	mux.HandleFunc("POST /api/invite", limitBody(a.createInvite))
 	mux.HandleFunc("POST /api/invite/accept", limitBody(a.acceptInvite))
+
+	// Auth-required routes: Chat
+	mux.HandleFunc("GET /api/bots", a.AuthRequired(a.listBots))
+	mux.HandleFunc("GET /api/chats", a.AuthRequired(a.listChats))
+	mux.HandleFunc("GET /api/chats/{chatID}/messages", a.AuthRequired(a.chatMessages))
+	mux.HandleFunc("POST /api/chats/{chatID}/send", a.AuthRequired(limitBody(a.sendToBot)))
+	mux.HandleFunc("POST /api/chats/{chatID}/callback", a.AuthRequired(limitBody(a.callback)))
+	mux.HandleFunc("POST /api/bots/{botID}/start", a.AuthRequired(limitBody(a.startChat)))
+	mux.HandleFunc("DELETE /api/messages/{msgID}", a.AuthRequired(a.deleteMessage))
+
+	// Auth-required routes: Channels
+	mux.HandleFunc("GET /api/channels", a.AuthRequired(a.listChannels))
+	mux.HandleFunc("POST /api/channels/{channelID}/subscribe", a.AuthRequired(a.subscribe))
+	mux.HandleFunc("POST /api/channels/{channelID}/unsubscribe", a.AuthRequired(a.unsubscribe))
+	mux.HandleFunc("GET /api/channels/{channelID}/messages", a.AuthRequired(a.channelMessages))
+	mux.HandleFunc("POST /api/channels/{channelID}/send", a.AuthRequired(limitBody(a.sendToChannel)))
+	mux.HandleFunc("POST /api/channels/{channelID}/ack", a.AuthRequired(limitBody(a.ackChannelMessage)))
+	mux.HandleFunc("PUT /api/channels/{channelID}/messages/{msgID}", a.AuthRequired(limitBody(a.editChannelMessage)))
+	mux.HandleFunc("DELETE /api/channels/messages/{msgID}", a.AuthRequired(a.deleteChannelMessage))
+
+	// Auth-required routes: Users & Roles
+	mux.HandleFunc("GET /api/users", a.AuthRequired(a.listUsers))
+	mux.HandleFunc("POST /api/users/{userID}/role", a.AuthRequired(limitBody(a.setUserRole)))
+
+	// Auth-required routes: Infra
+	mux.HandleFunc("GET /api/ws", a.AuthRequired(a.websocket))
+	mux.HandleFunc("POST /api/push/subscribe", a.AuthRequired(limitBody(a.pushSubscribe)))
+
+	// Auth-required routes: Invites
+	mux.HandleFunc("POST /api/invite", a.AuthRequired(limitBody(a.createInvite)))
 }
 
 // ── Helpers ──
