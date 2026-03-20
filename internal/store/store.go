@@ -134,6 +134,13 @@ func (s *Store) migrate() error {
 			auth     TEXT NOT NULL,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		);
+
+		CREATE TABLE IF NOT EXISTS invites (
+			code       TEXT PRIMARY KEY,
+			used       BOOLEAN DEFAULT FALSE,
+			expires_at DATETIME NOT NULL,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);
 	`)
 	return err
 }
@@ -544,5 +551,31 @@ func (s *Store) UserPushSubscriptions(userID int64) ([]PushSubscription, error) 
 
 func (s *Store) DeletePushSubscription(endpoint string) error {
 	_, err := s.db.Exec("DELETE FROM push_subscriptions WHERE endpoint=?", endpoint)
+	return err
+}
+
+// ── Invites ──
+
+func (s *Store) CreateInvite(code string, ttl time.Duration) error {
+	expires := time.Now().Add(ttl).UTC().Format(time.RFC3339)
+	_, err := s.db.Exec("INSERT INTO invites (code, expires_at) VALUES (?, ?)", code, expires)
+	return err
+}
+
+func (s *Store) UseInvite(code string) error {
+	var used bool
+	var expiresAt string
+	err := s.db.QueryRow("SELECT used, expires_at FROM invites WHERE code=?", code).Scan(&used, &expiresAt)
+	if err != nil {
+		return fmt.Errorf("invite not found")
+	}
+	if used {
+		return fmt.Errorf("invite already used")
+	}
+	expires, _ := time.Parse(time.RFC3339, expiresAt)
+	if time.Now().After(expires) {
+		return fmt.Errorf("invite expired")
+	}
+	_, err = s.db.Exec("UPDATE invites SET used=TRUE WHERE code=?", code)
 	return err
 }

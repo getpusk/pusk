@@ -4,7 +4,9 @@ package api
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -105,6 +107,8 @@ func (a *ClientAPI) Route(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/messages/{msgID}", a.deleteMessage)
 	mux.HandleFunc("POST /api/push/subscribe", a.pushSubscribe)
 	mux.HandleFunc("GET /api/push/vapid", a.vapidKey)
+	mux.HandleFunc("POST /api/invite", a.createInvite)
+	mux.HandleFunc("POST /api/invite/accept", a.acceptInvite)
 }
 
 func (a *ClientAPI) auth(w http.ResponseWriter, r *http.Request) {
@@ -433,6 +437,75 @@ func (a *ClientAPI) pushSubscribe(w http.ResponseWriter, r *http.Request) {
 
 func (a *ClientAPI) vapidKey(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"key": a.vapidPub})
+}
+
+func (a *ClientAPI) createInvite(w http.ResponseWriter, r *http.Request) {
+	if requireAuth(w, r) == 0 {
+		return
+	}
+	s := a.db(r)
+	code := fmt.Sprintf("%x", make([]byte, 16))
+	// Generate random code
+	b := make([]byte, 16)
+	rand.Read(b)
+	code = fmt.Sprintf("%x", b)
+
+	if err := s.CreateInvite(code, 24*time.Hour); err != nil {
+		jsonErr(w, "internal error", 500)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"code": code,
+		"url":  "/invite/" + code,
+	})
+}
+
+func (a *ClientAPI) acceptInvite(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Code        string `json:"code"`
+		Username    string `json:"username"`
+		Pin         string `json:"pin"`
+		DisplayName string `json:"display_name"`
+	}
+	json.NewDecoder(r.Body).Decode(&req)
+
+	if req.Code == "" || req.Username == "" || req.Pin == "" {
+		jsonErr(w, "code, username and pin required", 400)
+		return
+	}
+
+	// Find which org this invite belongs to — check all orgs
+	// For simplicity, accept invite in the org specified by ?org= or default
+	orgSlug := r.URL.Query().Get("org")
+	if orgSlug == "" {
+		orgSlug = "default"
+	}
+	s, err := a.orgs.Get(orgSlug)
+	if err != nil {
+		jsonErr(w, "org not found", 400)
+		return
+	}
+
+	if err := s.UseInvite(req.Code); err != nil {
+		jsonErr(w, err.Error(), 400)
+		return
+	}
+
+	user, err := s.CreateUser(req.Username, req.Pin, req.DisplayName)
+	if err != nil {
+		jsonErr(w, err.Error(), 400)
+		return
+	}
+
+	token, _ := a.jwt.Generate(user.ID, orgSlug, req.Username)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"token":    token,
+		"user_id":  user.ID,
+		"username": req.Username,
+		"org":      orgSlug,
+	})
 }
 
 func (a *ClientAPI) deleteMessage(w http.ResponseWriter, r *http.Request) {
