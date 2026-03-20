@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/pusk-platform/pusk/internal/auth"
+	"github.com/pusk-platform/pusk/internal/metrics"
 	"github.com/pusk-platform/pusk/internal/notify"
 	"github.com/pusk-platform/pusk/internal/org"
 	"github.com/pusk-platform/pusk/internal/store"
@@ -220,6 +221,7 @@ func (h *Handler) sendMessage(w http.ResponseWriter, r *http.Request) {
 		if chMsg != nil {
 			h.pushChannelMessage(s, ch, bot, chMsg)
 		}
+		metrics.MessagesSent.WithLabelValues("channel").Inc()
 		jsonResp(w, 200, APIResponse{OK: true, Result: chMsg})
 		return
 	}
@@ -232,6 +234,7 @@ func (h *Handler) sendMessage(w http.ResponseWriter, r *http.Request) {
 			chMsg, _ := s.SaveChannelMessage(ch.ID, req.Text, markup, "", "")
 			if chMsg != nil {
 				h.pushChannelMessage(s, ch, bot, chMsg)
+				metrics.MessagesSent.WithLabelValues("channel").Inc()
 				jsonResp(w, 200, APIResponse{OK: true, Result: chMsg})
 				return
 			}
@@ -242,6 +245,7 @@ func (h *Handler) sendMessage(w http.ResponseWriter, r *http.Request) {
 
 	// Find user for this chat and push via WebSocket
 	h.pushMessageToChat(s, req.ChatID, bot, msg)
+	metrics.MessagesSent.WithLabelValues("chat").Inc()
 
 	jsonResp(w, 200, APIResponse{OK: true, Result: msg})
 }
@@ -532,6 +536,7 @@ func (h *Handler) sendChannel(w http.ResponseWriter, r *http.Request) {
 
 	// Push to all subscribers
 	h.pushChannelMessage(h.db(r), ch, bot, msg)
+	metrics.MessagesSent.WithLabelValues("channel").Inc()
 
 	slog.Info("channel message sent", "channel", ch.Name)
 	jsonResp(w, 200, APIResponse{OK: true, Result: msg})
