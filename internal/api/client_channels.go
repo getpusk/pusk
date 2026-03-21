@@ -3,13 +3,18 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
+	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/pusk-platform/pusk/internal/notify"
 	"github.com/pusk-platform/pusk/internal/store"
 	"github.com/pusk-platform/pusk/internal/ws"
 )
@@ -45,6 +50,13 @@ func (a *ClientAPI) ackChannelMessage(w http.ResponseWriter, r *http.Request) {
 			}
 			newText := m.Text + status
 			s.UpdateChannelMessageText(m.ID, newText, "")
+
+			// Alertmanager silence on ACK/mute
+			amURL := os.Getenv("PUSK_ALERTMANAGER_URL")
+			if amURL != "" && (req.Action == "ack" || req.Action == "mute") {
+				go createAlertmanagerSilence(amURL, username, m.Text)
+			}
+
 			json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 			return
 		}
@@ -178,6 +190,29 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 		for _, uid := range subs {
 			key := orgID + ":" + fmt.Sprintf("%d", uid)
 			a.hub.SendToUser(key, ws.Event{Type: "channel_message", ChatID: ch.ID, Payload: payload})
+		}
+
+		// @mentions: push notification to mentioned users
+		if strings.Contains(req.Text, "@") {
+			users, _ := s.ListUsers()
+			for _, u := range users {
+				if strings.Contains(req.Text, "@"+u.Username) && u.ID != userID {
+					mentionPayload, _ := json.Marshal(map[string]interface{}{
+						"type":    "mention",
+						"channel": ch.Name,
+						"from":    username,
+						"text":    req.Text,
+					})
+					key := orgID + ":" + fmt.Sprintf("%d", u.ID)
+					a.hub.SendToUser(key, ws.Event{Type: "mention", ChatID: ch.ID, Payload: mentionPayload})
+					a.push.SendToUser(s, u.ID, notify.PushPayload{
+						Title: "#" + ch.Name + " — @" + u.Username,
+						Body:  username + ": " + truncateText(req.Text, 80),
+						Tag:   "mention-" + ch.Name,
+						URL:   "/",
+					})
+				}
+			}
 		}
 	}
 
@@ -359,4 +394,40 @@ func (a *ClientAPI) pinMessage(w http.ResponseWriter, r *http.Request) {
 	json.NewDecoder(r.Body).Decode(&req)
 	s.PinMessage(channelID, req.MessageID)
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+}
+
+func truncateText(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "..."
+}
+
+func createAlertmanagerSilence(amURL, username, alertText string) {
+	re := regexp.MustCompile("`([^`]+)`")
+	matches := re.FindStringSubmatch(alertText)
+	alertname := "unknown"
+	if len(matches) > 1 {
+		alertname = matches[1]
+	}
+
+	now := time.Now()
+	silence := map[string]interface{}{
+		"matchers": []map[string]string{
+			{"name": "alertname", "value": alertname, "isRegex": "false"},
+		},
+		"startsAt":  now.Format(time.RFC3339),
+		"endsAt":    now.Add(1 * time.Hour).Format(time.RFC3339),
+		"createdBy": username,
+		"comment":   "ACK'd via Pusk",
+	}
+
+	data, _ := json.Marshal(silence)
+	resp, err := http.Post(amURL+"/api/v2/silences", "application/json", bytes.NewReader(data))
+	if err != nil {
+		slog.Warn("alertmanager silence failed", "error", err)
+		return
+	}
+	resp.Body.Close()
+	slog.Info("alertmanager silence created", "alertname", alertname, "by", username, "status", resp.StatusCode)
 }
