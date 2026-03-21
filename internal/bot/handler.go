@@ -461,9 +461,8 @@ func (h *Handler) pushMessageToChat(s *store.Store, chatID int64, bot *store.Bot
 		slog.Warn("cannot find user for chat", "chat_id", chatID, "error", err)
 		return
 	}
-	tgMsg := telegramMessage(msg, bot)
 	payload, _ := json.Marshal(map[string]interface{}{
-		"message":  tgMsg,
+		"message":  msg,
 		"bot_name": bot.Name,
 	})
 	key := s.OrgID + ":" + fmt.Sprintf("%d", userID)
@@ -490,8 +489,7 @@ func (h *Handler) pushEditToChat(s *store.Store, chatID int64, bot *store.Bot, m
 		return
 	}
 	key := s.OrgID + ":" + fmt.Sprintf("%d", userID)
-	tgMsg := telegramMessage(msg, bot)
-	payload, _ := json.Marshal(tgMsg)
+	payload, _ := json.Marshal(msg)
 	h.hub.SendToUser(key, ws.Event{Type: "edit_message", ChatID: chatID, Payload: payload})
 }
 
