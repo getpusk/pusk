@@ -58,8 +58,8 @@ func (a *ClientAPI) startChat(w http.ResponseWriter, r *http.Request) {
 	if b != nil {
 		startMsg := map[string]interface{}{
 			"message_id": 0,
-			"chat":       map[string]interface{}{"id": chat.ID},
-			"from":       map[string]interface{}{"id": userID},
+			"chat":       map[string]interface{}{"id": chat.ID, "type": "private"},
+			"from":       map[string]interface{}{"id": userID, "is_bot": false, "first_name": "User"},
 			"text":       "/start",
 		}
 		update := map[string]interface{}{
