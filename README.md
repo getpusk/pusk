@@ -1,13 +1,13 @@
-[![License: MIT](https://img.shields.io/badge/License-BSL--1.1-blue.svg)](LICENSE)
-[![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go&logoColor=white)](https://go.dev)
+[![License: BSL-1.1](https://img.shields.io/badge/License-BSL--1.1-blue.svg)](LICENSE)
+[![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go&logoColor=white)](https://go.dev)
 
-![Pusk Demo](docs/demo.gif)
+<video src="https://github.com/getpusk/pusk/raw/main/.github/assets/demo.webm" width="960" autoplay loop muted></video>
 
-> **Self-hosted Telegram-compatible bot platform.**
+> **Drop-in Telegram Bot API replacement. Your bots keep working — on your server.**
 >
-> One binary. Inline keyboards. Zero config.
+> Alerts, coordination, inline keyboards. One binary, zero config.
 
-**16 MB** binary | **< 50 MB** RAM | **1s** startup | **SQLite** storage
+**22 MB** binary | **12 MB** RAM | **1s** startup | **SQLite** storage
 
 ## Features
 
