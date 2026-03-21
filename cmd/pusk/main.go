@@ -75,7 +75,7 @@ func main() {
 	vapidPub := os.Getenv("VAPID_PUBLIC_KEY")
 	vapidPriv := os.Getenv("VAPID_PRIVATE_KEY")
 	vapidEmail := os.Getenv("VAPID_EMAIL")
-	push := notify.NewPushService(db, vapidPub, vapidPriv, vapidEmail)
+	push := notify.NewPushService(vapidPub, vapidPriv, vapidEmail)
 	if vapidPub != "" {
 		slog.Info("push notifications configured", "provider", "VAPID")
 	}
