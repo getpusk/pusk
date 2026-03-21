@@ -163,6 +163,10 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 
 	ch, _ := s.ChannelByID(channelID)
 	if ch != nil {
+		orgID := ""
+		if claims != nil {
+			orgID = claims.OrgID
+		}
 		subs, _ := s.ChannelSubscribers(ch.ID)
 		payload, _ := json.Marshal(map[string]interface{}{
 			"message":      msg,
@@ -170,7 +174,8 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 			"sender_name":  username,
 		})
 		for _, uid := range subs {
-			a.hub.SendToUser(uid, ws.Event{Type: "channel_message", ChatID: ch.ID, Payload: payload})
+			key := orgID + ":" + fmt.Sprintf("%d", uid)
+			a.hub.SendToUser(key, ws.Event{Type: "channel_message", ChatID: ch.ID, Payload: payload})
 		}
 	}
 
@@ -252,10 +257,15 @@ func (a *ClientAPI) editChannelMessage(w http.ResponseWriter, r *http.Request) {
 
 	updated, _ := s.GetChannelMessage(msgID)
 	if updated != nil {
+		orgID := ""
+		if claims != nil {
+			orgID = claims.OrgID
+		}
 		subs, _ := s.ChannelSubscribers(channelID)
 		payload, _ := json.Marshal(updated)
 		for _, uid := range subs {
-			a.hub.SendToUser(uid, ws.Event{Type: "channel_message_edit", ChatID: channelID, Payload: payload})
+			key := orgID + ":" + fmt.Sprintf("%d", uid)
+			a.hub.SendToUser(key, ws.Event{Type: "channel_message_edit", ChatID: channelID, Payload: payload})
 		}
 	}
 
@@ -281,10 +291,15 @@ func (a *ClientAPI) deleteChannelMessage(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	orgID := ""
+	if claims != nil {
+		orgID = claims.OrgID
+	}
 	subs, _ := s.ChannelSubscribers(msg.ChannelID)
 	payload, _ := json.Marshal(map[string]int64{"message_id": msgID})
 	for _, uid := range subs {
-		a.hub.SendToUser(uid, ws.Event{Type: "channel_message_delete", ChatID: msg.ChannelID, Payload: payload})
+		key := orgID + ":" + fmt.Sprintf("%d", uid)
+		a.hub.SendToUser(key, ws.Event{Type: "channel_message_delete", ChatID: msg.ChannelID, Payload: payload})
 	}
 
 	s.DeleteChannelMessage(msgID)

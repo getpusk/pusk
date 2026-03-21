@@ -17,48 +17,49 @@ type Event struct {
 	Payload json.RawMessage `json:"payload"`
 }
 
-// Hub manages WebSocket connections per user
+// Hub manages WebSocket connections per user.
+// Keys are "orgID:userID" strings to ensure multi-tenant isolation.
 type Hub struct {
 	mu    sync.RWMutex
-	conns map[int64][]*Conn // userID -> connections
+	conns map[string][]*Conn // "orgID:userID" -> connections
 }
 
 func NewHub() *Hub {
-	return &Hub{conns: make(map[int64][]*Conn)}
+	return &Hub{conns: make(map[string][]*Conn)}
 }
 
-func (h *Hub) Register(userID int64, c *Conn) {
+func (h *Hub) Register(key string, c *Conn) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.conns[userID] = append(h.conns[userID], c)
+	h.conns[key] = append(h.conns[key], c)
 	metrics.WSConnections.Inc()
-	slog.Info("ws user connected", "user_id", userID, "total", len(h.conns[userID]))
+	slog.Info("ws user connected", "key", key, "total", len(h.conns[key]))
 }
 
-func (h *Hub) Unregister(userID int64, c *Conn) {
+func (h *Hub) Unregister(key string, c *Conn) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	conns := h.conns[userID]
+	conns := h.conns[key]
 	for i, conn := range conns {
 		if conn == c {
-			h.conns[userID] = append(conns[:i], conns[i+1:]...)
+			h.conns[key] = append(conns[:i], conns[i+1:]...)
 			metrics.WSConnections.Dec()
 			break
 		}
 	}
-	if len(h.conns[userID]) == 0 {
-		delete(h.conns, userID)
+	if len(h.conns[key]) == 0 {
+		delete(h.conns, key)
 	}
 }
 
-func (h *Hub) SendToUser(userID int64, evt Event) {
+func (h *Hub) SendToUser(key string, evt Event) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	data, err := json.Marshal(evt)
 	if err != nil {
 		return
 	}
-	for _, c := range h.conns[userID] {
+	for _, c := range h.conns[key] {
 		c.Send(data)
 	}
 }

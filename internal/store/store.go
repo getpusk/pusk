@@ -15,7 +15,8 @@ import (
 func Now() string { return time.Now().UTC().Format(time.RFC3339) }
 
 type Store struct {
-	db *sql.DB
+	OrgID string
+	db    *sql.DB
 }
 
 func New(path string) (*Store, error) {

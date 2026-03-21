@@ -123,6 +123,7 @@ func (m *Manager) Get(slug string) (*store.Store, error) {
 
 	// Double-check after acquiring write lock
 	if s, ok := m.stores[slug]; ok {
+		s.OrgID = slug
 		return s, nil
 	}
 
@@ -138,6 +139,7 @@ func (m *Manager) Get(slug string) (*store.Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open org db %s: %w", slug, err)
 	}
+	s.OrgID = slug
 	m.stores[slug] = s
 	slog.Info("org loaded", "slug", slug)
 	return s, nil
@@ -171,6 +173,7 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 	if err != nil {
 		return fmt.Errorf("create org db: %w", err)
 	}
+	s.OrgID = slug
 	m.stores[slug] = s
 
 	// Create admin user
