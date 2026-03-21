@@ -86,7 +86,7 @@ Navigate to `http://localhost:8443` — register, pick a bot, chat.
 ## Architecture
 
 ```
-pusk (16 MB binary)
+pusk (22 MB binary)
 +-- Bot API (/bot/<token>/<method>)  <- Telegram-compatible
 +-- Client API (/api/*)              <- PWA backend
 +-- WebSocket (/api/ws)              <- real-time push
