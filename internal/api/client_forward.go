@@ -26,15 +26,25 @@ func (a *ClientAPI) forwardToBot(s *store.Store, chatID, userID int64, msg *stor
 		return
 	}
 
+	msgPayload := map[string]interface{}{
+		"message_id": msg.ID,
+		"chat":       map[string]interface{}{"id": chatID},
+		"from":       map[string]interface{}{"id": userID},
+		"text":       msg.Text,
+		"date":       msg.CreatedAt,
+	}
+
 	update := map[string]interface{}{
 		"update_id": msg.ID,
-		"message": map[string]interface{}{
-			"message_id": msg.ID,
-			"chat":       map[string]interface{}{"id": chatID},
-			"from":       map[string]interface{}{"id": userID},
-			"text":       msg.Text,
-			"date":       msg.CreatedAt,
-		},
+		"message":   msgPayload,
+	}
+
+	// Always push to update queue (for getUpdates long polling)
+	if a.updates != nil {
+		a.updates.Push(botID, bot.Update{
+			UpdateID: msg.ID,
+			Message:  msgPayload,
+		})
 	}
 
 	if a.relay != nil && a.relay.Send(botID, update) {
@@ -60,17 +70,27 @@ func (a *ClientAPI) forwardCallback(s *store.Store, chatID, userID int64, data s
 		return
 	}
 
-	update := map[string]interface{}{
-		"update_id": messageID,
-		"callback_query": map[string]interface{}{
-			"id":   strconv.FormatInt(messageID, 10),
-			"from": map[string]interface{}{"id": userID},
-			"message": map[string]interface{}{
-				"message_id": messageID,
-				"chat":       map[string]interface{}{"id": chatID},
-			},
-			"data": data,
+	cbPayload := map[string]interface{}{
+		"id":   strconv.FormatInt(messageID, 10),
+		"from": map[string]interface{}{"id": userID},
+		"message": map[string]interface{}{
+			"message_id": messageID,
+			"chat":       map[string]interface{}{"id": chatID},
 		},
+		"data": data,
+	}
+
+	update := map[string]interface{}{
+		"update_id":      messageID,
+		"callback_query": cbPayload,
+	}
+
+	// Always push to update queue (for getUpdates long polling)
+	if a.updates != nil {
+		a.updates.Push(botID, bot.Update{
+			UpdateID: messageID,
+			Callback: cbPayload,
+		})
 	}
 
 	if a.relay != nil && a.relay.Send(botID, update) {
