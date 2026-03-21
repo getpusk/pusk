@@ -229,7 +229,15 @@ func (h *Handler) sendMessage(w http.ResponseWriter, r *http.Request) {
 
 	markup := ""
 	if req.ReplyMarkup != nil {
-		markup = string(req.ReplyMarkup)
+		raw := string(req.ReplyMarkup)
+		// PTB may send reply_markup as JSON string; unwrap if quoted
+		if len(raw) > 1 && raw[0] == '"' {
+			var unquoted string
+			if json.Unmarshal(req.ReplyMarkup, &unquoted) == nil {
+				raw = unquoted
+			}
+		}
+		markup = raw
 	}
 
 	s := h.db(r)
@@ -290,7 +298,14 @@ func (h *Handler) editMessageText(w http.ResponseWriter, r *http.Request) {
 
 	markup := ""
 	if req.ReplyMarkup != nil {
-		markup = string(req.ReplyMarkup)
+		raw := string(req.ReplyMarkup)
+		if len(raw) > 1 && raw[0] == '"' {
+			var unquoted string
+			if json.Unmarshal(req.ReplyMarkup, &unquoted) == nil {
+				raw = unquoted
+			}
+		}
+		markup = raw
 	}
 
 	if err := h.db(r).UpdateMessageText(req.MessageID, req.Text, markup); err != nil {
@@ -554,7 +569,14 @@ func (h *Handler) sendChannel(w http.ResponseWriter, r *http.Request) {
 
 	markup := ""
 	if req.ReplyMarkup != nil {
-		markup = string(req.ReplyMarkup)
+		raw := string(req.ReplyMarkup)
+		if len(raw) > 1 && raw[0] == '"' {
+			var unquoted string
+			if json.Unmarshal(req.ReplyMarkup, &unquoted) == nil {
+				raw = unquoted
+			}
+		}
+		markup = raw
 	}
 
 	msg, err := h.db(r).SaveChannelMessage(ch.ID, req.Text, markup, "", "")
