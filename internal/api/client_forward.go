@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/pusk-platform/pusk/internal/bot"
 	"github.com/pusk-platform/pusk/internal/store"
@@ -28,10 +29,10 @@ func (a *ClientAPI) forwardToBot(s *store.Store, chatID, userID int64, msg *stor
 
 	msgPayload := map[string]interface{}{
 		"message_id": msg.ID,
-		"chat":       map[string]interface{}{"id": chatID},
-		"from":       map[string]interface{}{"id": userID},
+		"chat":       map[string]interface{}{"id": chatID, "type": "private"},
+		"from":       map[string]interface{}{"id": userID, "is_bot": false, "first_name": "User"},
 		"text":       msg.Text,
-		"date":       msg.CreatedAt,
+		"date":       func() int64 { t, _ := time.Parse(time.RFC3339, msg.CreatedAt); return t.Unix() }(),
 	}
 
 	update := map[string]interface{}{
@@ -72,10 +73,10 @@ func (a *ClientAPI) forwardCallback(s *store.Store, chatID, userID int64, data s
 
 	cbPayload := map[string]interface{}{
 		"id":   strconv.FormatInt(messageID, 10),
-		"from": map[string]interface{}{"id": userID},
+		"from": map[string]interface{}{"id": userID, "is_bot": false, "first_name": "User"},
 		"message": map[string]interface{}{
 			"message_id": messageID,
-			"chat":       map[string]interface{}{"id": chatID},
+			"chat":       map[string]interface{}{"id": chatID, "type": "private"},
 		},
 		"data": data,
 	}
