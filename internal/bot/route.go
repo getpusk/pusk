@@ -8,23 +8,54 @@ import (
 )
 
 // Route registers Bot API endpoints with token extraction middleware
+// TelegramCompat rewrites /bot{token}/method → /bot/{token}/method for Telegram-native clients
+func TelegramCompat(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := r.URL.Path
+		if strings.HasPrefix(p, "/bot") && !strings.HasPrefix(p, "/bot/") && len(p) > 4 {
+			// /botTOKEN/method → /bot/TOKEN/method
+			r.URL.Path = "/bot/" + p[4:]
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (h *Handler) Route(mux *http.ServeMux) {
-	// Bot API uses /bot<token>/method format
-	// Go 1.22 can't do /bot{token}/method, so we use a prefix handler
+	// Bot API: /bot/{token}/method (Telegram-native /bot{token}/ handled by TelegramCompat middleware)
 	mux.HandleFunc("POST /bot/", h.dispatch)
 	mux.HandleFunc("GET /bot/", h.dispatchGet)
 	mux.HandleFunc("GET /file/{fileID}", h.serveFile)
 	mux.HandleFunc("POST /hook/", h.dispatchHook)
 }
 
+// extractTokenMethod parses both /bot/{token}/{method} and /bot{token}/{method} (Telegram-native)
+func extractTokenMethod(path string) (token, method string, ok bool) {
+	// Try /bot/{token}/{method} first
+	if strings.HasPrefix(path, "/bot/") {
+		parts := strings.SplitN(strings.TrimPrefix(path, "/bot/"), "/", 2)
+		if len(parts) == 2 {
+			return parts[0], parts[1], true
+		}
+	}
+	// Telegram-native: /bot{token}/{method}
+	if strings.HasPrefix(path, "/bot") {
+		rest := strings.TrimPrefix(path, "/bot")
+		parts := strings.SplitN(rest, "/", 2)
+		if len(parts) == 2 && parts[0] != "" {
+			return parts[0], parts[1], true
+		}
+	}
+	return "", "", false
+}
+
 func (h *Handler) dispatchGet(w http.ResponseWriter, r *http.Request) {
-	parts := strings.SplitN(strings.TrimPrefix(r.URL.Path, "/bot/"), "/", 2)
-	if len(parts) != 2 {
+	token, method, ok := extractTokenMethod(r.URL.Path)
+	if !ok {
 		jsonResp(w, 400, APIResponse{OK: false, Error: "invalid path"})
 		return
 	}
-	r.Header.Set("X-Bot-Token", parts[0])
-	switch parts[1] {
+	r.Header.Set("X-Bot-Token", token)
+	switch method {
 	case "relay":
 		h.relayWebSocket(w, r)
 	case "getMe":
@@ -36,7 +67,7 @@ func (h *Handler) dispatchGet(w http.ResponseWriter, r *http.Request) {
 	case "getWebhookInfo":
 		h.getWebhookInfo(w, r)
 	default:
-		jsonResp(w, 400, APIResponse{OK: false, Error: "unknown GET method: " + parts[1]})
+		jsonResp(w, 400, APIResponse{OK: false, Error: "unknown GET method: " + method})
 	}
 }
 
@@ -53,17 +84,11 @@ func (h *Handler) dispatchHook(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) dispatch(w http.ResponseWriter, r *http.Request) {
-	// Path: /bot/<token>/<method>
-	parts := strings.SplitN(strings.TrimPrefix(r.URL.Path, "/bot/"), "/", 2)
-	if len(parts) != 2 {
+	token, method, ok := extractTokenMethod(r.URL.Path)
+	if !ok {
 		jsonResp(w, 400, APIResponse{OK: false, Error: "invalid path, use /bot/<token>/<method>"})
 		return
 	}
-
-	token := parts[0]
-	method := parts[1]
-
-	// Inject token into request for authBot
 	r.Header.Set("X-Bot-Token", token)
 
 	switch method {
