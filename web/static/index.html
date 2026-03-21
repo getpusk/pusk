@@ -348,13 +348,21 @@ const L={
     err_demo:'Демо недоступно',main:'Главная',ch:'Каналы',bots:'Боты',sub_on:'Подписан ✓',sub_off:'Подписаться',
     no_msg:'Пока нет сообщений',no_items:'Пока пусто',msg:'Сообщение...',lang:'Язык',out:'Выход',
     new_ch:'Новый канал',new_bot:'Новый бот',cancel:'Отмена',create:'Создать',name_req:'Введите имя',
-    ch_lbl:'Канал',bot_lbl:'Бот',yest:'Вчера',invite:'Пригласить коллегу',invited:'Скопировано!',foot:(b,c,o)=>`Pusk · ${b} бот. · ${c} кан. · ${o} онлайн`},
+    ch_lbl:'Канал',bot_lbl:'Бот',yest:'Вчера',invite:'Пригласить коллегу',invited:'Скопировано!',
+    show_tok:'Показать token',tap_copy:'тап=копировать',copied:'Скопировано!',
+    orgs_title:'Организации:',fill_all:'Заполните все поля',register_btn:'Зарегистрироваться',
+    invite_hint:'Создайте логин и пароль для входа',push_on:'Вкл',push_off:'Выкл',push_blocked:'Заблокировано',push_reload:'Вкл (перезагрузите для откл.)',
+    foot:(b,c,o)=>`Pusk · ${b} бот. · ${c} кан. · ${o} онлайн`},
   en:{sub:'Bot platform',login:'Login',reg:'Register',demo:'Demo',user:'Username',pin:'Password',
     err_empty:'Enter username and password',err_wrong:'Wrong username or password',err_taken:'taken',
     err_demo:'Demo unavailable',main:'Home',ch:'Channels',bots:'Bots',sub_on:'Joined ✓',sub_off:'Subscribe',
     no_msg:'No messages yet',no_items:'Nothing here yet',msg:'Message...',lang:'Language',out:'Logout',
     new_ch:'New Channel',new_bot:'New Bot',cancel:'Cancel',create:'Create',name_req:'Enter name',
-    ch_lbl:'Channel',bot_lbl:'Bot',yest:'Yesterday',invite:'Invite colleague',invited:'Copied!',foot:(b,c,o)=>`Pusk · ${b} bots · ${c} ch. · ${o} online`}
+    ch_lbl:'Channel',bot_lbl:'Bot',yest:'Yesterday',invite:'Invite colleague',invited:'Copied!',
+    show_tok:'Show token',tap_copy:'tap=copy',copied:'Copied!',
+    orgs_title:'Organizations:',fill_all:'Fill all fields',register_btn:'Register',
+    invite_hint:'Create username and password',push_on:'ON',push_off:'OFF',push_blocked:'Blocked',push_reload:'ON (reload to disable)',
+    foot:(b,c,o)=>`Pusk · ${b} bots · ${c} ch. · ${o} online`}
 };
 let lang=localStorage.getItem('pusk_lang')||'ru';
 function t(k){return L[lang][k]||L.en[k]||k}
@@ -414,7 +422,7 @@ async function showList(){curChat=null;curChan=null;replyToId=0;$('reply-bar').s
   const[bots,chs,health]=await Promise.all([api('GET','/api/bots'),api('GET','/api/channels'),api('GET','/api/health')]);
   const el=$('main-list');el.innerHTML='';
   if(chs&&chs.length){el.innerHTML+=`<div class="sec-title">${t('ch')}</div>`;for(const c of chs){const cls=c.subscribed?'sub-btn on':'sub-btn';const txt=c.subscribed?t('sub_on'):t('sub_off');el.innerHTML+=`<div class="ch-row"><span class="ch-hash" onclick="openChan(${c.id},'${escJs(c.name)}')">#</span><div class="ch-body" onclick="openChan(${c.id},'${escJs(c.name)}')"><div class="ch-name">${esc(c.name)}${c.unread>0?`<span class="ch-badge ch-badge-${c.id}" style="display:inline-block;min-width:16px;text-align:center;font-size:11px;color:#fff;background:#3db887;border-radius:8px;padding:1px 5px;margin-left:6px">${c.unread}</span>`:`<span class="ch-badge ch-badge-${c.id}" style="display:none"></span>`}</div><div class="ch-desc">${esc(c.description||'')}</div></div><button class="${cls}" onclick="toggleSub(event,${c.id})">${txt}</button></div>`}}
-  if(bots&&bots.length){el.innerHTML+=`<div class="sec-title">${t('bots')}</div>`;for(const b of bots){el.innerHTML+=`<div class="bot-row" onclick="openChat(${b.id},'${escJs(b.name)}')"><div class="bot-ava" style="background:${nameColor(b.name)}">${b.name[0].toUpperCase()}</div><div><div class="bot-name">${esc(b.name)}</div><div style="font-size:11px;color:var(--text2);margin-top:2px;word-break:break-all;cursor:pointer" onclick="event.stopPropagation();if(this.dataset.show){navigator.clipboard.writeText('${escJs(b.token)}');this.textContent='Скопировано!';setTimeout(()=>{this.textContent='token: ${escJs(b.token)}'},2000)}else{this.dataset.show='1';this.textContent='token: ${escJs(b.token)} (тап=копировать)'}">Показать token</div></div></div>`}}
+  if(bots&&bots.length){el.innerHTML+=`<div class="sec-title">${t('bots')}</div>`;for(const b of bots){el.innerHTML+=`<div class="bot-row" onclick="openChat(${b.id},'${escJs(b.name)}')"><div class="bot-ava" style="background:${nameColor(b.name)}">${b.name[0].toUpperCase()}</div><div><div class="bot-name">${esc(b.name)}</div><div style="font-size:11px;color:var(--text2);margin-top:2px;word-break:break-all;cursor:pointer" onclick="event.stopPropagation();if(this.dataset.show){navigator.clipboard.writeText('${escJs(b.token)}');this.textContent=t('copied');setTimeout(()=>{this.textContent='token: ${escJs(b.token)}'},2000)}else{this.dataset.show='1';this.textContent='token: ${escJs(b.token)} ('+t('tap_copy')+')'}">${t('show_tok')}</div></div></div>`}}
   if((!bots||!bots.length)&&(!chs||!chs.length))el.innerHTML=`<div class="m-empty">${t('no_items')}</div>`;
   const v=health||{};el.innerHTML+=`<div class="list-foot">${t('foot')(bots?bots.length:0,chs?chs.length:0,v.online||0)}</div>`}
 
@@ -526,9 +534,9 @@ $('hdr-back').onclick=showList;
 
 // ── Settings ──
 $('hdr-ava').onclick=$('hdr-name').onclick=()=>{const v=$('settings').style.display==='block';$('settings').style.display=v?'none':'block';$('settings-bg').style.display=v?'none':'block';if(!v){renderOrgSwitch();renderSettings();renderUsers()}};
-async function renderSettings(){const u=localStorage.getItem('pusk_uname')||'?';const o=localStorage.getItem('pusk_org')||'default';$('s-profile').textContent=u+' @ '+o;const h=await api('GET','/api/health');$('s-about').innerHTML='Pusk '+(h.version||'?')+' <a href="https://github.com/getpusk/pusk" target="_blank" style="color:var(--accent);text-decoration:none;margin-left:8px">GitHub</a> <a href="https://github.com/getpusk/pusk#readme" target="_blank" style="color:var(--accent);text-decoration:none;margin-left:8px">Docs</a>';$('s-push-btn').textContent=Notification.permission==='granted'?'ON':'OFF'}
-async function togglePush(){if(Notification.permission==='granted'){$('s-push-btn').textContent='ON (перезагрузите для отключения)'}else{const p=await Notification.requestPermission();if(p==='granted'){registerPush();$('s-push-btn').textContent='ON'}else{$('s-push-btn').textContent='Заблокировано'}}}
-function renderOrgSwitch(){const el=$('s-org-switch');const orgs=JSON.parse(localStorage.getItem('pusk_orgs')||'{}');const cur=localStorage.getItem('pusk_org')||'default';const keys=Object.keys(orgs);if(keys.length<=1){el.innerHTML='';return}el.innerHTML='<div style="font-size:12px;color:var(--text2);margin-bottom:4px">Организации:</div>'+keys.map(k=>{const o=orgs[k];return`<button class="s-btn" style="width:100%;margin-bottom:4px;padding:8px;text-align:left;${k===cur?'background:var(--primary);color:#fff':''}" onclick="switchOrg('${k}')"><b>${k}</b> <span style="opacity:0.7;font-size:12px">(${o.user||'?'})</span>${k===cur?' ✓':''}</button>`}).join('')}
+async function renderSettings(){const u=localStorage.getItem('pusk_uname')||'?';const o=localStorage.getItem('pusk_org')||'default';$('s-profile').textContent=u+' @ '+o;const h=await api('GET','/api/health');$('s-about').innerHTML='Pusk '+(h.version||'?')+' <a href="https://github.com/getpusk/pusk" target="_blank" style="color:var(--accent);text-decoration:none;margin-left:8px">GitHub</a> <a href="https://github.com/getpusk/pusk#readme" target="_blank" style="color:var(--accent);text-decoration:none;margin-left:8px">Docs</a>';$('s-push-btn').textContent=Notification.permission==='granted'?t('push_on'):t('push_off')}
+async function togglePush(){if(Notification.permission==='granted'){$('s-push-btn').textContent=t('push_reload')}else{const p=await Notification.requestPermission();if(p==='granted'){registerPush();$('s-push-btn').textContent=t('push_on')}else{$('s-push-btn').textContent=t('push_blocked')}}}
+function renderOrgSwitch(){const el=$('s-org-switch');const orgs=JSON.parse(localStorage.getItem('pusk_orgs')||'{}');const cur=localStorage.getItem('pusk_org')||'default';const keys=Object.keys(orgs);if(keys.length<=1){el.innerHTML='';return}el.innerHTML='<div style="font-size:12px;color:var(--text2);margin-bottom:4px">'+t('orgs_title')+'</div>'+keys.map(k=>{const o=orgs[k];return`<button class="s-btn" style="width:100%;margin-bottom:4px;padding:8px;text-align:left;${k===cur?'background:var(--primary);color:#fff':''}" onclick="switchOrg('${k}')"><b>${k}</b> <span style="opacity:0.7;font-size:12px">(${o.user||'?'})</span>${k===cur?' ✓':''}</button>`}).join('')}
 async function renderUsers(){const el=$('s-users');const isAdmin=localStorage.getItem('pusk_role')==='admin'||localStorage.getItem('pusk_uid')==='1';const users=await api('GET','/api/users');if(!users||!users.length){el.innerHTML='';return}const me=localStorage.getItem('pusk_uname');el.innerHTML='<div style="font-size:12px;color:var(--text2);margin-bottom:4px">'+(lang==='ru'?'Пользователи':'Users')+' ('+users.length+'):</div>'+users.map(u=>{let actions='';if(isAdmin&&u.username!==me&&u.id!==1){actions=`<span style="margin-left:auto;display:flex;gap:4px"><button class="s-btn" style="font-size:11px;padding:2px 8px" onclick="setRole(${u.id},'${u.role==='admin'?'member':'admin'}')">${u.role==='admin'?'→member':'→admin'}</button><button class="s-btn" style="font-size:11px;padding:2px 8px;color:#e05d44;border-color:#e05d44" onclick="delUser(${u.id},'${escJs(u.username)}')">x</button></span>`}return`<div style="display:flex;align-items:center;padding:4px 0;font-size:13px"><span style="color:${u.role==='admin'?'var(--accent)':'var(--text)'}">${esc(u.username)}</span><span style="color:var(--text2);font-size:11px;margin-left:6px">${u.role}</span>${actions}</div>`}).join('')}
 async function setRole(uid,role){await api('POST',`/api/users/${uid}/role`,{role});renderUsers()}
 async function delUser(uid,name){if(!confirm((lang==='ru'?'Удалить пользователя ':'Delete user ')+name+'?'))return;await api('DELETE',`/api/users/${uid}`);renderUsers()}
@@ -640,7 +648,7 @@ $('org-ok').onclick=async()=>{
   const user=$('org-user').value.trim();
   const pin=$('org-pin').value.trim();
   const msg=$('org-msg');
-  if(!slug||!user||!pin){msg.textContent='Заполните все поля';msg.style.color='#e05d44';return}
+  if(!slug||!user||!pin){msg.textContent=t('fill_all');msg.style.color='#e05d44';return}
   msg.textContent='';
   const r=await api('POST','/api/org/register',{slug,name,username:user,pin});
   if(r.ok&&r.token){
@@ -665,8 +673,8 @@ if(_invite&&!token){
   hideLanding();$('auth').style.display='flex';
   const _invOrg=_p.get('org');if(_invOrg)$('a-org').value=_invOrg;
   $('btn-login').style.display='none';$('btn-demo').style.display='none';
-  $('btn-reg').className='abtn abtn-p';$('btn-reg').textContent='Зарегистрироваться';
-  $('a-err').style.color='var(--accent)';$('a-err').textContent='Создайте логин и пароль для входа';
+  $('btn-reg').className='abtn abtn-p';$('btn-reg').textContent=t('register_btn');
+  $('a-err').style.color='var(--accent)';$('a-err').textContent=t('invite_hint');
 } else if(_p.get('demo')==='1'&&!token){
   hideLanding();$('auth').style.display='flex';$('btn-demo').click();
 } else if(token){
