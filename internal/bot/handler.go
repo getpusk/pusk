@@ -31,6 +31,7 @@ type Handler struct {
 	hub       *ws.Hub
 	push      *notify.PushService
 	relay     *RelayHub
+	updates   *UpdateQueue
 	jwt       *auth.JWTService
 	debounce  *Debouncer
 	templates *TemplateEngine
@@ -57,7 +58,7 @@ func NewHandler(orgs *org.Manager, defaultStore *store.Store, hub *ws.Hub, push 
 		slog.Info("webhook debounce enabled", "window", window)
 	}
 
-	return &Handler{orgs: orgs, store: defaultStore, hub: hub, push: push, jwt: jwtSvc, debounce: deb, relay: NewRelayHub(), templates: NewTemplateEngine(), filesDir: filesDir}
+	return &Handler{orgs: orgs, store: defaultStore, hub: hub, push: push, jwt: jwtSvc, debounce: deb, relay: NewRelayHub(), updates: NewUpdateQueue(), templates: NewTemplateEngine(), filesDir: filesDir}
 }
 
 // storeForJWT resolves org store from JWT token string
@@ -85,6 +86,9 @@ func (h *Handler) storeForRequest(r *http.Request) *store.Store {
 
 // Relay returns the relay hub for use by client API
 func (h *Handler) Relay() *RelayHub { return h.relay }
+
+// Updates returns the update queue for use by client API
+func (h *Handler) Updates() *UpdateQueue { return h.updates }
 
 // relayWebSocket handles GET /bot/{token}/relay — bot connects here
 // to receive Telegram-compatible Updates via WebSocket instead of HTTP webhook.
@@ -561,4 +565,67 @@ func (h *Handler) sendChannel(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("channel message sent", "channel", ch.Name)
 	jsonResp(w, 200, APIResponse{OK: true, Result: msg})
+}
+
+// ── Long Polling ──
+
+func (h *Handler) getUpdates(w http.ResponseWriter, r *http.Request) {
+	bot, err := h.authBot(r)
+	if err != nil {
+		jsonResp(w, 401, APIResponse{OK: false, Error: "Unauthorized"})
+		return
+	}
+
+	var req struct {
+		Offset  int64 `json:"offset"`
+		Timeout int   `json:"timeout"`
+	}
+
+	// Support both JSON body and query params
+	if r.Method == "POST" {
+		decodeBody(r, &req)
+	}
+	if v := r.URL.Query().Get("offset"); v != "" {
+		req.Offset, _ = strconv.ParseInt(v, 10, 64)
+	}
+	if v := r.URL.Query().Get("timeout"); v != "" {
+		req.Timeout, _ = strconv.Atoi(v)
+	}
+	if req.Timeout <= 0 {
+		req.Timeout = 30
+	}
+	if req.Timeout > 50 {
+		req.Timeout = 50
+	}
+
+	updates := h.updates.Poll(bot.ID, req.Offset, time.Duration(req.Timeout)*time.Second)
+	if updates == nil {
+		updates = []Update{}
+	}
+
+	jsonResp(w, 200, APIResponse{OK: true, Result: updates})
+}
+
+func (h *Handler) deleteWebhook(w http.ResponseWriter, r *http.Request) {
+	bot, err := h.authBot(r)
+	if err != nil {
+		jsonResp(w, 401, APIResponse{OK: false, Error: "Unauthorized"})
+		return
+	}
+	h.db(r).SetWebhook(bot.ID, "")
+	slog.Info("webhook deleted", "bot", bot.Name)
+	jsonResp(w, 200, APIResponse{OK: true, Result: true})
+}
+
+func (h *Handler) getWebhookInfo(w http.ResponseWriter, r *http.Request) {
+	bot, err := h.authBot(r)
+	if err != nil {
+		jsonResp(w, 401, APIResponse{OK: false, Error: "Unauthorized"})
+		return
+	}
+	jsonResp(w, 200, APIResponse{OK: true, Result: map[string]interface{}{
+		"url":                    bot.WebhookURL,
+		"has_custom_certificate": false,
+		"pending_update_count":   0,
+	}})
 }
