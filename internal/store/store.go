@@ -633,6 +633,16 @@ func (s *Store) IsAdmin(userID int64) bool {
 	return role == "admin" || userID == 1
 }
 
+func (s *Store) DeleteUser(userID int64) error {
+	s.db.Exec("DELETE FROM channel_subscribers WHERE user_id=?", userID)
+	s.db.Exec("DELETE FROM channel_reads WHERE user_id=?", userID)
+	s.db.Exec("DELETE FROM push_subscriptions WHERE user_id=?", userID)
+	s.db.Exec("DELETE FROM messages WHERE chat_id IN (SELECT id FROM chats WHERE user_id=?)", userID)
+	s.db.Exec("DELETE FROM chats WHERE user_id=?", userID)
+	_, err := s.db.Exec("DELETE FROM users WHERE id=?", userID)
+	return err
+}
+
 func (s *Store) DeleteChannelMessage(id int64) error {
 	_, err := s.db.Exec("DELETE FROM channel_messages WHERE id=?", id)
 	return err
