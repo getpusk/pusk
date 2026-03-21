@@ -3,7 +3,10 @@
 package api
 
 import (
+	"bufio"
+	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -13,6 +16,7 @@ import (
 )
 
 // statusWriter wraps http.ResponseWriter to capture the status code.
+// Implements http.Hijacker so WebSocket upgrades work through the middleware.
 type statusWriter struct {
 	http.ResponseWriter
 	code int
@@ -21,6 +25,13 @@ type statusWriter struct {
 func (w *statusWriter) WriteHeader(code int) {
 	w.code = code
 	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *statusWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if hj, ok := w.ResponseWriter.(http.Hijacker); ok {
+		return hj.Hijack()
+	}
+	return nil, nil, fmt.Errorf("ResponseWriter does not implement http.Hijacker")
 }
 
 var numericID = regexp.MustCompile(`/\d+`)
