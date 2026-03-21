@@ -345,7 +345,25 @@ func (h *Handler) answerCallback(w http.ResponseWriter, r *http.Request) {
 
 	var req AnswerCallbackRequest
 	decodeBody(r, &req)
-	// In real impl: send notification to user via WS
+
+	if req.Text != "" {
+		// Parse callback_query_id (set to messageID string in pushCallbackToQueue)
+		msgID, _ := strconv.ParseInt(req.CallbackQueryID, 10, 64)
+		if msgID > 0 {
+			s := h.db(r)
+			if msg, err := s.GetMessage(msgID); err == nil && msg != nil {
+				if userID, err := s.ChatUserID(msg.ChatID); err == nil && userID > 0 {
+					key := s.OrgID + ":" + fmt.Sprintf("%d", userID)
+					payload, _ := json.Marshal(map[string]interface{}{
+						"text":       req.Text,
+						"show_alert": req.ShowAlert,
+					})
+					h.hub.SendToUser(key, ws.Event{Type: "callback_answer", Payload: payload})
+				}
+			}
+		}
+	}
+
 	jsonResp(w, 200, APIResponse{OK: true, Result: true})
 }
 

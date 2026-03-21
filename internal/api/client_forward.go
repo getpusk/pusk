@@ -38,7 +38,7 @@ func (a *ClientAPI) pushToUpdateQueue(s *store.Store, chatID, userID int64, msg 
 			{"type": "bot_command", "offset": 0, "length": len(cmd)},
 		}
 	}
-	a.updates.Push(botID, bot.Update{UpdateID: msg.ID, Message: msgPayload})
+	a.updates.Push(botID, bot.Update{Message: msgPayload})
 }
 
 // pushCallbackToQueue pushes callback update SYNCHRONOUSLY before async forwarding.
@@ -73,7 +73,6 @@ func (a *ClientAPI) pushCallbackToQueue(s *store.Store, chatID, userID int64, da
 		msgDate = time.Now().Unix()
 	}
 
-	cbUpdateID := time.Now().UnixMilli()
 	cbPayload := map[string]interface{}{
 		"id":            strconv.FormatInt(messageID, 10),
 		"from":          map[string]interface{}{"id": userID, "is_bot": false, "first_name": "User"},
@@ -87,7 +86,7 @@ func (a *ClientAPI) pushCallbackToQueue(s *store.Store, chatID, userID int64, da
 			"text":       msgText,
 		},
 	}
-	a.updates.Push(botID, bot.Update{UpdateID: cbUpdateID, Callback: cbPayload})
+	a.updates.Push(botID, bot.Update{Callback: cbPayload})
 }
 
 func (a *ClientAPI) forwardToBot(s *store.Store, chatID, userID int64, msg *store.Message) {
