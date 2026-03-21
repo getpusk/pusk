@@ -99,6 +99,7 @@ func (a *ClientAPI) Route(mux *http.ServeMux) {
 	// Auth-required routes: Users & Roles
 	mux.HandleFunc("GET /api/users", a.AuthRequired(a.listUsers))
 	mux.HandleFunc("POST /api/users/{userID}/role", a.AuthRequired(limitBody(a.setUserRole)))
+	mux.HandleFunc("DELETE /api/users/{userID}", a.AuthRequired(a.deleteUser))
 
 	// Auth-required routes: Infra
 	mux.HandleFunc("GET /api/ws", a.AuthRequired(a.websocket))
