@@ -20,6 +20,7 @@ type Conn struct {
 	ws     *websocket.Conn
 	send   chan []byte
 	UserID int64
+	Key    string // "orgID:userID" for hub registration
 }
 
 func NewConn(ws *websocket.Conn, userID int64) *Conn {
@@ -34,14 +35,14 @@ func (c *Conn) Send(data []byte) {
 	select {
 	case c.send <- data:
 	default:
-		slog.Warn("ws message dropped", "user_id", c.UserID, "reason", "buffer full")
+		slog.Warn("ws message dropped", "key", c.Key, "reason", "buffer full")
 	}
 }
 
 func (c *Conn) ReadPump(hub *Hub, onMessage func(userID int64, data []byte)) {
 	defer func() {
 		if hub != nil {
-			hub.Unregister(c.UserID, c)
+			hub.Unregister(c.Key, c)
 		}
 		c.ws.Close()
 	}()
