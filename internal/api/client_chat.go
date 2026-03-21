@@ -67,17 +67,15 @@ func (a *ClientAPI) startChat(w http.ResponseWriter, r *http.Request) {
 			"date":       time.Now().Unix(),
 			"entities":   []map[string]interface{}{{"type": "bot_command", "offset": 0, "length": 6}},
 		}
-		startUpdateID := chat.ID*1000 + time.Now().UnixMilli()%1000
 		update := map[string]interface{}{
-			"update_id": startUpdateID,
+			"update_id": 0,
 			"message":   startMsg,
 		}
 		go func() {
 			// Push to update queue for getUpdates long polling
 			if a.updates != nil {
 				a.updates.Push(b.ID, bot.Update{
-					UpdateID: startUpdateID,
-					Message:  startMsg,
+					Message: startMsg,
 				})
 			}
 			if a.relay != nil && a.relay.Send(b.ID, update) {
