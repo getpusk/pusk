@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/pusk-platform/pusk/internal/bot"
 	"github.com/pusk-platform/pusk/internal/store"
@@ -61,16 +62,19 @@ func (a *ClientAPI) startChat(w http.ResponseWriter, r *http.Request) {
 			"chat":       map[string]interface{}{"id": chat.ID, "type": "private"},
 			"from":       map[string]interface{}{"id": userID, "is_bot": false, "first_name": "User"},
 			"text":       "/start",
+			"date":       time.Now().Unix(),
+			"entities":   []map[string]interface{}{{"type": "bot_command", "offset": 0, "length": 6}},
 		}
+		startUpdateID := chat.ID*1000 + time.Now().UnixMilli()%1000
 		update := map[string]interface{}{
-			"update_id": chat.ID,
+			"update_id": startUpdateID,
 			"message":   startMsg,
 		}
 		go func() {
 			// Push to update queue for getUpdates long polling
 			if a.updates != nil {
 				a.updates.Push(b.ID, bot.Update{
-					UpdateID: chat.ID,
+					UpdateID: startUpdateID,
 					Message:  startMsg,
 				})
 			}
