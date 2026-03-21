@@ -10,16 +10,17 @@ import (
 	"github.com/pusk-platform/pusk/internal/store"
 )
 
+// PushService sends Web Push notifications.
+// It no longer holds a store reference; callers pass the org store per-request.
 type PushService struct {
-	store      *store.Store
 	vapidPub   string
 	vapidPriv  string
 	vapidEmail string
 }
 
-func NewPushService(s *store.Store, vapidPub, vapidPriv, email string) *PushService {
+func NewPushService(vapidPub, vapidPriv, email string) *PushService {
 	return &PushService{
-		store: s, vapidPub: vapidPub, vapidPriv: vapidPriv, vapidEmail: email,
+		vapidPub: vapidPub, vapidPriv: vapidPriv, vapidEmail: email,
 	}
 }
 
@@ -31,12 +32,14 @@ type PushPayload struct {
 	URL   string `json:"url,omitempty"`
 }
 
-func (p *PushService) SendToUser(userID int64, payload PushPayload) {
+// SendToUser sends push notifications using the provided org store
+// to look up subscriptions (not a hardcoded default store).
+func (p *PushService) SendToUser(s *store.Store, userID int64, payload PushPayload) {
 	if p.vapidPub == "" {
 		return // push not configured
 	}
 
-	subs, err := p.store.UserPushSubscriptions(userID)
+	subs, err := s.UserPushSubscriptions(userID)
 	if err != nil || len(subs) == 0 {
 		return
 	}
@@ -44,7 +47,7 @@ func (p *PushService) SendToUser(userID int64, payload PushPayload) {
 	data, _ := json.Marshal(payload)
 
 	for _, sub := range subs {
-		s := &webpush.Subscription{
+		wps := &webpush.Subscription{
 			Endpoint: sub.Endpoint,
 			Keys: webpush.Keys{
 				P256dh: sub.P256dh,
@@ -52,7 +55,7 @@ func (p *PushService) SendToUser(userID int64, payload PushPayload) {
 			},
 		}
 
-		resp, err := webpush.SendNotification(data, s, &webpush.Options{
+		resp, err := webpush.SendNotification(data, wps, &webpush.Options{
 			Subscriber:      p.vapidEmail,
 			VAPIDPublicKey:  p.vapidPub,
 			VAPIDPrivateKey: p.vapidPriv,
@@ -61,7 +64,7 @@ func (p *PushService) SendToUser(userID int64, payload PushPayload) {
 		if err != nil {
 			slog.Error("push send failed", "user_id", userID, "error", err)
 			if resp != nil && (resp.StatusCode == 410 || resp.StatusCode == 404) {
-				p.store.DeletePushSubscription(sub.Endpoint)
+				s.DeletePushSubscription(sub.Endpoint)
 				slog.Info("push stale subscription removed", "user_id", userID)
 			}
 			continue
