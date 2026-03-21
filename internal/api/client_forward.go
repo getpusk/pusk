@@ -15,6 +15,58 @@ import (
 	"github.com/pusk-platform/pusk/internal/store"
 )
 
+// pushToUpdateQueue pushes message update SYNCHRONOUSLY before async forwarding.
+func (a *ClientAPI) pushToUpdateQueue(s *store.Store, chatID, userID int64, msg *store.Message) {
+	if a.updates == nil {
+		return
+	}
+	botID, err := s.ChatBotID(chatID)
+	if err != nil || botID == 0 {
+		return
+	}
+	ts := func() int64 { t, _ := time.Parse(time.RFC3339, msg.CreatedAt); return t.Unix() }()
+	msgPayload := map[string]interface{}{
+		"message_id": msg.ID,
+		"chat":       map[string]interface{}{"id": chatID, "type": "private"},
+		"from":       map[string]interface{}{"id": userID, "is_bot": false, "first_name": "User"},
+		"text":       msg.Text,
+		"date":       ts,
+	}
+	if strings.HasPrefix(msg.Text, "/") {
+		cmd := strings.SplitN(msg.Text, " ", 2)[0]
+		msgPayload["entities"] = []map[string]interface{}{
+			{"type": "bot_command", "offset": 0, "length": len(cmd)},
+		}
+	}
+	a.updates.Push(botID, bot.Update{UpdateID: msg.ID, Message: msgPayload})
+}
+
+// pushCallbackToQueue pushes callback update SYNCHRONOUSLY before async forwarding.
+func (a *ClientAPI) pushCallbackToQueue(s *store.Store, chatID, userID int64, data string, messageID int64) {
+	if a.updates == nil {
+		return
+	}
+	botID, err := s.ChatBotID(chatID)
+	if err != nil || botID == 0 {
+		return
+	}
+	cbUpdateID := messageID*1000 + time.Now().UnixMilli()%1000
+	cbPayload := map[string]interface{}{
+		"id":            strconv.FormatInt(messageID, 10),
+		"from":          map[string]interface{}{"id": userID, "is_bot": false, "first_name": "User"},
+		"chat_instance": strconv.FormatInt(chatID, 10),
+		"data":          data,
+		"message": map[string]interface{}{
+			"message_id": messageID,
+			"date":       time.Now().Unix(),
+			"chat":       map[string]interface{}{"id": chatID, "type": "private"},
+			"from":       map[string]interface{}{"id": 0, "is_bot": true, "first_name": "Bot"},
+			"text":       "",
+		},
+	}
+	a.updates.Push(botID, bot.Update{UpdateID: cbUpdateID, Callback: cbPayload})
+}
+
 func (a *ClientAPI) forwardToBot(s *store.Store, chatID, userID int64, msg *store.Message) {
 	botID, err := s.ChatBotID(chatID)
 	if err != nil || botID == 0 {
@@ -49,16 +101,7 @@ func (a *ClientAPI) forwardToBot(s *store.Store, chatID, userID int64, msg *stor
 		"message":   msgPayload,
 	}
 
-	// Always push to update queue (for getUpdates long polling)
-	if a.updates != nil {
-		a.updates.Push(botID, bot.Update{
-			UpdateID: msg.ID,
-			Message:  msgPayload,
-		})
-		slog.Info("update pushed", "bot_id", botID, "update_id", msg.ID)
-	} else {
-		slog.Warn("updates queue nil, cannot push")
-	}
+	// Update queue push is now done synchronously in pushToUpdateQueue
 
 	if a.relay != nil && a.relay.Send(botID, update) {
 		slog.Info("relay forwarded", "bot", b.Name, "transport", "ws")
@@ -102,18 +145,10 @@ func (a *ClientAPI) forwardCallback(s *store.Store, chatID, userID int64, data s
 		},
 	}
 
-	// Use high update_id to avoid collision with message IDs
-	cbUpdateID := messageID*1000 + time.Now().UnixMilli()%1000
-
+	// Update queue push is now done synchronously in pushCallbackToQueue
 	update := map[string]interface{}{
-		"update_id":      cbUpdateID,
+		"update_id":      messageID,
 		"callback_query": cbPayload,
-	}
-	if a.updates != nil {
-		a.updates.Push(botID, bot.Update{
-			UpdateID: cbUpdateID,
-			Callback: cbPayload,
-		})
 	}
 
 	if a.relay != nil && a.relay.Send(botID, update) {
