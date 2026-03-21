@@ -96,6 +96,7 @@ func (a *ClientAPI) Route(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/channels/{channelID}/messages/{msgID}", a.AuthRequired(limitBody(a.editChannelMessage)))
 	mux.HandleFunc("DELETE /api/channels/messages/{msgID}", a.AuthRequired(a.deleteChannelMessage))
 	mux.HandleFunc("POST /api/channels/{channelID}/pin", a.AuthRequired(limitBody(a.pinMessage)))
+	mux.HandleFunc("POST /api/channels/{channelID}/upload", a.AuthRequired(a.uploadToChannel))
 
 	// Auth-required routes: Users & Roles
 	mux.HandleFunc("GET /api/users", a.AuthRequired(a.listUsers))
