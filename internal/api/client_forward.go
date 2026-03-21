@@ -73,15 +73,20 @@ func (a *ClientAPI) forwardToBot(s *store.Store, chatID, userID int64, msg *stor
 }
 
 func (a *ClientAPI) forwardCallback(s *store.Store, chatID, userID int64, data string, messageID int64) {
+	slog.Info("forwardCallback called", "chat_id", chatID, "user_id", userID, "data", data, "msg_id", messageID)
 	botID, err := s.ChatBotID(chatID)
 	if err != nil || botID == 0 {
+		slog.Warn("forwardCallback: no bot", "chat_id", chatID, "err", err)
 		return
 	}
 
+	slog.Info("forwardCallback: got botID", "bot_id", botID)
 	b, err := s.BotByID(botID)
 	if err != nil {
+		slog.Warn("forwardCallback: bot not found", "bot_id", botID)
 		return
 	}
+	slog.Info("forwardCallback: pushing", "bot", b.Name, "updates_nil", a.updates == nil)
 
 	cbPayload := map[string]interface{}{
 		"id":            strconv.FormatInt(messageID, 10),
@@ -97,15 +102,16 @@ func (a *ClientAPI) forwardCallback(s *store.Store, chatID, userID int64, data s
 		},
 	}
 
+	// Use high update_id to avoid collision with message IDs
+	cbUpdateID := messageID*1000 + time.Now().UnixMilli()%1000
+
 	update := map[string]interface{}{
-		"update_id":      messageID,
+		"update_id":      cbUpdateID,
 		"callback_query": cbPayload,
 	}
-
-	// Always push to update queue (for getUpdates long polling)
 	if a.updates != nil {
 		a.updates.Push(botID, bot.Update{
-			UpdateID: messageID,
+			UpdateID: cbUpdateID,
 			Callback: cbPayload,
 		})
 	}
