@@ -280,7 +280,7 @@ func (h *Handler) sendMessage(w http.ResponseWriter, r *http.Request) {
 	h.pushMessageToChat(s, req.ChatID, bot, msg)
 	metrics.MessagesSent.WithLabelValues("chat").Inc()
 
-	jsonResp(w, 200, APIResponse{OK: true, Result: telegramMessage(msg)})
+	jsonResp(w, 200, APIResponse{OK: true, Result: telegramMessage(msg, bot)})
 }
 
 func (h *Handler) editMessageText(w http.ResponseWriter, r *http.Request) {
@@ -316,7 +316,7 @@ func (h *Handler) editMessageText(w http.ResponseWriter, r *http.Request) {
 	msg, _ := h.db(r).GetMessage(req.MessageID)
 	h.pushEditToChat(h.db(r), req.ChatID, bot, msg)
 
-	jsonResp(w, 200, APIResponse{OK: true, Result: telegramMessage(msg)})
+	jsonResp(w, 200, APIResponse{OK: true, Result: telegramMessage(msg, bot)})
 }
 
 func (h *Handler) deleteMessage(w http.ResponseWriter, r *http.Request) {
@@ -424,7 +424,7 @@ func (h *Handler) sendFile(fileType string) http.HandlerFunc {
 		msg, _ := h.db(r).SaveMessage(chatID, "bot", text, "", fileID, fileType)
 		h.pushMessageToChat(h.db(r), chatID, bot, msg)
 
-		jsonResp(w, 200, APIResponse{OK: true, Result: telegramMessage(msg)})
+		jsonResp(w, 200, APIResponse{OK: true, Result: telegramMessage(msg, bot)})
 	}
 }
 
@@ -461,8 +461,9 @@ func (h *Handler) pushMessageToChat(s *store.Store, chatID int64, bot *store.Bot
 		slog.Warn("cannot find user for chat", "chat_id", chatID, "error", err)
 		return
 	}
+	tgMsg := telegramMessage(msg, bot)
 	payload, _ := json.Marshal(map[string]interface{}{
-		"message":  msg,
+		"message":  tgMsg,
 		"bot_name": bot.Name,
 	})
 	key := s.OrgID + ":" + fmt.Sprintf("%d", userID)
@@ -489,7 +490,8 @@ func (h *Handler) pushEditToChat(s *store.Store, chatID int64, bot *store.Bot, m
 		return
 	}
 	key := s.OrgID + ":" + fmt.Sprintf("%d", userID)
-	payload, _ := json.Marshal(msg)
+	tgMsg := telegramMessage(msg, bot)
+	payload, _ := json.Marshal(tgMsg)
 	h.hub.SendToUser(key, ws.Event{Type: "edit_message", ChatID: chatID, Payload: payload})
 }
 
@@ -661,7 +663,7 @@ func (h *Handler) getWebhookInfo(w http.ResponseWriter, r *http.Request) {
 
 // telegramMessage converts a store.Message to Telegram-compatible format.
 // PTB expects: message_id, chat{id,type}, from{id,is_bot,first_name}, date(unix), text, reply_markup, photo/document/voice/video.
-func telegramMessage(msg *store.Message) map[string]interface{} {
+func telegramMessage(msg *store.Message, bot *store.Bot) map[string]interface{} {
 	t, _ := time.Parse(time.RFC3339, msg.CreatedAt)
 	m := map[string]interface{}{
 		"message_id": msg.ID,
@@ -669,7 +671,9 @@ func telegramMessage(msg *store.Message) map[string]interface{} {
 		"date":       t.Unix(),
 		"text":       msg.Text,
 	}
-	if msg.Sender == "bot" {
+	if msg.Sender == "bot" && bot != nil {
+		m["from"] = map[string]interface{}{"id": bot.ID, "is_bot": true, "first_name": bot.Name}
+	} else if msg.Sender == "bot" {
 		m["from"] = map[string]interface{}{"id": 0, "is_bot": true, "first_name": "Bot"}
 	} else {
 		m["from"] = map[string]interface{}{"id": msg.ChatID, "is_bot": false, "first_name": "User"}

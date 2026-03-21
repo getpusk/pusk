@@ -50,6 +50,29 @@ func (a *ClientAPI) pushCallbackToQueue(s *store.Store, chatID, userID int64, da
 	if err != nil || botID == 0 {
 		return
 	}
+
+	// Look up real bot info
+	botObj, _ := s.BotByID(botID)
+	var botFromID int64
+	botFromName := "Bot"
+	if botObj != nil {
+		botFromID = botObj.ID
+		botFromName = botObj.Name
+	}
+
+	// Look up original message for text and date
+	msgText := ""
+	var msgDate int64
+	if origMsg, err := s.GetMessage(messageID); err == nil && origMsg != nil {
+		msgText = origMsg.Text
+		if t, err := time.Parse(time.RFC3339, origMsg.CreatedAt); err == nil {
+			msgDate = t.Unix()
+		}
+	}
+	if msgDate == 0 {
+		msgDate = time.Now().Unix()
+	}
+
 	cbUpdateID := messageID*1000 + time.Now().UnixMilli()%1000
 	cbPayload := map[string]interface{}{
 		"id":            strconv.FormatInt(messageID, 10),
@@ -58,10 +81,10 @@ func (a *ClientAPI) pushCallbackToQueue(s *store.Store, chatID, userID int64, da
 		"data":          data,
 		"message": map[string]interface{}{
 			"message_id": messageID,
-			"date":       time.Now().Unix(),
+			"date":       msgDate,
 			"chat":       map[string]interface{}{"id": chatID, "type": "private"},
-			"from":       map[string]interface{}{"id": 0, "is_bot": true, "first_name": "Bot"},
-			"text":       "",
+			"from":       map[string]interface{}{"id": botFromID, "is_bot": true, "first_name": botFromName},
+			"text":       msgText,
 		},
 	}
 	a.updates.Push(botID, bot.Update{UpdateID: cbUpdateID, Callback: cbPayload})
@@ -131,6 +154,19 @@ func (a *ClientAPI) forwardCallback(s *store.Store, chatID, userID int64, data s
 	}
 	slog.Info("forwardCallback: pushing", "bot", b.Name, "updates_nil", a.updates == nil)
 
+	// Look up original message for text and date
+	msgText := ""
+	var msgDate int64
+	if origMsg, err := s.GetMessage(messageID); err == nil && origMsg != nil {
+		msgText = origMsg.Text
+		if t, err := time.Parse(time.RFC3339, origMsg.CreatedAt); err == nil {
+			msgDate = t.Unix()
+		}
+	}
+	if msgDate == 0 {
+		msgDate = time.Now().Unix()
+	}
+
 	cbPayload := map[string]interface{}{
 		"id":            strconv.FormatInt(messageID, 10),
 		"from":          map[string]interface{}{"id": userID, "is_bot": false, "first_name": "User"},
@@ -138,10 +174,10 @@ func (a *ClientAPI) forwardCallback(s *store.Store, chatID, userID int64, data s
 		"data":          data,
 		"message": map[string]interface{}{
 			"message_id": messageID,
-			"date":       time.Now().Unix(),
+			"date":       msgDate,
 			"chat":       map[string]interface{}{"id": chatID, "type": "private"},
-			"from":       map[string]interface{}{"id": 0, "is_bot": true, "first_name": "Bot"},
-			"text":       "",
+			"from":       map[string]interface{}{"id": b.ID, "is_bot": true, "first_name": b.Name},
+			"text":       msgText,
 		},
 	}
 
