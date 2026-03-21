@@ -5,6 +5,7 @@ package bot
 import (
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -19,13 +20,21 @@ type Update struct {
 type UpdateQueue struct {
 	mu       sync.Mutex
 	channels map[int64]chan Update // botID -> buffered channel
+	counter  atomic.Int64          // global monotonic counter
 }
 
 // NewUpdateQueue creates a new UpdateQueue.
 func NewUpdateQueue() *UpdateQueue {
-	return &UpdateQueue{
+	q := &UpdateQueue{
 		channels: make(map[int64]chan Update),
 	}
+	q.counter.Store(time.Now().Unix())
+	return q
+}
+
+// nextID returns the next monotonically increasing update ID.
+func (q *UpdateQueue) nextID() int64 {
+	return q.counter.Add(1)
 }
 
 // channel returns (or creates) the buffered channel for a bot.
@@ -39,7 +48,10 @@ func (q *UpdateQueue) channel(botID int64) chan Update {
 }
 
 // Push adds an update to the bot's queue. Non-blocking: drops if buffer full.
+// UpdateID is overridden with a monotonic counter to prevent offset collisions.
 func (q *UpdateQueue) Push(botID int64, u Update) {
+	u.UpdateID = q.nextID()
+
 	q.mu.Lock()
 	ch := q.channel(botID)
 	q.mu.Unlock()
