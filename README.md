@@ -1,7 +1,9 @@
 [![License: BSL-1.1](https://img.shields.io/badge/License-BSL--1.1-blue.svg)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go&logoColor=white)](https://go.dev)
 
-<video src="https://github.com/getpusk/pusk/raw/main/.github/assets/demo.webm" width="960" autoplay loop muted></video>
+<img src=".github/assets/landing.png" alt="Pusk Landing" width="960" />
+
+<img src=".github/assets/alerts.png" alt="Pusk Alerts Channel" width="960" />
 
 > **Drop-in Telegram Bot API replacement. Your bots keep working — on your server.**
 >
