@@ -4,11 +4,15 @@ package api
 
 import (
 	"bytes"
+	crand "crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -430,4 +434,100 @@ func createAlertmanagerSilence(amURL, username, alertText string) {
 	}
 	resp.Body.Close()
 	slog.Info("alertmanager silence created", "alertname", alertname, "by", username, "status", resp.StatusCode)
+}
+
+func randID() string {
+	b := make([]byte, 16)
+	crand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+func (a *ClientAPI) uploadToChannel(w http.ResponseWriter, r *http.Request) {
+	userID := UserIDFromCtx(r.Context())
+	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
+	s := a.db(r)
+
+	if !s.IsSubscribed(channelID, userID) {
+		jsonErr(w, "not subscribed", 403)
+		return
+	}
+
+	r.ParseMultipartForm(10 << 20) // 10MB max
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		jsonErr(w, "file required", 400)
+		return
+	}
+	defer file.Close()
+
+	// Determine file type from content-type
+	ct := header.Header.Get("Content-Type")
+	fileType := "document"
+	if strings.HasPrefix(ct, "image/") {
+		fileType = "photo"
+	}
+	if strings.HasPrefix(ct, "video/") {
+		fileType = "video"
+	}
+	if strings.HasPrefix(ct, "audio/") {
+		fileType = "voice"
+	}
+
+	// Save file
+	fileID := randID()
+	ext := filepath.Ext(header.Filename)
+	localPath := filepath.Join("data/files", fileID+ext)
+	os.MkdirAll("data/files", 0755)
+
+	dst, err := os.Create(localPath)
+	if err != nil {
+		jsonErr(w, "cannot save file", 500)
+		return
+	}
+	size, _ := io.Copy(dst, file)
+	dst.Close()
+
+	// Save file record
+	s.SaveFile(fileID, 0, header.Filename, ct, size, localPath)
+
+	// Get username
+	claims := ClaimsFromCtx(r.Context())
+	username := ""
+	if claims != nil {
+		username = claims.Username
+	}
+
+	caption := r.FormValue("caption")
+	if caption == "" {
+		caption = header.Filename
+	}
+
+	// Save channel message with file
+	msg, _ := s.SaveChannelMessageFrom(channelID, "user", username, caption, "", fileID, fileType)
+
+	if msg != nil {
+		s.MarkChannelRead(channelID, userID, msg.ID)
+	}
+
+	// WS broadcast
+	ch, _ := s.ChannelByID(channelID)
+	if ch != nil {
+		orgID := ""
+		if claims != nil {
+			orgID = claims.OrgID
+		}
+		subs, _ := s.ChannelSubscribers(ch.ID)
+		payload, _ := json.Marshal(map[string]interface{}{
+			"message":      msg,
+			"channel_name": ch.Name,
+			"sender_name":  username,
+		})
+		for _, uid := range subs {
+			key := orgID + ":" + fmt.Sprintf("%d", uid)
+			a.hub.SendToUser(key, ws.Event{Type: "channel_message", ChatID: ch.ID, Payload: payload})
+		}
+	}
+
+	json.NewEncoder(w).Encode(msg)
 }
