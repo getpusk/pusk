@@ -359,9 +359,10 @@ func (h *Handler) getMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonResp(w, 200, APIResponse{OK: true, Result: map[string]interface{}{
-		"id":       bot.ID,
-		"is_bot":   true,
-		"username": bot.Name,
+		"id":         bot.ID,
+		"is_bot":     true,
+		"username":   bot.Name,
+		"first_name": bot.Name,
 	}})
 }
 

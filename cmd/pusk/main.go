@@ -258,7 +258,7 @@ func main() {
 		"admin", "POST /admin/bots",
 	)
 
-	srv := &http.Server{Addr: *addr, Handler: api.RequestLogger(mux)}
+	srv := &http.Server{Addr: *addr, Handler: api.RequestLogger(bot.TelegramCompat(mux))}
 
 	// Graceful shutdown on SIGTERM/SIGINT
 	go func() {
