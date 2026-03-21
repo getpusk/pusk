@@ -458,7 +458,7 @@ function startEdit(mid,chanId,text){editMsgId=mid;editChanId=chanId;replyToId=0;
 
 async function sendMsg(){const inp=$('msg-in');const txt=inp.value.trim();if(!txt)return;inp.value='';
   // Edit mode
-  if(editMsgId&&editChanId){const mid=editMsgId;const cid=editChanId;cancelEdit();await api('PUT',`/api/channels/${cid}/messages/${mid}`,{text:txt});return}
+  if(editMsgId&&editChanId){const mid=editMsgId;const cid=editChanId;cancelEdit();await api('PUT',`/api/channels/${cid}/messages/${mid}`,{text:txt});const el=document.getElementById('m-'+mid);if(el){const t=el.querySelector('.m-text');if(t)t.innerHTML=md(txt);const head=el.querySelector('.m-head');if(head&&!head.querySelector('.m-edited')){const s=document.createElement('span');s.className='m-edited';s.textContent=lang==='ru'?'(ред.)':'(edited)';head.appendChild(s)}}return}
   const uname=localStorage.getItem('pusk_uname')||'You';const rid=replyToId;replyToId=0;$('reply-bar').style.display='none';if(curChan){addMsg({sender:'user',sender_name:uname,text:txt,reply_to:rid,date:new Date().toISOString(),message_id:Date.now()});scrollDown();await api('POST',`/api/channels/${curChan}/send`,{text:txt,reply_to:rid})}else if(curChat){addMsg({sender:'user',text:txt,date:new Date().toISOString(),message_id:Date.now()});scrollDown();await api('POST',`/api/chats/${curChat}/send`,{text:txt})}}
 
 // ── Context menu ──
