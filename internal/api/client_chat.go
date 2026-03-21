@@ -55,16 +55,24 @@ func (a *ClientAPI) startChat(w http.ResponseWriter, r *http.Request) {
 
 	b, _ := s.BotByID(botID)
 	if b != nil {
+		startMsg := map[string]interface{}{
+			"message_id": 0,
+			"chat":       map[string]interface{}{"id": chat.ID},
+			"from":       map[string]interface{}{"id": userID},
+			"text":       "/start",
+		}
 		update := map[string]interface{}{
 			"update_id": chat.ID,
-			"message": map[string]interface{}{
-				"message_id": 0,
-				"chat":       map[string]interface{}{"id": chat.ID},
-				"from":       map[string]interface{}{"id": userID},
-				"text":       "/start",
-			},
+			"message":   startMsg,
 		}
 		go func() {
+			// Push to update queue for getUpdates long polling
+			if a.updates != nil {
+				a.updates.Push(b.ID, bot.Update{
+					UpdateID: chat.ID,
+					Message:  startMsg,
+				})
+			}
 			if a.relay != nil && a.relay.Send(b.ID, update) {
 				return
 			}
