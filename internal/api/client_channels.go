@@ -232,6 +232,26 @@ func (a *ClientAPI) setUserRole(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
+func (a *ClientAPI) deleteUser(w http.ResponseWriter, r *http.Request) {
+	userID := UserIDFromCtx(r.Context())
+	s := a.db(r)
+	if !s.IsAdmin(userID) {
+		jsonErr(w, "admin only", 403)
+		return
+	}
+	targetID, _ := strconv.ParseInt(r.PathValue("userID"), 10, 64)
+	if targetID == userID {
+		jsonErr(w, "cannot delete yourself", 400)
+		return
+	}
+	if targetID == 1 {
+		jsonErr(w, "cannot delete primary admin", 400)
+		return
+	}
+	s.DeleteUser(targetID)
+	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+}
+
 func (a *ClientAPI) editChannelMessage(w http.ResponseWriter, r *http.Request) {
 	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
 	msgID, _ := strconv.ParseInt(r.PathValue("msgID"), 10, 64)
