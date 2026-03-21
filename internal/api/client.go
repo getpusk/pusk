@@ -32,12 +32,13 @@ type ClientAPI struct {
 	hub      *ws.Hub
 	push     *notify.PushService
 	relay    *bot.RelayHub
+	updates  *bot.UpdateQueue
 	vapidPub string
 	jwt      *auth.JWTService
 }
 
-func NewClientAPI(orgs *org.Manager, s *store.Store, hub *ws.Hub, push *notify.PushService, relay *bot.RelayHub, vapidPub string, jwtSvc *auth.JWTService) *ClientAPI {
-	return &ClientAPI{orgs: orgs, store: s, hub: hub, push: push, relay: relay, vapidPub: vapidPub, jwt: jwtSvc}
+func NewClientAPI(orgs *org.Manager, s *store.Store, hub *ws.Hub, push *notify.PushService, relay *bot.RelayHub, updates *bot.UpdateQueue, vapidPub string, jwtSvc *auth.JWTService) *ClientAPI {
+	return &ClientAPI{orgs: orgs, store: s, hub: hub, push: push, relay: relay, updates: updates, vapidPub: vapidPub, jwt: jwtSvc}
 }
 
 // db returns the Store for the org derived from JWT claims in context.
