@@ -153,6 +153,7 @@ func (s *Store) migrate() error {
 	s.db.Exec("ALTER TABLE channel_messages ADD COLUMN reply_to INTEGER DEFAULT 0")
 	s.db.Exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'member'")
 	s.db.Exec("ALTER TABLE channel_messages ADD COLUMN edited_at TEXT DEFAULT ''")
+	s.db.Exec("ALTER TABLE channels ADD COLUMN pinned_message_id INTEGER DEFAULT 0")
 	return nil
 }
 
@@ -679,4 +680,17 @@ func (s *Store) UseInvite(code string) error {
 	}
 	_, err = s.db.Exec("UPDATE invites SET used=TRUE WHERE code=?", code)
 	return err
+}
+
+// ── Pin Message ──
+
+func (s *Store) PinMessage(channelID, messageID int64) error {
+	_, err := s.db.Exec("UPDATE channels SET pinned_message_id=? WHERE id=?", messageID, channelID)
+	return err
+}
+
+func (s *Store) GetPinnedMessage(channelID int64) int64 {
+	var id int64
+	s.db.QueryRow("SELECT COALESCE(pinned_message_id,0) FROM channels WHERE id=?", channelID).Scan(&id)
+	return id
 }
