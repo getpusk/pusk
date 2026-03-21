@@ -29,6 +29,12 @@ func (h *Handler) dispatchGet(w http.ResponseWriter, r *http.Request) {
 		h.relayWebSocket(w, r)
 	case "getMe":
 		h.getMe(w, r)
+	case "getUpdates":
+		h.getUpdates(w, r)
+	case "deleteWebhook":
+		h.deleteWebhook(w, r)
+	case "getWebhookInfo":
+		h.getWebhookInfo(w, r)
 	default:
 		jsonResp(w, 400, APIResponse{OK: false, Error: "unknown GET method: " + parts[1]})
 	}
@@ -81,6 +87,12 @@ func (h *Handler) dispatch(w http.ResponseWriter, r *http.Request) {
 		h.setWebhook(w, r)
 	case "getMe":
 		h.getMe(w, r)
+	case "getUpdates":
+		h.getUpdates(w, r)
+	case "deleteWebhook":
+		h.deleteWebhook(w, r)
+	case "getWebhookInfo":
+		h.getWebhookInfo(w, r)
 	case "createChannel":
 		h.createChannel(w, r)
 	case "sendChannel":
