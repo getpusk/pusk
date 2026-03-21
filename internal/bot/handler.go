@@ -606,6 +606,9 @@ func (h *Handler) getUpdates(w http.ResponseWriter, r *http.Request) {
 	if updates == nil {
 		updates = []Update{}
 	}
+	if len(updates) > 0 {
+		slog.Info("getUpdates delivering", "bot", bot.Name, "count", len(updates), "offset", req.Offset)
+	}
 
 	jsonResp(w, 200, APIResponse{OK: true, Result: updates})
 }
