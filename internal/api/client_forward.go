@@ -84,13 +84,17 @@ func (a *ClientAPI) forwardCallback(s *store.Store, chatID, userID int64, data s
 	}
 
 	cbPayload := map[string]interface{}{
-		"id":   strconv.FormatInt(messageID, 10),
-		"from": map[string]interface{}{"id": userID, "is_bot": false, "first_name": "User"},
+		"id":            strconv.FormatInt(messageID, 10),
+		"from":          map[string]interface{}{"id": userID, "is_bot": false, "first_name": "User"},
+		"chat_instance": strconv.FormatInt(chatID, 10),
+		"data":          data,
 		"message": map[string]interface{}{
 			"message_id": messageID,
+			"date":       time.Now().Unix(),
 			"chat":       map[string]interface{}{"id": chatID, "type": "private"},
+			"from":       map[string]interface{}{"id": 0, "is_bot": true, "first_name": "Bot"},
+			"text":       "",
 		},
-		"data": data,
 	}
 
 	update := map[string]interface{}{
