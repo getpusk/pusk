@@ -135,6 +135,7 @@ func (a *ClientAPI) sendToBot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	a.pushToUpdateQueue(s, chatID, userID, msg)
 	go a.forwardToBot(s, chatID, userID, msg)
 
 	json.NewEncoder(w).Encode(msg)
@@ -154,6 +155,7 @@ func (a *ClientAPI) callback(w http.ResponseWriter, r *http.Request) {
 	json.NewDecoder(r.Body).Decode(&req)
 
 	s := a.db(r)
+	a.pushCallbackToQueue(s, chatID, userID, req.Data, req.MessageID)
 	go a.forwardCallback(s, chatID, userID, req.Data, req.MessageID)
 
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
