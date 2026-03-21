@@ -69,3 +69,14 @@ func (h *Hub) Online() int {
 	defer h.mu.RUnlock()
 	return len(h.conns)
 }
+
+// OnlineKeys returns all connected keys ("orgID:userID" format).
+func (h *Hub) OnlineKeys() []string {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	keys := make([]string, 0, len(h.conns))
+	for k := range h.conns {
+		keys = append(keys, k)
+	}
+	return keys
+}
