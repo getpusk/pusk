@@ -575,10 +575,12 @@ async function landApi(method,path,body){
   if(body)o.body=JSON.stringify(body);
   try{const r=await fetch(path,o);return await r.json()}catch{return{}}
 }
-function landAddMsg(who,text,tm){
+function landAddMsg(who,text,tm,markup){
   const el=$('land-msgs');
   const col=nameColor(who);
-  el.innerHTML+=`<div class="m"><div class="m-ava" style="background:${col}">${who[0].toUpperCase()}</div><div class="m-head"><span class="m-name">${esc(who)}</span><span class="m-time">${tm||''}</span></div><div class="m-text">${md(text||'')}</div></div>`;
+  let kb='';
+  if(markup){try{const m=typeof markup==='string'?JSON.parse(markup):markup;if(m.inline_keyboard){kb='<div class="m-kb">';m.inline_keyboard.forEach(row=>{kb+='<div class="m-kb-row">';row.forEach(btn=>{kb+=`<button class="m-kb-btn" onclick="landCb('${btn.callback_data}')">${esc(btn.text)}</button>`});kb+='</div>'});kb+='</div>'}}catch{}}
+  el.innerHTML+=`<div class="m"><div class="m-ava" style="background:${col}">${who[0].toUpperCase()}</div><div class="m-head"><span class="m-name">${esc(who)}</span><span class="m-time">${tm||''}</span></div><div class="m-text">${md(text||'')}</div>${kb}</div>`;
   el.scrollTop=el.scrollHeight;
 }
 async function initLandingChat(){
@@ -592,7 +594,7 @@ async function initLandingChat(){
   const msgs=await landApi('GET',`/api/chats/${chat.id}/messages`);
   if(msgs&&msgs.length)msgs.reverse().forEach(m=>{
     const who=m.sender==='bot'?'DemoBot':'Guest';
-    landAddMsg(who,m.text,fmtTime(m.date));
+    landAddMsg(who,m.text,fmtTime(m.date),m.reply_markup);
   });
 }
 $('land-send').onclick=landSend;
@@ -601,6 +603,15 @@ async function landSend(){
   const inp=$('land-input');const txt=inp.value.trim();if(!txt||!landChat)return;
   inp.value='';landAddMsg('Guest',txt,'');
   await landApi('POST',`/api/chats/${landChat}/send`,{text:txt});
+}
+async function landCb(data){
+  if(!landChat)return;
+  await landApi('POST',`/api/chats/${landChat}/callback`,{data,message_id:0});
+  // Wait for bot response and refresh last messages
+  setTimeout(async()=>{
+    const msgs=await landApi('GET',`/api/chats/${landChat}/messages?limit=1`);
+    if(msgs&&msgs.length){const m=msgs[0];if(m.sender==='bot')landAddMsg('DemoBot',m.text,fmtTime(m.date),m.reply_markup)}
+  },1500);
 }
 function hideLanding(){$('landing').style.display='none'}
 $('land-login').onclick=()=>{hideLanding();$('auth').style.display='flex';const savedOrg=localStorage.getItem('pusk_org');if(savedOrg)$('a-org').value=savedOrg}
