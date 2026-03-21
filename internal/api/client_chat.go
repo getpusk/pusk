@@ -4,6 +4,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -174,8 +175,8 @@ func (a *ClientAPI) deleteMessage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) websocket(w http.ResponseWriter, r *http.Request) {
-	userID := UserIDFromCtx(r.Context())
-	if userID == 0 {
+	claims := ClaimsFromCtx(r.Context())
+	if claims == nil || claims.UserID == 0 {
 		jsonErr(w, "invalid credentials", 401)
 		return
 	}
@@ -185,8 +186,10 @@ func (a *ClientAPI) websocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conn := ws.NewConn(wsConn, userID)
-	a.hub.Register(userID, conn)
+	key := claims.OrgID + ":" + fmt.Sprintf("%d", claims.UserID)
+	conn := ws.NewConn(wsConn, claims.UserID)
+	conn.Key = key
+	a.hub.Register(key, conn)
 
 	go conn.WritePump()
 	conn.ReadPump(a.hub, nil)

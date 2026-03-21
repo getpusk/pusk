@@ -450,9 +450,10 @@ func (h *Handler) pushMessageToChat(s *store.Store, chatID int64, bot *store.Bot
 		"message":  msg,
 		"bot_name": bot.Name,
 	})
-	h.hub.SendToUser(userID, ws.Event{Type: "new_message", ChatID: chatID, Payload: payload})
-	// Push notification
-	h.push.SendToUser(userID, notify.PushPayload{
+	key := s.OrgID + ":" + fmt.Sprintf("%d", userID)
+	h.hub.SendToUser(key, ws.Event{Type: "new_message", ChatID: chatID, Payload: payload})
+	// Push notification (use org store for subscription lookup)
+	h.push.SendToUser(s, userID, notify.PushPayload{
 		Title: bot.Name,
 		Body:  truncate(msg.Text, 100),
 		Tag:   "chat-" + fmt.Sprintf("%d", chatID),
@@ -472,8 +473,9 @@ func (h *Handler) pushEditToChat(s *store.Store, chatID int64, bot *store.Bot, m
 	if err != nil {
 		return
 	}
+	key := s.OrgID + ":" + fmt.Sprintf("%d", userID)
 	payload, _ := json.Marshal(msg)
-	h.hub.SendToUser(userID, ws.Event{Type: "edit_message", ChatID: chatID, Payload: payload})
+	h.hub.SendToUser(key, ws.Event{Type: "edit_message", ChatID: chatID, Payload: payload})
 }
 
 func (h *Handler) pushChannelMessage(s *store.Store, ch *store.Channel, bot *store.Bot, msg *store.ChannelMessage) {
@@ -484,8 +486,9 @@ func (h *Handler) pushChannelMessage(s *store.Store, ch *store.Channel, bot *sto
 		"bot_name":     bot.Name,
 	})
 	for _, userID := range subs {
-		h.hub.SendToUser(userID, ws.Event{Type: "channel_message", ChatID: ch.ID, Payload: payload})
-		h.push.SendToUser(userID, notify.PushPayload{
+		key := s.OrgID + ":" + fmt.Sprintf("%d", userID)
+		h.hub.SendToUser(key, ws.Event{Type: "channel_message", ChatID: ch.ID, Payload: payload})
+		h.push.SendToUser(s, userID, notify.PushPayload{
 			Title: "#" + ch.Name,
 			Body:  truncate(msg.Text, 100),
 			Tag:   "channel-" + ch.Name,
