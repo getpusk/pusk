@@ -94,7 +94,7 @@ func main() {
 	botHandler.Route(mux)
 
 	// Client API (for PWA)
-	clientAPI := api.NewClientAPI(orgs, db, hub, push, botHandler.Relay(), vapidPub, jwtSvc)
+	clientAPI := api.NewClientAPI(orgs, db, hub, push, botHandler.Relay(), botHandler.Updates(), vapidPub, jwtSvc)
 	clientAPI.Route(mux)
 
 	// Invite redirect → PWA with invite param
