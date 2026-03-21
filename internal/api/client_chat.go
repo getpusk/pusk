@@ -55,8 +55,10 @@ func (a *ClientAPI) startChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Only send /start to bot if this is a new chat (no messages yet)
+	msgs, _ := s.ChatMessages(chat.ID, 1)
 	b, _ := s.BotByID(botID)
-	if b != nil {
+	if b != nil && len(msgs) == 0 {
 		startMsg := map[string]interface{}{
 			"message_id": 0,
 			"chat":       map[string]interface{}{"id": chat.ID, "type": "private"},
