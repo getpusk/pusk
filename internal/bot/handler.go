@@ -272,7 +272,7 @@ func (h *Handler) sendMessage(w http.ResponseWriter, r *http.Request) {
 	h.pushMessageToChat(s, req.ChatID, bot, msg)
 	metrics.MessagesSent.WithLabelValues("chat").Inc()
 
-	jsonResp(w, 200, APIResponse{OK: true, Result: msg})
+	jsonResp(w, 200, APIResponse{OK: true, Result: telegramMessage(msg)})
 }
 
 func (h *Handler) editMessageText(w http.ResponseWriter, r *http.Request) {
@@ -301,7 +301,7 @@ func (h *Handler) editMessageText(w http.ResponseWriter, r *http.Request) {
 	msg, _ := h.db(r).GetMessage(req.MessageID)
 	h.pushEditToChat(h.db(r), req.ChatID, bot, msg)
 
-	jsonResp(w, 200, APIResponse{OK: true, Result: msg})
+	jsonResp(w, 200, APIResponse{OK: true, Result: telegramMessage(msg)})
 }
 
 func (h *Handler) deleteMessage(w http.ResponseWriter, r *http.Request) {
@@ -409,7 +409,7 @@ func (h *Handler) sendFile(fileType string) http.HandlerFunc {
 		msg, _ := h.db(r).SaveMessage(chatID, "bot", text, "", fileID, fileType)
 		h.pushMessageToChat(h.db(r), chatID, bot, msg)
 
-		jsonResp(w, 200, APIResponse{OK: true, Result: msg})
+		jsonResp(w, 200, APIResponse{OK: true, Result: telegramMessage(msg)})
 	}
 }
 
@@ -632,4 +632,22 @@ func (h *Handler) getWebhookInfo(w http.ResponseWriter, r *http.Request) {
 		"has_custom_certificate": false,
 		"pending_update_count":   0,
 	}})
+}
+
+// telegramMessage converts a store.Message to Telegram-compatible format
+func telegramMessage(msg *store.Message) map[string]interface{} {
+	t, _ := time.Parse(time.RFC3339, msg.CreatedAt)
+	m := map[string]interface{}{
+		"message_id": msg.ID,
+		"chat":       map[string]interface{}{"id": msg.ChatID, "type": "private"},
+		"date":       t.Unix(),
+		"text":       msg.Text,
+	}
+	if msg.Sender == "bot" {
+		m["from"] = map[string]interface{}{"id": 0, "is_bot": true, "first_name": "Bot"}
+	}
+	if msg.ReplyMarkup != "" {
+		m["reply_markup"] = json.RawMessage(msg.ReplyMarkup)
+	}
+	return m
 }
