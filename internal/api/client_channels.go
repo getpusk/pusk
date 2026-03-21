@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pusk-platform/pusk/internal/store"
@@ -59,17 +60,18 @@ func (a *ClientAPI) listChannels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	type channelInfo struct {
-		ID          int64  `json:"id"`
-		Name        string `json:"name"`
-		Description string `json:"description,omitempty"`
-		Subscribed  bool   `json:"subscribed"`
-		Unread      int    `json:"unread"`
+		ID              int64  `json:"id"`
+		Name            string `json:"name"`
+		Description     string `json:"description,omitempty"`
+		Subscribed      bool   `json:"subscribed"`
+		Unread          int    `json:"unread"`
+		PinnedMessageID int64  `json:"pinned_message_id"`
 	}
 	s := a.db(r)
 	result := make([]channelInfo, 0, len(channels))
 	for _, ch := range channels {
 		result = append(result, channelInfo{
-			ID: ch.ID, Name: ch.Name, Description: ch.Description,
+			ID: ch.ID, Name: ch.Name, Description: ch.Description, PinnedMessageID: s.GetPinnedMessage(ch.ID),
 			Subscribed: s.IsSubscribed(ch.ID, userID),
 			Unread:     s.UnreadCount(ch.ID, userID),
 		})
@@ -323,5 +325,38 @@ func (a *ClientAPI) deleteChannelMessage(w http.ResponseWriter, r *http.Request)
 	}
 
 	s.DeleteChannelMessage(msgID)
+	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+}
+
+func (a *ClientAPI) onlineUsers(w http.ResponseWriter, r *http.Request) {
+	claims := ClaimsFromCtx(r.Context())
+	prefix := claims.OrgID + ":"
+	var users []int64
+	for _, key := range a.hub.OnlineKeys() {
+		if strings.HasPrefix(key, prefix) {
+			parts := strings.SplitN(key, ":", 2)
+			if len(parts) == 2 {
+				if uid, err := strconv.ParseInt(parts[1], 10, 64); err == nil {
+					users = append(users, uid)
+				}
+			}
+		}
+	}
+	json.NewEncoder(w).Encode(map[string]interface{}{"online": len(users), "user_ids": users})
+}
+
+func (a *ClientAPI) pinMessage(w http.ResponseWriter, r *http.Request) {
+	userID := UserIDFromCtx(r.Context())
+	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
+	s := a.db(r)
+	if !s.IsAdmin(userID) {
+		jsonErr(w, "admin only", 403)
+		return
+	}
+	var req struct {
+		MessageID int64 `json:"message_id"`
+	}
+	json.NewDecoder(r.Body).Decode(&req)
+	s.PinMessage(channelID, req.MessageID)
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
