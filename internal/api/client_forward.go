@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pusk-platform/pusk/internal/bot"
@@ -27,12 +28,20 @@ func (a *ClientAPI) forwardToBot(s *store.Store, chatID, userID int64, msg *stor
 		return
 	}
 
+	ts := func() int64 { t, _ := time.Parse(time.RFC3339, msg.CreatedAt); return t.Unix() }()
 	msgPayload := map[string]interface{}{
 		"message_id": msg.ID,
 		"chat":       map[string]interface{}{"id": chatID, "type": "private"},
 		"from":       map[string]interface{}{"id": userID, "is_bot": false, "first_name": "User"},
 		"text":       msg.Text,
-		"date":       func() int64 { t, _ := time.Parse(time.RFC3339, msg.CreatedAt); return t.Unix() }(),
+		"date":       ts,
+	}
+	// Add entities for bot commands (PTB requires them to match CommandHandler)
+	if strings.HasPrefix(msg.Text, "/") {
+		cmd := strings.SplitN(msg.Text, " ", 2)[0]
+		msgPayload["entities"] = []map[string]interface{}{
+			{"type": "bot_command", "offset": 0, "length": len(cmd)},
+		}
 	}
 
 	update := map[string]interface{}{
@@ -46,6 +55,9 @@ func (a *ClientAPI) forwardToBot(s *store.Store, chatID, userID int64, msg *stor
 			UpdateID: msg.ID,
 			Message:  msgPayload,
 		})
+		slog.Info("update pushed", "bot_id", botID, "update_id", msg.ID)
+	} else {
+		slog.Warn("updates queue nil, cannot push")
 	}
 
 	if a.relay != nil && a.relay.Send(botID, update) {
