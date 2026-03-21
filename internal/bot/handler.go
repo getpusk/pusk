@@ -247,7 +247,7 @@ func (h *Handler) sendMessage(w http.ResponseWriter, r *http.Request) {
 			h.pushChannelMessage(s, ch, bot, chMsg)
 		}
 		metrics.MessagesSent.WithLabelValues("channel").Inc()
-		jsonResp(w, 200, APIResponse{OK: true, Result: chMsg})
+		jsonResp(w, 200, APIResponse{OK: true, Result: telegramChannelMessage(chMsg)})
 		return
 	}
 
@@ -260,7 +260,7 @@ func (h *Handler) sendMessage(w http.ResponseWriter, r *http.Request) {
 			if chMsg != nil {
 				h.pushChannelMessage(s, ch, bot, chMsg)
 				metrics.MessagesSent.WithLabelValues("channel").Inc()
-				jsonResp(w, 200, APIResponse{OK: true, Result: chMsg})
+				jsonResp(w, 200, APIResponse{OK: true, Result: telegramChannelMessage(chMsg)})
 				return
 			}
 		}
@@ -568,7 +568,7 @@ func (h *Handler) sendChannel(w http.ResponseWriter, r *http.Request) {
 	metrics.MessagesSent.WithLabelValues("channel").Inc()
 
 	slog.Info("channel message sent", "channel", ch.Name)
-	jsonResp(w, 200, APIResponse{OK: true, Result: msg})
+	jsonResp(w, 200, APIResponse{OK: true, Result: telegramChannelMessage(msg)})
 }
 
 // ── Long Polling ──
@@ -634,7 +634,8 @@ func (h *Handler) getWebhookInfo(w http.ResponseWriter, r *http.Request) {
 	}})
 }
 
-// telegramMessage converts a store.Message to Telegram-compatible format
+// telegramMessage converts a store.Message to Telegram-compatible format.
+// PTB expects: message_id, chat{id,type}, from{id,is_bot,first_name}, date(unix), text, reply_markup, photo/document/voice/video.
 func telegramMessage(msg *store.Message) map[string]interface{} {
 	t, _ := time.Parse(time.RFC3339, msg.CreatedAt)
 	m := map[string]interface{}{
@@ -645,9 +646,58 @@ func telegramMessage(msg *store.Message) map[string]interface{} {
 	}
 	if msg.Sender == "bot" {
 		m["from"] = map[string]interface{}{"id": 0, "is_bot": true, "first_name": "Bot"}
+	} else {
+		m["from"] = map[string]interface{}{"id": msg.ChatID, "is_bot": false, "first_name": "User"}
 	}
 	if msg.ReplyMarkup != "" {
 		m["reply_markup"] = json.RawMessage(msg.ReplyMarkup)
+	}
+	if msg.FileID != "" {
+		fileObj := []map[string]interface{}{{"file_id": msg.FileID}}
+		switch msg.FileType {
+		case "photo":
+			m["photo"] = fileObj
+		case "document":
+			m["document"] = map[string]interface{}{"file_id": msg.FileID}
+		case "voice":
+			m["voice"] = map[string]interface{}{"file_id": msg.FileID}
+		case "video":
+			m["video"] = map[string]interface{}{"file_id": msg.FileID}
+		default:
+			m["document"] = map[string]interface{}{"file_id": msg.FileID}
+		}
+	}
+	return m
+}
+
+// telegramChannelMessage converts a store.ChannelMessage to Telegram-compatible format.
+// Uses negative channel_id and "channel" chat type, matching Telegram convention.
+func telegramChannelMessage(msg *store.ChannelMessage) map[string]interface{} {
+	t, _ := time.Parse(time.RFC3339, msg.CreatedAt)
+	m := map[string]interface{}{
+		"message_id": msg.ID,
+		"chat":       map[string]interface{}{"id": -msg.ChannelID, "type": "channel"},
+		"from":       map[string]interface{}{"id": 0, "is_bot": true, "first_name": "Bot"},
+		"date":       t.Unix(),
+		"text":       msg.Text,
+	}
+	if msg.ReplyMarkup != "" {
+		m["reply_markup"] = json.RawMessage(msg.ReplyMarkup)
+	}
+	if msg.FileID != "" {
+		fileObj := []map[string]interface{}{{"file_id": msg.FileID}}
+		switch msg.FileType {
+		case "photo":
+			m["photo"] = fileObj
+		case "document":
+			m["document"] = map[string]interface{}{"file_id": msg.FileID}
+		case "voice":
+			m["voice"] = map[string]interface{}{"file_id": msg.FileID}
+		case "video":
+			m["video"] = map[string]interface{}{"file_id": msg.FileID}
+		default:
+			m["document"] = map[string]interface{}{"file_id": msg.FileID}
+		}
 	}
 	return m
 }
