@@ -73,7 +73,7 @@ func (a *ClientAPI) pushCallbackToQueue(s *store.Store, chatID, userID int64, da
 		msgDate = time.Now().Unix()
 	}
 
-	cbUpdateID := messageID*1000 + time.Now().UnixMilli()%1000
+	cbUpdateID := time.Now().UnixMilli()
 	cbPayload := map[string]interface{}{
 		"id":            strconv.FormatInt(messageID, 10),
 		"from":          map[string]interface{}{"id": userID, "is_bot": false, "first_name": "User"},
