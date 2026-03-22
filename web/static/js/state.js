@@ -19,5 +19,8 @@ const S = {
   landToken: null,
   landChat: null,
   audioCtx: null,
+  loading: false,
+  wsReconnectTimer: null,
+  elapsedTimer: null,
 };
 export default S;
