@@ -421,7 +421,17 @@ func (h *Handler) sendFile(fileType string) http.HandlerFunc {
 
 		fileID := randID()
 		ext := filepath.Ext(header.Filename)
-		localPath := filepath.Join(h.filesDir, fileID+ext)
+		// Per-org file directory
+		orgID := "default"
+		if h.orgs != nil {
+			token := r.Header.Get("X-Bot-Token")
+			if _, slug, err := h.orgs.GetByToken(token); err == nil && slug != "" {
+				orgID = slug
+			}
+		}
+		orgDir := filepath.Join(h.filesDir, orgID)
+		os.MkdirAll(orgDir, 0755)
+		localPath := filepath.Join(orgDir, fileID+ext)
 
 		dst, err := os.Create(localPath)
 		if err != nil {
