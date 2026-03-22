@@ -69,6 +69,8 @@ func (a *ClientAPI) db(r *http.Request) *store.Store {
 func (a *ClientAPI) Route(mux *http.ServeMux) {
 	authRL := NewRateLimiter(20, time.Minute)
 	regRL := NewRateLimiter(10, time.Minute)
+	sendRL := NewRateLimiter(30, time.Minute)   // 30 msgs/min per IP
+	uploadRL := NewRateLimiter(10, time.Minute) // 10 uploads/min per IP
 
 	// Public routes (no auth required)
 	mux.HandleFunc("POST /api/auth", RateLimit(authRL, limitBody(a.auth)))
@@ -81,7 +83,7 @@ func (a *ClientAPI) Route(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/bots", a.AuthRequired(a.listBots))
 	mux.HandleFunc("GET /api/chats", a.AuthRequired(a.listChats))
 	mux.HandleFunc("GET /api/chats/{chatID}/messages", a.AuthRequired(a.chatMessages))
-	mux.HandleFunc("POST /api/chats/{chatID}/send", a.AuthRequired(limitBody(a.sendToBot)))
+	mux.HandleFunc("POST /api/chats/{chatID}/send", a.AuthRequired(RateLimit(sendRL, limitBody(a.sendToBot))))
 	mux.HandleFunc("POST /api/chats/{chatID}/callback", a.AuthRequired(limitBody(a.callback)))
 	mux.HandleFunc("POST /api/bots/{botID}/start", a.AuthRequired(limitBody(a.startChat)))
 	mux.HandleFunc("DELETE /api/messages/{msgID}", a.AuthRequired(a.deleteMessage))
@@ -91,12 +93,12 @@ func (a *ClientAPI) Route(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/channels/{channelID}/subscribe", a.AuthRequired(a.subscribe))
 	mux.HandleFunc("POST /api/channels/{channelID}/unsubscribe", a.AuthRequired(a.unsubscribe))
 	mux.HandleFunc("GET /api/channels/{channelID}/messages", a.AuthRequired(a.channelMessages))
-	mux.HandleFunc("POST /api/channels/{channelID}/send", a.AuthRequired(limitBody(a.sendToChannel)))
+	mux.HandleFunc("POST /api/channels/{channelID}/send", a.AuthRequired(RateLimit(sendRL, limitBody(a.sendToChannel))))
 	mux.HandleFunc("POST /api/channels/{channelID}/ack", a.AuthRequired(limitBody(a.ackChannelMessage)))
 	mux.HandleFunc("PUT /api/channels/{channelID}/messages/{msgID}", a.AuthRequired(limitBody(a.editChannelMessage)))
 	mux.HandleFunc("DELETE /api/channels/messages/{msgID}", a.AuthRequired(a.deleteChannelMessage))
 	mux.HandleFunc("POST /api/channels/{channelID}/pin", a.AuthRequired(limitBody(a.pinMessage)))
-	mux.HandleFunc("POST /api/channels/{channelID}/upload", a.AuthRequired(a.uploadToChannel))
+	mux.HandleFunc("POST /api/channels/{channelID}/upload", a.AuthRequired(RateLimit(uploadRL, a.uploadToChannel)))
 
 	// Auth-required routes: Users & Roles
 	mux.HandleFunc("GET /api/users", a.AuthRequired(a.listUsers))
