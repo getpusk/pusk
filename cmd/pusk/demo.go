@@ -127,26 +127,22 @@ func seedChannel(db *store.Store, bot *store.Bot, guest *store.User, name, desc 
 // ── Demo content ──
 
 var demoBotMessages = []demoMsg{
-	{sender: "bot", text: "Привет! Я **DemoBot** — демонстрационный бот платформы Pusk.\n\nPusk — self-hosted замена Telegram Bot API. Ваши боты, ваш сервер, ваши данные.\n\nВыберите тему:", markup: `{"inline_keyboard":[[{"text":"Что умеет Pusk?","callback_data":"features"},{"text":"Как подключить бота","callback_data":"connect"}],[{"text":"API документация","callback_data":"docs"},{"text":"GitHub","callback_data":"github"}]]}`},
-	{sender: "user", text: "Что умеет Pusk?"},
-	{sender: "bot", text: "**Возможности Pusk:**\n\n• 21 endpoint, совместимый с Telegram Bot API\n• Каналы с подпиской и рассылкой\n• Inline-кнопки и callback\n• Отправка файлов: фото, видео, голос, документы\n• Web Push уведомления (VAPID)\n• Markdown в сообщениях\n• PWA клиент из коробки\n\nВсё в одном бинарнике **22 MB**, потребление RAM — **12 MB**.", markup: `{"inline_keyboard":[[{"text":"Как подключить бота","callback_data":"connect"}]]}`},
-	{sender: "user", text: "Как подключить своего бота?"},
-	{sender: "bot", text: "Миграция с Telegram — **одна строка**:\n\n```python\n# Было (Telegram)\nbot = Bot(token=\"123:ABC\",\n  base_url=\"https://api.telegram.org\")\n\n# Стало (Pusk)\nbot = Bot(token=\"my-bot-token\",\n  base_url=\"https://getpusk.ru\")\n```\n\nРаботает с aiogram, python-telegram-bot, telegraf и любым HTTP-клиентом.", markup: `{"inline_keyboard":[[{"text":"Попробовать API","callback_data":"try_api"}]]}`},
-	{sender: "user", text: "Круто, а curl примеры есть?"},
-	{sender: "bot", text: "Конечно! Отправка сообщения через curl:\n\n```bash\ncurl -X POST https://getpusk.ru/botMY-TOKEN/sendMessage \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"chat_id\": 1, \"text\": \"Hello from Pusk!\"}'\n```\n\nВсе методы Telegram Bot API поддерживаются: `sendMessage`, `sendPhoto`, `editMessageText`, `answerCallbackQuery` и другие."},
+	{sender: "bot", text: "DemoBot. Telegram Bot API на вашем сервере.\n\nВыберите тему:", markup: `{"inline_keyboard":[[{"text":"Подключение","callback_data":"connect"},{"text":"API","callback_data":"docs"}],[{"text":"GitHub","callback_data":"github"}]]}`},
+	{sender: "user", text: "Как подключить?"},
+	{sender: "bot", text: "Меняете `base_url` — бот работает через Pusk:\n\n```python\nbot = Bot(token=\"my-token\",\n  base_url=\"https://pusk.example.com\")\n```\n\naiogram, python-telegram-bot, telegraf — поддерживаются.", markup: `{"inline_keyboard":[[{"text":"curl пример","callback_data":"try_api"}]]}`},
+	{sender: "user", text: "curl?"},
+	{sender: "bot", text: "```bash\ncurl -X POST https://pusk.example.com/botTOKEN/sendMessage \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"chat_id\": 1, \"text\": \"test\"}'\n```\n\nМетоды: `sendMessage`, `editMessageText`, `getUpdates`, `sendPhoto` и др."},
 }
 
 var monitorBotMessages = []demoMsg{
-	{sender: "bot", text: "MonitorBot подключён. Мониторинг серверов активен.\n\nОтслеживаю: **3 сервера**, **12 сервисов**", markup: `{"inline_keyboard":[[{"text":"Статус","callback_data":"status"},{"text":"Последние алерты","callback_data":"alerts"}]]}`},
+	{sender: "bot", text: "MonitorBot. 3 сервера, 12 сервисов.", markup: `{"inline_keyboard":[[{"text":"Статус","callback_data":"status"},{"text":"Алерты","callback_data":"alerts"}]]}`},
 	{sender: "user", text: "/status"},
-	{sender: "bot", text: "**Статус серверов:**\n\nweb-01 — CPU 23%, RAM 1.2/4 GB\nweb-02 — CPU 18%, RAM 1.4/4 GB\ndb-01 — CPU 45%, RAM 6.1/8 GB\n\nВсе сервисы работают штатно.", markup: `{"inline_keyboard":[[{"text":"Обновить","callback_data":"status"}]]}`},
-	{sender: "bot", text: "**ALERT #1047** `HighMemory`\nСервер: *db-01*\nRAM: 92% (7.4/8 GB)\nMySQL buffer pool — основной потребитель"},
-	{sender: "bot", text: "**Resolved #1047** `HighMemory` на *db-01*\nRAM: 68% после автоочистки кеша"},
+	{sender: "bot", text: "web-01 — CPU 23%, RAM 1.2/4 GB\nweb-02 — CPU 18%, RAM 1.4/4 GB\ndb-01 — CPU 45%, RAM 6.1/8 GB", markup: `{"inline_keyboard":[[{"text":"Обновить","callback_data":"status"}]]}`},
 }
 
 var updatesChanMessages = []string{
-	"**Pusk v0.4.0**\n\nНовое:\n• PWA клиент с Mattermost-style layout\n• Inline-кнопки и callback\n• Desktop sidebar\n• Web Push уведомления\n• Docker образ 18.9 MB",
-	"**Pusk v0.3.0**\n\nНовое:\n• Каналы с подпиской\n• Отправка файлов (фото, видео, голос)\n• JWT авторизация\n• i18n (русский / английский)",
+	"**Pusk v0.5.0**\n\n• getUpdates polling\n• Webhook: Alertmanager, Zabbix, Grafana\n• @mentions + push\n• Media upload\n• Pin message\n• Prometheus /metrics",
+	"**Pusk v0.4.0**\n\n• PWA клиент\n• Inline-кнопки\n• Web Push\n• Docker 22 MB",
 }
 
 var ackButtons = `{"inline_keyboard":[[{"text":"✓ ACK","callback_data":"ack"},{"text":"⏸ Mute 1h","callback_data":"mute"},{"text":"✓ Resolved","callback_data":"resolved"}]]}`
@@ -159,7 +155,7 @@ var alertsChanMsgs = []chanMsg{
 }
 
 var generalChanMessages = []string{
-	"Добро пожаловать в **Pusk**!\n\nЭто #general — канал для обсуждений вашей команды.\n\nPusk получает алерты через webhook и показывает их в каналах с кнопками ACK/Mute/Resolved.\n\nОтправьте webhook:\n```bash\ncurl -X POST https://getpusk.ru/hook/YOUR-BOT-TOKEN \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"text\": \"Hello from curl!\"}'\n```\n\nАлерт от Alertmanager:\n```bash\ncurl -X POST 'https://getpusk.ru/hook/YOUR-TOKEN?format=alertmanager' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"status\":\"firing\",\"alerts\":[{\"status\":\"firing\",\"labels\":{\"alertname\":\"Test\"},\"annotations\":{\"summary\":\"Test alert\"}}]}'\n```",
+	"#general — канал команды.\n\nWebhook:\n```bash\ncurl -X POST https://your-server/hook/TOKEN \\\n  -d '{\"text\": \"test\"}'\n```\n\nAlertmanager:\n```bash\ncurl -X POST 'https://your-server/hook/TOKEN?format=alertmanager' \\\n  -d '{\"status\":\"firing\",\"alerts\":[{\"labels\":{\"alertname\":\"Test\"}}]}'\n```",
 }
 
 var deploysChanMessages = []string{
