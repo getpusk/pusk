@@ -131,11 +131,30 @@ func main() {
 		return nil, false
 	}
 
+	// requireAdmin checks that the request is from admin token or a JWT user with admin role
+	requireAdmin := func(r *http.Request, s *store.Store) bool {
+		authHeader := r.Header.Get("Authorization")
+		if adminToken != "" && strings.TrimPrefix(authHeader, "Bearer ") == adminToken {
+			return true // global admin token
+		}
+		// JWT user — verify admin role
+		if jwtSvc != nil && authHeader != "" {
+			if claims, err := jwtSvc.Validate(authHeader); err == nil {
+				return s.IsAdmin(claims.UserID)
+			}
+		}
+		return false
+	}
+
 	// Admin: register bot
 	mux.HandleFunc("POST /admin/bots", func(w http.ResponseWriter, r *http.Request) {
 		s, ok := getOrgStore(r)
 		if !ok {
 			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		if !requireAdmin(r, s) {
+			http.Error(w, `{"error":"admin only"}`, http.StatusForbidden)
 			return
 		}
 		var req struct {
@@ -167,6 +186,10 @@ func main() {
 		s, ok := getOrgStore(r)
 		if !ok {
 			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		if !requireAdmin(r, s) {
+			http.Error(w, `{"error":"admin only"}`, http.StatusForbidden)
 			return
 		}
 		var req struct {
@@ -205,6 +228,10 @@ func main() {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
+		if !requireAdmin(r, s) {
+			http.Error(w, `{"error":"admin only"}`, http.StatusForbidden)
+			return
+		}
 		channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
 		if err := s.DeleteChannel(channelID); err != nil {
 			json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": err.Error()})
@@ -229,6 +256,10 @@ func main() {
 		}
 		if req.Slug == "" || req.Username == "" || req.Pin == "" {
 			http.Error(w, `{"error":"slug, username and pin required"}`, 400)
+			return
+		}
+		if len(req.Pin) < 6 {
+			http.Error(w, `{"error":"password must be at least 6 characters"}`, 400)
 			return
 		}
 		if err := orgs.Register(req.Slug, req.Name, req.Username, req.Pin); err != nil {
