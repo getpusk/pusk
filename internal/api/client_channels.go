@@ -244,6 +244,23 @@ func (a *ClientAPI) vapidKey(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"key": a.vapidPub})
 }
 
+func (a *ClientAPI) testPush(w http.ResponseWriter, r *http.Request) {
+	userID := UserIDFromCtx(r.Context())
+	s := a.db(r)
+	subs, _ := s.UserPushSubscriptions(userID)
+	if len(subs) == 0 {
+		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": "no push subscription", "subscriptions": 0})
+		return
+	}
+	a.push.SendToUser(s, userID, notify.PushPayload{
+		Title: "Pusk Test",
+		Body:  "Push works! / Push работает!",
+		Tag:   "test-push",
+		URL:   "/",
+	})
+	json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "subscriptions": len(subs)})
+}
+
 func (a *ClientAPI) listUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := a.db(r).ListUsers()
 	if err != nil {
