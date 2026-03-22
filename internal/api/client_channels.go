@@ -23,6 +23,26 @@ import (
 	"github.com/pusk-platform/pusk/internal/ws"
 )
 
+func (a *ClientAPI) channelReaders(w http.ResponseWriter, r *http.Request) {
+	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
+	s := a.db(r)
+
+	users, _ := s.ListUsers()
+	type reader struct {
+		UserID   int64  `json:"user_id"`
+		Username string `json:"username"`
+		LastRead int64  `json:"last_read_id"`
+	}
+	var readers []reader
+	for _, u := range users {
+		lastRead := s.GetLastRead(channelID, u.ID)
+		if lastRead > 0 {
+			readers = append(readers, reader{UserID: u.ID, Username: u.Username, LastRead: lastRead})
+		}
+	}
+	json.NewEncoder(w).Encode(readers)
+}
+
 func (a *ClientAPI) ackChannelMessage(w http.ResponseWriter, r *http.Request) {
 	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
 	s := a.db(r)
