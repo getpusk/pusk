@@ -599,6 +599,12 @@ func (s *Store) MarkChannelRead(channelID, userID, lastMsgID int64) {
 		channelID, userID, lastMsgID, lastMsgID)
 }
 
+func (s *Store) GetLastRead(channelID, userID int64) int64 {
+	var id int64
+	s.db.QueryRow("SELECT COALESCE(last_read_id,0) FROM channel_reads WHERE channel_id=? AND user_id=?", channelID, userID).Scan(&id)
+	return id
+}
+
 func (s *Store) UnreadCount(channelID, userID int64) int {
 	var count int
 	s.db.QueryRow("SELECT COUNT(*) FROM channel_messages WHERE channel_id=? AND id > COALESCE((SELECT last_read_id FROM channel_reads WHERE channel_id=? AND user_id=?), 0)",

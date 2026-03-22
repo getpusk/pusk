@@ -93,6 +93,7 @@ func (a *ClientAPI) Route(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/channels/{channelID}/subscribe", a.AuthRequired(a.subscribe))
 	mux.HandleFunc("POST /api/channels/{channelID}/unsubscribe", a.AuthRequired(a.unsubscribe))
 	mux.HandleFunc("GET /api/channels/{channelID}/messages", a.AuthRequired(a.channelMessages))
+	mux.HandleFunc("GET /api/channels/{channelID}/readers", a.AuthRequired(a.channelReaders))
 	mux.HandleFunc("POST /api/channels/{channelID}/send", a.AuthRequired(RateLimit(sendRL, limitBody(a.sendToChannel))))
 	mux.HandleFunc("POST /api/channels/{channelID}/ack", a.AuthRequired(limitBody(a.ackChannelMessage)))
 	mux.HandleFunc("PUT /api/channels/{channelID}/messages/{msgID}", a.AuthRequired(limitBody(a.editChannelMessage)))
