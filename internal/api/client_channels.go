@@ -474,11 +474,19 @@ func (a *ClientAPI) uploadToChannel(w http.ResponseWriter, r *http.Request) {
 		fileType = "voice"
 	}
 
-	// Save file
+	// Save file in per-org directory
 	fileID := randID()
 	ext := filepath.Ext(header.Filename)
-	localPath := filepath.Join("data/files", fileID+ext)
-	os.MkdirAll("data/files", 0755)
+	orgID := ""
+	if claims := ClaimsFromCtx(r.Context()); claims != nil {
+		orgID = claims.OrgID
+	}
+	if orgID == "" {
+		orgID = "default"
+	}
+	orgDir := filepath.Join("data/files", orgID)
+	os.MkdirAll(orgDir, 0755)
+	localPath := filepath.Join(orgDir, fileID+ext)
 
 	dst, err := os.Create(localPath)
 	if err != nil {
