@@ -143,7 +143,7 @@ header h2{font-size:14px;font-weight:600;flex:1}
 .read-receipt{text-align:right;font-size:11px;color:var(--text2);padding:4px 8px;line-height:16px}
 
 /* Input bar */
-#input-bar{display:none;padding:8px 12px;background:var(--surface);border-top:1px solid var(--border);gap:8px;align-items:flex-end}
+#input-bar{display:none;padding:8px 12px;background:var(--surface);border-top:1px solid var(--border);gap:8px;align-items:flex-end;position:relative}
 #input-bar textarea{flex:1;padding:10px 14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg);color:var(--text);resize:none;min-height:42px;max-height:120px;font-size:14px;line-height:20px}
 #input-bar button{padding:10px 16px;border-radius:var(--radius);border:none;background:var(--primary);color:#fff;cursor:pointer;font-size:15px}
 
@@ -168,3 +168,88 @@ header h2{font-size:14px;font-weight:600;flex:1}
 .install-yes{background:var(--primary);color:#fff}
 .install-no{background:transparent;color:var(--text2);border:1px solid var(--border)!important}
 #toast{display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#3db887;color:#fff;padding:10px 24px;border-radius:var(--radius);font-size:14px;z-index:600;box-shadow:0 4px 12px rgba(0,0,0,0.3)}
+
+/* Component classes — extracted from inline styles */
+.land-btns-flush{margin-top:0}
+.land-btn-gh{flex:1;font-size:13px;color:var(--text2)}
+.input-eye-wrap{position:relative}
+.input-eye{padding-right:40px}
+.eye-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text2);display:flex;align-items:center}
+.auth-org{font-size:13px;padding:10px 16px}
+.hdr-online{font-size:11px;color:#3db887;margin-left:-4px}
+#typing-bar{display:none;padding:2px 16px;font-size:12px;color:var(--text2);font-style:italic}
+#mention-list{display:none;position:absolute;bottom:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);max-height:150px;overflow-y:auto;z-index:300}
+.file-label{padding:10px;cursor:pointer;color:var(--text2);font-size:20px}
+#file-input{display:none}
+#s-profile{font-size:13px;color:var(--text2);padding:4px 0}
+#s-test-push{margin-left:4px;font-size:12px}
+.s-section{margin-top:8px}
+.s-full-btn{width:100%;margin-top:8px;padding:10px;text-align:center}
+#s-invite-result{font-size:12px;color:var(--accent);margin-top:4px;word-break:break-all}
+#s-about{font-size:11px;color:var(--text2);margin-top:12px;text-align:center}
+#s-install{display:none}
+#m-tok-row{display:none}
+.br-gap{margin-bottom:8px}
+/* ── JS inline style extractions ── */
+
+/* views.js: message media */
+.m-photo{max-width:320px;max-height:320px;border-radius:8px;margin:4px 0;cursor:pointer;object-fit:cover}
+.m-audio{width:100%}
+.m-video{max-width:320px;max-height:240px;border-radius:8px}
+.m-file-link{color:var(--accent)}
+
+/* views.js: pin bar */
+.pin-text{flex:1;display:flex;align-items:center;gap:6px}
+.pin-who{font-size:10px;color:var(--text2);margin:0 8px}
+.pin-close{background:none;border:none;color:var(--text2);cursor:pointer;font-size:14px}
+
+/* views.js: channel unread badge */
+.ch-unread{display:inline-block;min-width:16px;text-align:center;font-size:11px;color:#fff;background:#3db887;border-radius:8px;padding:1px 5px;margin-left:6px}
+
+/* views.js: bot token */
+.bot-token{font-size:11px;color:var(--text2);margin-top:2px;word-break:break-all;cursor:pointer}
+
+/* actions.js: autocomplete items */
+.ac-item{padding:8px 12px;cursor:pointer;font-size:14px;color:var(--accent)}
+.ac-item-user{padding:8px 12px;cursor:pointer;font-size:14px;color:var(--text)}
+
+/* actions.js: ACK result */
+.ack-result{color:#3db887;font-size:12px}
+
+/* settings.js: about links */
+.s-about-link{color:var(--accent);text-decoration:none;margin-left:8px}
+
+/* settings.js: section label */
+.s-label{font-size:12px;color:var(--text2);margin-bottom:4px}
+
+/* settings.js: org switch button */
+.s-org-btn{width:100%;margin-bottom:4px;padding:8px;text-align:left}
+.s-org-btn.active{background:var(--primary);color:#fff}
+
+/* settings.js: org user hint */
+.s-org-user{opacity:0.7;font-size:12px}
+
+/* settings.js: user management */
+.user-actions{margin-left:auto;display:flex;gap:4px}
+.s-btn-sm{font-size:11px;padding:2px 8px}
+.s-btn-sm.danger{color:#e05d44;border-color:#e05d44}
+.user-row{display:flex;align-items:center;padding:4px 0;font-size:13px}
+.user-role{color:var(--text2);font-size:11px;margin-left:6px}
+.loading-skeleton{padding:16px}
+.skel-row{height:48px;margin:8px;border-radius:var(--radius);background:linear-gradient(90deg,var(--surface) 25%,var(--border) 50%,var(--surface) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+#offline-bar{display:none;padding:6px 16px;background:#e05d44;color:#fff;font-size:12px;text-align:center;font-weight:600}
+#offline-bar.show{display:block}
+#update-bar{display:none;padding:8px 16px;background:var(--primary);color:#fff;font-size:13px;text-align:center;cursor:pointer}
+#update-bar.show{display:block}
+
+/* Markdown rendered elements */
+.md-pre{background:#0e1621;padding:8px;border-radius:6px;font-size:13px}
+.md-code{background:#0e1621;padding:2px 5px;border-radius:4px;font-size:13px}
+.md-link{color:var(--accent)}
+.md-cmd{color:var(--accent);cursor:pointer}
+.md-mention{color:var(--accent);font-weight:700}
+
+/* Dynamic color classes for user roles */
+.user-admin{color:var(--accent)}
+.user-member{color:var(--text)}

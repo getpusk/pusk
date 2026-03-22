@@ -41,9 +41,9 @@ bot = Bot(token="my-token",
       <button class="land-btn-p" id="land-demo">Попробовать демо</button>
       <button class="land-btn-s" id="land-create-org">Создать организацию</button>
     </div>
-    <div class="land-btns" style="margin-top:0">
-      <button class="land-btn-s" id="land-login" style="flex:1">Войти</button>
-      <a class="land-btn-s" href="https://github.com/getpusk/pusk" target="_blank" style="flex:1;font-size:13px;color:var(--text2)">GitHub</a>
+    <div class="land-btns land-btns-flush">
+      <button class="land-btn-s" id="land-login">Войти</button>
+      <a class="land-btn-s land-btn-gh" href="https://github.com/getpusk/pusk" target="_blank">GitHub</a>
     </div>
     <div class="land-links">
       <a href="https://github.com/getpusk/pusk#readme">Документация</a>
@@ -66,8 +66,8 @@ bot = Bot(token="my-token",
     <div class="auth-logo">Pusk</div>
     <p class="auth-sub" id="auth-sub"></p>
     <input id="a-user" autocomplete="username">
-    <div style="position:relative"><input id="a-pin" type="password" autocomplete="current-password" style="padding-right:40px"><button type="button" id="eye-btn" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text2);display:flex;align-items:center"></button></div>
-    <input id="a-org" placeholder="ID организации (напр: acme)" style="font-size:13px;padding:10px 16px">
+    <div class="input-eye-wrap"><input id="a-pin" type="password" autocomplete="current-password" class="input-eye"><button type="button" id="eye-btn" class="eye-toggle"></button></div>
+    <input id="a-org" placeholder="ID организации (напр: acme)" class="auth-org">
     <button class="abtn abtn-p" id="btn-login"></button>
     <button class="abtn abtn-s" id="btn-reg"></button>
     <button class="abtn abtn-g" id="btn-demo"></button>
@@ -84,7 +84,7 @@ bot = Bot(token="my-token",
   <header>
     <span class="hdr-back" id="hdr-back"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></span>
     <h2 id="hdr-title"></h2>
-    <span id="hdr-online" style="font-size:11px;color:#3db887;margin-left:-4px"></span>
+    <span id="hdr-online" class="hdr-online"></span>
     <span class="hdr-dot" id="hdr-dot">&#9679;</span>
     <span class="hdr-ava" id="hdr-ava"></span>
     <span class="hdr-name" id="hdr-name"></span>
@@ -93,10 +93,10 @@ bot = Bot(token="my-token",
   <div id="chat-view"><div id="pinned-bar"></div><div id="msgs"></div></div>
   <div id="reply-bar"><span id="reply-text"></span><button id="reply-cancel">✕</button></div>
   <div id="edit-bar"><span id="edit-text"></span><button id="edit-cancel">✕</button></div>
-  <div id="typing-bar" style="display:none;padding:2px 16px;font-size:12px;color:var(--text2);font-style:italic"></div>
-  <div id="input-bar" style="position:relative">
-    <div id="mention-list" style="display:none;position:absolute;bottom:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);max-height:150px;overflow-y:auto;z-index:300"></div>
-    <label for="file-input" style="padding:10px;cursor:pointer;color:var(--text2);font-size:20px">&#128206;</label><input type="file" id="file-input" accept="image/*,video/*,.pdf,.zip" style="display:none">
+  <div id="typing-bar"></div>
+  <div id="input-bar">
+    <div id="mention-list"></div>
+    <label for="file-input" class="file-label">&#128206;</label><input type="file" id="file-input" accept="image/*,video/*,.pdf,.zip">
     <textarea id="msg-in" rows="1"></textarea>
     <button id="msg-send">&#8594;</button>
   </div>
@@ -106,15 +106,15 @@ bot = Bot(token="my-token",
 
 <div id="settings-bg"></div>
 <div id="settings">
-  <div style="font-size:13px;color:var(--text2);padding:4px 0" id="s-profile"></div>
+  <div id="s-profile"></div>
   <div class="s-row"><span id="s-lang-lbl"></span><button class="s-btn" id="s-lang-btn"></button></div>
-  <div class="s-row"><span>Push</span><button class="s-btn" id="s-push-btn" onclick="togglePush()">...</button><button class="s-btn" id="s-test-push" onclick="testPush()" style="margin-left:4px;font-size:12px">Test</button></div>
-  <div id="s-users" style="margin-top:8px"></div>
-  <div id="s-org-switch" style="margin-top:8px"></div>
-  <button class="s-btn" id="s-invite" style="width:100%;margin-top:8px;padding:10px;text-align:center"></button>
-  <div id="s-invite-result" style="font-size:12px;color:var(--accent);margin-top:4px;word-break:break-all"></div>
-  <button class="s-btn" id="s-install" style="width:100%;margin-top:8px;padding:10px;text-align:center;display:none"></button>
-  <div style="font-size:11px;color:var(--text2);margin-top:12px;text-align:center" id="s-about"></div>
+  <div class="s-row"><span>Push</span><button class="s-btn" id="s-push-btn" onclick="togglePush()">...</button><button class="s-btn" id="s-test-push" onclick="testPush()">Test</button></div>
+  <div id="s-users" class="s-section"></div>
+  <div id="s-org-switch" class="s-section"></div>
+  <button class="s-btn s-full-btn" id="s-invite"></button>
+  <div id="s-invite-result"></div>
+  <button class="s-btn s-full-btn" id="s-install"></button>
+  <div id="s-about"></div>
   <button class="s-out" id="s-out"></button>
 </div>
 
@@ -124,7 +124,7 @@ bot = Bot(token="my-token",
     <select id="m-type"><option value="channel"></option><option value="bot"></option></select>
     <input id="m-name">
     <input id="m-desc">
-    <div id="m-tok-row" style="display:none"><input id="m-tok" placeholder="Bot token"></div>
+    <div id="m-tok-row"><input id="m-tok" placeholder="Bot token"></div>
     <div class="modal-btns">
       <button class="mbtn-no" id="m-cancel"></button>
       <button class="mbtn-ok" id="m-ok"></button>
@@ -139,7 +139,7 @@ bot = Bot(token="my-token",
     <input id="org-slug" placeholder="ID организации (латиница, напр: acme)">
     <input id="org-name" placeholder="Название (напр: Acme Corp)">
     <input id="org-user" placeholder="Логин администратора">
-    <div style="position:relative"><input id="org-pin" type="password" placeholder="Пароль" style="padding-right:40px"><button type="button" id="org-eye-btn" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text2);display:flex;align-items:center"></button></div>
+    <div class="input-eye-wrap"><input id="org-pin" type="password" placeholder="Пароль" class="input-eye"><button type="button" id="org-eye-btn" class="eye-toggle"></button></div>
     <div class="modal-btns">
       <button class="mbtn-no" id="org-cancel">Отмена</button>
       <button class="mbtn-ok" id="org-ok">Создать</button>
@@ -149,11 +149,13 @@ bot = Bot(token="my-token",
 </div>
 
 <div id="install-banner">
-  <span>Установите Pusk для push-уведомлений</span><br style="margin-bottom:8px">
+  <span>Установите Pusk для push-уведомлений</span><br class="br-gap">
   <button class="install-yes" id="install-btn">Установить</button>
   <button class="install-no" id="install-dismiss">Не сейчас</button>
 </div>
 
+<div id="offline-bar">Нет соединения / Offline</div>
+<div id="update-bar" onclick="location.reload()">Доступно обновление — нажмите для перезагрузки / Update available — tap to reload</div>
 <div id="ctx-menu"></div>
 <div id="toast"></div>
 
