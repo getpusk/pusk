@@ -198,7 +198,38 @@ func (a *ClientAPI) websocket(w http.ResponseWriter, r *http.Request) {
 	a.hub.Register(key, conn)
 
 	go conn.WritePump()
-	conn.ReadPump(a.hub, nil)
+	conn.ReadPump(a.hub, func(userID int64, data []byte) {
+		var msg struct {
+			Type      string `json:"type"`
+			Status    string `json:"status,omitempty"`
+			ChannelID int64  `json:"channel_id,omitempty"`
+		}
+		if json.Unmarshal(data, &msg) != nil {
+			return
+		}
+		switch msg.Type {
+		case "status":
+			if msg.Status == "online" || msg.Status == "away" {
+				a.hub.SetStatus(key, msg.Status)
+			}
+		case "typing":
+			if msg.ChannelID > 0 {
+				s := a.db(r)
+				subs, _ := s.ChannelSubscribers(msg.ChannelID)
+				payload, _ := json.Marshal(map[string]interface{}{
+					"username":   claims.Username,
+					"channel_id": msg.ChannelID,
+				})
+				for _, uid := range subs {
+					if uid == claims.UserID {
+						continue
+					}
+					subKey := claims.OrgID + ":" + fmt.Sprintf("%d", uid)
+					a.hub.SendToUser(subKey, ws.Event{Type: "typing", ChatID: msg.ChannelID, Payload: payload})
+				}
+			}
+		}
+	})
 }
 
 func (a *ClientAPI) health(w http.ResponseWriter, r *http.Request) {

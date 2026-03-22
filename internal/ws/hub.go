@@ -20,18 +20,23 @@ type Event struct {
 // Hub manages WebSocket connections per user.
 // Keys are "orgID:userID" strings to ensure multi-tenant isolation.
 type Hub struct {
-	mu    sync.RWMutex
-	conns map[string][]*Conn // "orgID:userID" -> connections
+	mu     sync.RWMutex
+	conns  map[string][]*Conn // "orgID:userID" -> connections
+	status map[string]string  // key -> "online" | "away"
 }
 
 func NewHub() *Hub {
-	return &Hub{conns: make(map[string][]*Conn)}
+	return &Hub{
+		conns:  make(map[string][]*Conn),
+		status: make(map[string]string),
+	}
 }
 
 func (h *Hub) Register(key string, c *Conn) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.conns[key] = append(h.conns[key], c)
+	h.status[key] = "online"
 	metrics.WSConnections.Inc()
 	slog.Info("ws user connected", "key", key, "total", len(h.conns[key]))
 }
@@ -49,7 +54,25 @@ func (h *Hub) Unregister(key string, c *Conn) {
 	}
 	if len(h.conns[key]) == 0 {
 		delete(h.conns, key)
+		delete(h.status, key)
 	}
+}
+
+func (h *Hub) SetStatus(key, status string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if _, ok := h.conns[key]; ok {
+		h.status[key] = status
+	}
+}
+
+func (h *Hub) GetStatus(key string) string {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	if s, ok := h.status[key]; ok {
+		return s
+	}
+	return "offline"
 }
 
 func (h *Hub) SendToUser(key string, evt Event) {
