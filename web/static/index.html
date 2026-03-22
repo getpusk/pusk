@@ -415,7 +415,7 @@ let curChat=null,curChan=null,ws=null,replyToId=0,replyToText='',_channels=[],_m
 
 // ── DOM ──
 function $(id){return document.getElementById(id)}
-function escJs(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")}
+function escJs(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/</g,'\\x3c').replace(/>/g,'\\x3e').replace(/\n/g,'\\n')}
 function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML}
 function nameColor(n){let h=0;for(let i=0;i<n.length;i++)h=n.charCodeAt(i)+((h<<5)-h);return['#5865F2','#57F287','#FEE75C','#EB459E','#ED4245','#3BA55D','#FAA61A','#4082bc'][Math.abs(h)%8]}
 function fmtTime(d){if(!d)return'';const dt=new Date(d),now=new Date(),h=dt.getHours().toString().padStart(2,'0'),m=dt.getMinutes().toString().padStart(2,'0'),tm=h+':'+m;if(dt.toDateString()===now.toDateString())return tm;const y=new Date(now);y.setDate(y.getDate()-1);if(dt.toDateString()===y.toDateString())return t('yest')+' '+tm;return dt.toLocaleDateString('ru',{day:'numeric',month:'short'})+' '+tm}

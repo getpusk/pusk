@@ -380,6 +380,10 @@ func (h *Handler) setWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.URL != "" && IsLocalURL(req.URL) {
+		jsonResp(w, 400, APIResponse{OK: false, Error: "local URLs not allowed for webhooks"})
+		return
+	}
 	h.db(r).SetWebhook(bot.ID, req.URL)
 	slog.Info("webhook set", "bot", bot.Name, "url", req.URL)
 	jsonResp(w, 200, APIResponse{OK: true, Result: true})
