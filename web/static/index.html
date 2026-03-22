@@ -546,7 +546,7 @@ document.addEventListener('contextmenu',e=>{
 });
 
 // Delete channel message
-async function delChanMsg(mid){if(!confirm(lang==='ru'?'Удалить сообщение?':'Delete message?'))return;await api('DELETE',`/api/channels/messages/${mid}`);const el=document.getElementById('m-'+mid);if(el)el.remove()}
+async function delChanMsg(mid){const ci=_channels.find(c=>c.id===curChan);const isPinned=ci&&ci.pinned_message_id===mid;const msg=isPinned?(lang==='ru'?'Это закреплённое сообщение. Удалить и открепить?':'This is a pinned message. Delete and unpin?'):(lang==='ru'?'Удалить сообщение?':'Delete message?');if(!confirm(msg))return;await api('DELETE',`/api/channels/messages/${mid}`);const el=document.getElementById('m-'+mid);if(el)el.remove();if(isPinned){$('pinned-bar').innerHTML='';ci.pinned_message_id=0}}
 async function pinMsg(mid){if(!curChan)return;const r=await api('POST',`/api/channels/${curChan}/pin`,{message_id:mid});if(r&&r.ok){const u=localStorage.getItem('pusk_uname')||'?';toast(lang==='ru'?'Закреплено':'Pinned');const msgEl=document.getElementById('m-'+mid);const text=msgEl?msgEl.querySelector('.m-text')?.textContent||'':'';renderPinBar(mid,text,u);const ci=_channels.find(c=>c.id===curChan);if(ci)ci.pinned_message_id=mid;
 }}
 async function unpinMsg(){if(!curChan)return;const r=await api('POST',`/api/channels/${curChan}/pin`,{message_id:0});if(r&&r.ok){toast(lang==='ru'?'Откреплено':'Unpinned');$('pinned-bar').innerHTML='';const ci=_channels.find(c=>c.id===curChan);if(ci)ci.pinned_message_id=0}}
