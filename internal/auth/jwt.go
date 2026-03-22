@@ -25,7 +25,7 @@ type JWTService struct {
 
 func NewJWTService(secret string, ttlHours int) *JWTService {
 	if secret == "" {
-		secret = "pusk-default-secret-change-me"
+		panic("JWT secret must not be empty — set PUSK_JWT_SECRET or ensure data/jwt.secret exists")
 	}
 	return &JWTService{
 		secret: []byte(secret),
