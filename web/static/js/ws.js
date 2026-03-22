@@ -1,33 +1,31 @@
-// ── WebSocket ──
-let audioCtx;
-function beep(){try{if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);o.frequency.value=800;g.gain.value=0.1;o.start();g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.15);o.stop(audioCtx.currentTime+0.15)}catch{}}
+import S from './state.js';
+import {$,md,toast} from './util.js';
+import {addMsg,scrollDown} from './views.js';
 
-function connectWS(){if(!token)return;const p=location.protocol==='https:'?'wss:':'ws:';ws=new WebSocket(`${p}//${location.host}/api/ws?token=${token}`);ws.onopen=()=>$('hdr-dot').style.color='#3db887';ws.onclose=()=>{$('hdr-dot').style.color='#e05d44';setTimeout(connectWS,3000)};ws.onmessage=e=>{const ev=JSON.parse(e.data);const d=ev.payload;console.log('[ws]',ev.type,ev.chat_id,JSON.stringify(d).substring(0,100));
-if(ev.type==='new_message'&&ev.chat_id===curChat){addMsg(d.message);scrollDown()}
-if(ev.type==='channel_message'){const myName=localStorage.getItem('pusk_uname');const msg=d.message||d;const senderName=msg.sender_name||d.sender_name||'';if(ev.chat_id===curChan){if(senderName===myName){const els=$('msgs').querySelectorAll('.m[data-mine="1"]');for(let i=els.length-1;i>=0;i--){const fid=parseInt(els[i].id.replace('m-',''));if(fid>1e12){els[i].id='m-'+msg.message_id;break}}}else{if(!msg.sender)msg.sender='bot';beep();addMsg(msg);scrollDown()}}else if(senderName!==myName){beep();const badge=document.querySelector(`.ch-badge-${ev.chat_id}`);if(badge){badge.style.display='inline-block';const n=parseInt(badge.textContent||'0')+1;badge.textContent=n}}}
+// ── Audio ──
+export function beep(){try{if(!S.audioCtx)S.audioCtx=new(window.AudioContext||window.webkitAudioContext)();const o=S.audioCtx.createOscillator(),g=S.audioCtx.createGain();o.connect(g);g.connect(S.audioCtx.destination);o.frequency.value=800;g.gain.value=0.1;o.start();g.gain.exponentialRampToValueAtTime(0.001,S.audioCtx.currentTime+0.15);o.stop(S.audioCtx.currentTime+0.15)}catch{}}
+
+// ── WebSocket ──
+export function connectWS(){if(!S.token)return;const p=location.protocol==='https:'?'wss:':'ws:';S.ws=new WebSocket(`${p}//${location.host}/api/ws?token=${S.token}`);S.ws.onopen=()=>$('hdr-dot').style.color='#3db887';S.ws.onclose=()=>{$('hdr-dot').style.color='#e05d44';setTimeout(connectWS,3000)};S.ws.onmessage=e=>{const ev=JSON.parse(e.data);const d=ev.payload;console.log('[ws]',ev.type,ev.chat_id,JSON.stringify(d).substring(0,100));
+if(ev.type==='new_message'&&ev.chat_id===S.curChat){addMsg(d.message);scrollDown()}
+if(ev.type==='channel_message'){const myName=localStorage.getItem('pusk_uname');const msg=d.message||d;const senderName=msg.sender_name||d.sender_name||'';if(ev.chat_id===S.curChan){if(senderName===myName){const els=$('msgs').querySelectorAll('.m[data-mine="1"]');for(let i=els.length-1;i>=0;i--){const fid=parseInt(els[i].id.replace('m-',''));if(fid>1e12){els[i].id='m-'+msg.message_id;break}}}else{if(!msg.sender)msg.sender='bot';beep();addMsg(msg);scrollDown()}}else if(senderName!==myName){beep();const badge=document.querySelector(`.ch-badge-${ev.chat_id}`);if(badge){badge.style.display='inline-block';const n=parseInt(badge.textContent||'0')+1;badge.textContent=n}}}
 if(ev.type==='edit_message'){const old=document.getElementById('m-'+d.message_id);if(old)old.remove();addMsg(d);scrollDown()}
-if(ev.type==='channel_message_edit'){const old=document.getElementById('m-'+d.message_id);if(old){const txt=old.querySelector('.m-text');if(txt)txt.innerHTML=md(d.text||'');const head=old.querySelector('.m-head');if(head&&!head.querySelector('.m-edited')){const s=document.createElement('span');s.className='m-edited';s.textContent=lang==='ru'?'(ред.)':'(edited)';head.appendChild(s)}}}
+if(ev.type==='channel_message_edit'){const old=document.getElementById('m-'+d.message_id);if(old){const txt=old.querySelector('.m-text');if(txt)txt.innerHTML=md(d.text||'');const head=old.querySelector('.m-head');if(head&&!head.querySelector('.m-edited')){const s=document.createElement('span');s.className='m-edited';s.textContent=S.lang==='ru'?'(ред.)':'(edited)';head.appendChild(s)}}}
 if(ev.type==='channel_message_delete'){const el=document.getElementById('m-'+d.message_id);if(el)el.remove()}
-if(ev.type==='typing'&&ev.chat_id===curChan){const td=ev.payload;$('typing-bar').textContent=td.username+(lang==='ru'?' печатает...' :' is typing...');$('typing-bar').style.display='block';clearTimeout(window._typingHide);window._typingHide=setTimeout(()=>{$('typing-bar').style.display='none'},3000)}
+if(ev.type==='typing'&&ev.chat_id===S.curChan){const td=ev.payload;$('typing-bar').textContent=td.username+(S.lang==='ru'?' печатает...' :' is typing...');$('typing-bar').style.display='block';clearTimeout(window._typingHide);window._typingHide=setTimeout(()=>{$('typing-bar').style.display='none'},3000)}
 if(ev.type==='callback_answer'){if(d.show_alert)alert(d.text);else toast(d.text)}
 if(ev.type==='mention'){beep();toast('@'+localStorage.getItem('pusk_uname')+' in #'+(d.channel||''))}}}
 
 // ── Away status ──
-document.addEventListener('visibilitychange', () => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-            type: 'status',
-            status: document.hidden ? 'away' : 'online'
-        }));
-    }
+document.addEventListener('visibilitychange',()=>{
+  if(S.ws&&S.ws.readyState===WebSocket.OPEN){
+    S.ws.send(JSON.stringify({type:'status',status:document.hidden?'away':'online'}));
+  }
 });
 
-// ── Typing indicator ──
-let _typingTimer = null;
-
 // ── Push ──
-async function registerPush(){
-  if(!('serviceWorker' in navigator)||!('PushManager' in window)||!token)return;
+export async function registerPush(){
+  if(!('serviceWorker' in navigator)||!('PushManager' in window)||!S.token)return;
   try{
     const perm=await Notification.requestPermission();
     console.log('[push] permission:',perm);
@@ -37,7 +35,7 @@ async function registerPush(){
     const r=await fetch('/api/push/vapid');const{key}=await r.json();if(!key)return;
     let sub=await reg.pushManager.getSubscription();
     if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:Uint8Array.from(atob(key.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-key.length%4)%4)),c=>c.charCodeAt(0))});
-    const resp=await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json',Authorization:token},body:JSON.stringify(sub.toJSON())});
+    const resp=await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json',Authorization:S.token},body:JSON.stringify(sub.toJSON())});
     console.log('[push] subscribed:',resp.status);
   }catch(e){console.log('[push] error:',e)}
 }
