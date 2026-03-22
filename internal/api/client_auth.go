@@ -7,8 +7,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 )
+
+// PIN auth lockout: 5 failed attempts = 15 min lockout
+var authFailures sync.Map // key: "orgSlug:username" -> *failureInfo
+
+type failureInfo struct {
+	count    int
+	lockedAt time.Time
+}
 
 func (a *ClientAPI) auth(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -28,8 +37,23 @@ func (a *ClientAPI) auth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check lockout
+	lockKey := orgSlug + ":" + req.Username
+	if fi, ok := authFailures.Load(lockKey); ok {
+		f := fi.(*failureInfo)
+		if f.count >= 5 && time.Since(f.lockedAt) < 15*time.Minute {
+			jsonErr(w, "too many attempts, try in 15 minutes", 429)
+			return
+		}
+	}
+
 	user, err := s.AuthUser(req.Username, req.Pin)
 	if err != nil {
+		// Track failed attempt
+		fi, _ := authFailures.LoadOrStore(lockKey, &failureInfo{})
+		f := fi.(*failureInfo)
+		f.count++
+		f.lockedAt = time.Now()
 		if req.Org == "" {
 			jsonErr(w, "invalid credentials — specify org / укажите организацию", 401)
 		} else {
@@ -37,6 +61,8 @@ func (a *ClientAPI) auth(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	// Clear failed attempts on success
+	authFailures.Delete(lockKey)
 	token, err := a.jwt.Generate(user.ID, orgSlug, user.Username)
 	if err != nil {
 		jsonErr(w, "token error", 500)
@@ -67,6 +93,11 @@ func (a *ClientAPI) register(w http.ResponseWriter, r *http.Request) {
 	s, err := a.orgs.Get(orgSlug)
 	if err != nil {
 		jsonErr(w, "org not found", 400)
+		return
+	}
+
+	if len(req.Pin) < 6 {
+		jsonErr(w, "password must be at least 6 characters", 400)
 		return
 	}
 
@@ -126,6 +157,10 @@ func (a *ClientAPI) acceptInvite(w http.ResponseWriter, r *http.Request) {
 
 	if req.Code == "" || req.Username == "" || req.Pin == "" {
 		jsonErr(w, "code, username and pin required", 400)
+		return
+	}
+	if len(req.Pin) < 6 {
+		jsonErr(w, "password must be at least 6 characters", 400)
 		return
 	}
 
