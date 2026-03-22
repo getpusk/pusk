@@ -30,7 +30,11 @@ func (a *ClientAPI) auth(w http.ResponseWriter, r *http.Request) {
 
 	user, err := s.AuthUser(req.Username, req.Pin)
 	if err != nil {
-		jsonErr(w, "invalid credentials", 401)
+		if req.Org == "" {
+			jsonErr(w, "invalid credentials — specify org / укажите организацию", 401)
+		} else {
+			jsonErr(w, "invalid credentials", 401)
+		}
 		return
 	}
 	token, err := a.jwt.Generate(user.ID, orgSlug, user.Username)
