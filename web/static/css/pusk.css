@@ -253,3 +253,6 @@ header h2{font-size:14px;font-weight:600;flex:1}
 /* Dynamic color classes for user roles */
 .user-admin{color:var(--accent)}
 .user-member{color:var(--text)}
+
+/* Accessibility: focus visible */
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,.ch-row:focus-visible,.bot-row:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
