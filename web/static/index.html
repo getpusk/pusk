@@ -112,6 +112,10 @@ header h2{font-size:14px;font-weight:600;flex:1}
 .m-alert{border-left:3px solid #e05d44}
 .m-resolved{border-left:3px solid #3db887}
 .m-acked{border-left:3px solid #faa61a}
+.m-elapsed{position:absolute;top:8px;right:8px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;white-space:nowrap;line-height:16px}
+.m-elapsed.el-ok{background:rgba(61,184,135,0.15);color:#3db887}
+.m-elapsed.el-warn{background:rgba(250,166,26,0.15);color:#faa61a}
+.m-elapsed.el-crit{background:rgba(224,93,68,0.15);color:#e05d44}
 .m-ava{position:absolute;left:0;top:8px;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff}
 .m-head{font-size:14px;line-height:20px;margin-bottom:2px}
 .m-name{font-weight:700;color:var(--accent);font-size:14px;line-height:20px}
@@ -459,11 +463,15 @@ function addMsg(m){const el=$('msgs');if(el.querySelector('.m-empty'))el.innerHT
   if(m.reply_to){const orig=document.getElementById('m-'+m.reply_to);const qtext=orig?orig.querySelector('.m-text')?.textContent?.substring(0,40):(lang==='ru'?'Удалённое сообщение':'Deleted message');const qname=orig?orig.querySelector('.m-name')?.textContent:'';h+=`<div class="m-quote"><b>${esc(qname)}</b> ${esc(qtext)}</div>`}
   const editedTag=m.edited_at?`<span class="m-edited">(${lang==='ru'?'ред.':'edited'})</span>`:'';
   h+=`<div class="m-head"><span class="m-name">${esc(who)}</span><span class="m-time">${tm}</span>${editedTag}</div>`;
+  if(alertCls===' m-alert'&&m.date){h+=`<span class="m-elapsed" data-ts="${new Date(m.date).getTime()}"></span>`}
   if(m.file_id){if(m.file_type==='photo')h+=`<img src="/file/${m.file_id}?token=${token}" style="max-width:320px;max-height:320px;border-radius:8px;margin:4px 0;cursor:pointer;object-fit:cover" onclick="window.open('/file/${m.file_id}?token=${token}','_blank')">`;else if(m.file_type==='voice')h+=`<audio controls src="/file/${m.file_id}?token=${token}" style="width:100%"></audio>`;else if(m.file_type==='video')h+=`<video controls src="/file/${m.file_id}?token=${token}" style="max-width:320px;max-height:240px;border-radius:8px"></video>`;else h+=`<a href="/file/${m.file_id}?token=${token}" target="_blank" style="color:var(--accent)">${esc(m.text||'File')}</a>`}
   h+=`<div class="m-text">${md(m.text||'')}</div>`;
   if(m.reply_markup){try{const kb=typeof m.reply_markup==='string'?JSON.parse(m.reply_markup):m.reply_markup;if(kb.inline_keyboard){h+='<div class="m-kb">';kb.inline_keyboard.forEach(row=>{h+='<div class="m-kb-row">';row.forEach(btn=>{h+=`<button class="m-kb-btn" data-cb="${btn.callback_data}" data-mid="${m.message_id}" onclick="onCb(this)">${esc(btn.text)}</button>`});h+='</div>'});h+='</div>'}}catch{}}
   if(curChan)h+=`<button class="m-del" onclick="event.stopPropagation();startReply(${m.message_id},'${escJs(who)}','${escJs((m.text||'').substring(0,40))}')">↩</button>`;
-  if(curChat)h+=`<button class="m-del" onclick="onDel(${m.message_id})">x</button>`;h+='</div>';el.innerHTML+=h}
+  if(curChat)h+=`<button class="m-del" onclick="onDel(${m.message_id})">x</button>`;h+='</div>';el.innerHTML+=h;if(alertCls===' m-alert')updateElapsed()}
+
+function updateElapsed(){document.querySelectorAll('.m-elapsed').forEach(el=>{const ts=parseInt(el.dataset.ts);if(!ts)return;const sec=Math.floor((Date.now()-ts)/1000);let txt,cls;if(sec<60){txt=sec+lang==='ru'?' сек':' sec';cls='el-ok'}else if(sec<3600){const m=Math.floor(sec/60);txt=m+(lang==='ru'?' мин':' min');cls=m<5?'el-ok':m<15?'el-warn':'el-crit'}else{const h=Math.floor(sec/3600);const m=Math.floor((sec%3600)/60);txt=h+(lang==='ru'?'ч ':' h ')+m+(lang==='ru'?' мин':' min');cls='el-crit'}el.textContent=txt;el.className='m-elapsed '+cls})}
+setInterval(updateElapsed,30000);
 
 function scrollDown(){const el=$('msgs');setTimeout(()=>el.scrollTop=el.scrollHeight,50)}
 
