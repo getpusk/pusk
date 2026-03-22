@@ -41,3 +41,27 @@ if(S.invite&&!S.token){
 } else {
   initLandingChat();
 }
+
+// ── Offline indicator ──
+const offBar = $('offline-bar');
+if (offBar) {
+  window.addEventListener('online', () => offBar.classList.remove('show'));
+  window.addEventListener('offline', () => offBar.classList.add('show'));
+  if (!navigator.onLine) offBar.classList.add('show');
+}
+
+// ── SW update notification ──
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then(reg => {
+    reg.addEventListener('updatefound', () => {
+      const newSW = reg.installing;
+      newSW.addEventListener('statechange', () => {
+        if (newSW.state === 'activated' && navigator.serviceWorker.controller) {
+          // New version available
+          const bar = $('update-bar');
+          if (bar) bar.classList.add('show');
+        }
+      });
+    });
+  });
+}
