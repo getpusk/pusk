@@ -85,7 +85,7 @@ func main() {
 	if jwtSecret == "" {
 		jwtSecret = loadOrGenerateSecret("data/jwt.secret")
 	}
-	jwtSvc := auth.NewJWTService(jwtSecret, 720) // 30 days
+	jwtSvc := auth.NewJWTService(jwtSecret, 168) // 7 days
 
 	mux := http.NewServeMux()
 

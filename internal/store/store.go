@@ -645,6 +645,8 @@ func (s *Store) DeleteUser(userID int64) error {
 }
 
 func (s *Store) DeleteChannelMessage(id int64) error {
+	// Clear pin if this message was pinned
+	s.db.Exec("UPDATE channels SET pinned_message_id=0 WHERE pinned_message_id=?", id)
 	_, err := s.db.Exec("DELETE FROM channel_messages WHERE id=?", id)
 	return err
 }
