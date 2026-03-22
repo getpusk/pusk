@@ -407,18 +407,27 @@ func (a *ClientAPI) deleteChannelMessage(w http.ResponseWriter, r *http.Request)
 func (a *ClientAPI) onlineUsers(w http.ResponseWriter, r *http.Request) {
 	claims := ClaimsFromCtx(r.Context())
 	prefix := claims.OrgID + ":"
-	var users []int64
+	type onlineUser struct {
+		UserID int64  `json:"user_id"`
+		Status string `json:"status"`
+	}
+	var users []onlineUser
+	onlineCount := 0
 	for _, key := range a.hub.OnlineKeys() {
 		if strings.HasPrefix(key, prefix) {
 			parts := strings.SplitN(key, ":", 2)
 			if len(parts) == 2 {
 				if uid, err := strconv.ParseInt(parts[1], 10, 64); err == nil {
-					users = append(users, uid)
+					st := a.hub.GetStatus(key)
+					users = append(users, onlineUser{UserID: uid, Status: st})
+					if st == "online" {
+						onlineCount++
+					}
 				}
 			}
 		}
 	}
-	json.NewEncoder(w).Encode(map[string]interface{}{"online": len(users), "user_ids": users})
+	json.NewEncoder(w).Encode(map[string]interface{}{"online": onlineCount, "total_connected": len(users), "users": users})
 }
 
 func (a *ClientAPI) pinMessage(w http.ResponseWriter, r *http.Request) {
