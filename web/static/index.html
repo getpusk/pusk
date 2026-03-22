@@ -525,6 +525,7 @@ document.addEventListener('click',e=>{if(!e.target.closest('#ctx-menu'))hideCtx(
 // Long press for context menu (mobile) — 600ms timer, 10px deadzone
 let _longX=0,_longY=0;
 document.addEventListener('touchstart',e=>{
+  if(e.target.closest('.m-kb-btn'))return;
   const m=e.target.closest('.m');
   if(!m)return;
   _longX=e.touches[0].clientX;_longY=e.touches[0].clientY;
@@ -551,7 +552,7 @@ async function pinMsg(mid){if(!curChan)return;const r=await api('POST',`/api/cha
 async function unpinMsg(){if(!curChan)return;const r=await api('POST',`/api/channels/${curChan}/pin`,{message_id:0});if(r&&r.ok){toast(lang==='ru'?'Откреплено':'Unpinned');$('pinned-bar').innerHTML='';const ci=_channels.find(c=>c.id===curChan);if(ci)ci.pinned_message_id=0}}
 function renderPinBar(mid,text,who){$('pinned-bar').innerHTML=`<div class="m-pinned"><span onclick="document.getElementById('m-${mid}')?.scrollIntoView({behavior:'smooth'})" style="flex:1;display:flex;align-items:center;gap:6px"><b>📌</b> ${md(text.substring(0,80))}</span><span style="font-size:10px;color:var(--text2);margin:0 8px">${esc(who||'')}</span><button onclick="unpinMsg()" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:14px">✕</button></div>`}
 function toast(msg){const t=$('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',2000)}
-async function onCb(el){if(curChan){await api('POST',`/api/channels/${curChan}/ack`,{action:el.dataset.cb,message_id:parseInt(el.dataset.mid)});const u=localStorage.getItem('pusk_uname')||'?';const t=new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});el.closest('.m-kb').innerHTML=`<span style="color:#3db887;font-size:12px">${el.textContent} @${u} ${t}</span>`;toast(el.textContent+' ✓');const msg=el.closest('.m');if(msg){msg.classList.remove('m-alert');msg.classList.add('m-acked')}}else if(curChat){await api('POST',`/api/chats/${curChat}/callback`,{data:el.dataset.cb,message_id:parseInt(el.dataset.mid)})}}
+async function onCb(el){if(curChan){await api('POST',`/api/channels/${curChan}/ack`,{action:el.dataset.cb,message_id:parseInt(el.dataset.mid)});const u=localStorage.getItem('pusk_uname')||'?';const t=new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});el.closest('.m-kb').innerHTML=`<span style="color:#3db887;font-size:12px">${el.textContent} @${u} ${t}</span>`;toast(el.textContent+' ✓');const msg=el.closest('.m');if(msg){msg.classList.remove('m-alert');msg.classList.add('m-acked')}}else if(curChat){el.disabled=true;el.style.opacity='0.5';await api('POST',`/api/chats/${curChat}/callback`,{data:el.dataset.cb,message_id:parseInt(el.dataset.mid)})}}
 async function onDel(mid){if(!confirm('Удалить сообщение?'))return;await api('DELETE',`/api/messages/${mid}`);const el=document.getElementById('m-'+mid);if(el)el.remove()}
 
 // ── Navigation ──
