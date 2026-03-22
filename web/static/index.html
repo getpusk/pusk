@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#17212b">
 <title>Pusk</title>
+<meta name="description" content="Pusk — self-hosted alert platform for ops teams. Telegram Bot API compatible. Monitoring, alerts, team chat — no external dependencies.">
+<meta property="og:title" content="Pusk — Alert Platform for Ops Teams">
+<meta property="og:description" content="Self-hosted Telegram Bot API. Monitoring, alerts, team chat. Works when everything else is blocked.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="/icon-512.png">
+<meta name="twitter:card" content="summary">
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" type="image/svg+xml" href="/icon.svg">
 <link rel="apple-touch-icon" href="/icon-192.png">
@@ -81,28 +87,28 @@ bot = Bot(token="my-token",
 </div>
 
 <div id="app">
-  <header>
-    <span class="hdr-back" id="hdr-back"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></span>
+  <header role="banner">
+    <span class="hdr-back" id="hdr-back" role="navigation" aria-label="Back"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></span>
     <h2 id="hdr-title"></h2>
     <span id="hdr-online" class="hdr-online"></span>
     <span class="hdr-dot" id="hdr-dot">&#9679;</span>
     <span class="hdr-ava" id="hdr-ava"></span>
     <span class="hdr-name" id="hdr-name"></span>
   </header>
-  <div id="main-list"></div>
+  <div id="main-list" role="main" tabindex="-1"></div>
   <div id="chat-view"><div id="pinned-bar"></div><div id="msgs"></div></div>
-  <div id="reply-bar"><span id="reply-text"></span><button id="reply-cancel">✕</button></div>
-  <div id="edit-bar"><span id="edit-text"></span><button id="edit-cancel">✕</button></div>
+  <div id="reply-bar"><span id="reply-text"></span><button id="reply-cancel" aria-label="Cancel reply">✕</button></div>
+  <div id="edit-bar"><span id="edit-text"></span><button id="edit-cancel" aria-label="Cancel edit">✕</button></div>
   <div id="typing-bar"></div>
   <div id="input-bar">
     <div id="mention-list"></div>
     <label for="file-input" class="file-label">&#128206;</label><input type="file" id="file-input" accept="image/*,video/*,.pdf,.zip">
-    <textarea id="msg-in" rows="1"></textarea>
-    <button id="msg-send">&#8594;</button>
+    <textarea id="msg-in" rows="1" aria-label="Message"></textarea>
+    <button id="msg-send" aria-label="Send">&#8594;</button>
   </div>
 </div>
 
-<button id="fab">+</button>
+<button id="fab" aria-label="Create">+</button>
 
 <div id="settings-bg"></div>
 <div id="settings">
