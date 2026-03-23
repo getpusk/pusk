@@ -42,6 +42,7 @@ func initDemo(db *store.Store) {
 			return
 		}
 		slog.Info("demo user created", "user", "guest")
+		db.SetUserRole(guest.ID, "member")
 	}
 
 	// Test users (admin uses ADMIN_TOKEN, these are regular users for demo)

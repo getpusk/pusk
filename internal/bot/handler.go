@@ -302,6 +302,13 @@ func (h *Handler) editMessageText(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Ownership check: verify bot owns this chat
+	chatBotID, _ := h.db(r).ChatBotID(req.ChatID)
+	if chatBotID != bot.ID {
+		jsonResp(w, 403, APIResponse{OK: false, Error: "forbidden"})
+		return
+	}
+
 	markup := ""
 	if req.ReplyMarkup != nil {
 		raw := string(req.ReplyMarkup)
@@ -326,7 +333,7 @@ func (h *Handler) editMessageText(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) deleteMessage(w http.ResponseWriter, r *http.Request) {
-	_, err := h.authBot(r)
+	bot, err := h.authBot(r)
 	if err != nil {
 		jsonResp(w, 401, APIResponse{OK: false, Error: "Unauthorized"})
 		return
@@ -335,6 +342,13 @@ func (h *Handler) deleteMessage(w http.ResponseWriter, r *http.Request) {
 	var req DeleteMessageRequest
 	if err := decodeBody(r, &req); err != nil {
 		jsonResp(w, 400, APIResponse{OK: false, Error: err.Error()})
+		return
+	}
+
+	// Ownership check: verify bot owns this chat
+	chatBotID, _ := h.db(r).ChatBotID(req.ChatID)
+	if chatBotID != bot.ID {
+		jsonResp(w, 403, APIResponse{OK: false, Error: "forbidden"})
 		return
 	}
 
