@@ -174,7 +174,7 @@ header h2{font-size:14px;font-weight:600;flex:1}
 .land-btn-gh{flex:1;font-size:13px;color:var(--text2)}
 .input-eye-wrap{position:relative}
 .input-eye{padding-right:40px}
-.eye-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text2);display:flex;align-items:center}
+.eye-toggle{position:absolute;right:12px;top:0;bottom:10px;background:none;border:none;cursor:pointer;color:var(--text2);display:flex;align-items:center}
 .auth-org{font-size:13px;padding:10px 16px}
 .hdr-online{font-size:11px;color:#3db887;margin-left:-4px}
 #typing-bar{display:none;padding:2px 16px;font-size:12px;color:var(--text2);font-style:italic}
