@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"sync"
 	"time"
 )
@@ -122,6 +123,10 @@ func (a *ClientAPI) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !regexp.MustCompile(`^[a-zA-Z0-9_-]{2,32}$`).MatchString(req.Username) {
+		jsonErr(w, "username must be 2-32 alphanumeric characters", 400)
+		return
+	}
 	if len(req.Pin) < 6 {
 		jsonErr(w, "password must be at least 6 characters", 400)
 		return
@@ -183,6 +188,10 @@ func (a *ClientAPI) acceptInvite(w http.ResponseWriter, r *http.Request) {
 
 	if req.Code == "" || req.Username == "" || req.Pin == "" {
 		jsonErr(w, "code, username and pin required", 400)
+		return
+	}
+	if !regexp.MustCompile(`^[a-zA-Z0-9_-]{2,32}$`).MatchString(req.Username) {
+		jsonErr(w, "username must be 2-32 alphanumeric characters", 400)
 		return
 	}
 	if len(req.Pin) < 6 {

@@ -16,7 +16,22 @@ import (
 )
 
 var relayUpgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool { return true },
+	CheckOrigin: func(r *http.Request) bool {
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			return true
+		}
+		u, err := url.Parse(origin)
+		if err != nil {
+			return false
+		}
+		host := u.Hostname()
+		reqHost := r.Host
+		if h, _, err := net.SplitHostPort(reqHost); err == nil {
+			reqHost = h
+		}
+		return host == reqHost || host == "localhost" || host == "127.0.0.1"
+	},
 }
 
 // RelayHub manages WebSocket connections from bots for webhook relay.
