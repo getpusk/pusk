@@ -29,7 +29,6 @@ export function disconnectWS(){
   S.wsReconnectTimer=null;
   if(S.ws){S.ws.onclose=null;S.ws.close();S.ws=null}
 }
-window.disconnectWS=disconnectWS;
 
 // ── Away status ──
 document.addEventListener('visibilitychange',()=>{
