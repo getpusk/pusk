@@ -81,6 +81,8 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     const ctx = $('ctx-menu');
     if (ctx && ctx.style.display === 'block') { ctx.style.display = 'none'; return; }
+    const onboard = $('onboard-bg');
+    if (onboard && onboard.classList.contains('open')) { onboard.classList.remove('open'); return; }
     const confirm = $('confirm-bg');
     if (confirm && confirm.classList.contains('open')) { confirm.classList.remove('open'); return; }
     const modal = $('modal-bg');
