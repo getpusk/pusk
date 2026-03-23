@@ -37,7 +37,7 @@ echo "  Total routes: $ENDPOINTS"
 # 6. JS function integrity
 echo "[6/7] JS function check..."
 for fn in addMsg sendMsg showList openChat openChan connectWS onCb onDel toggleSub showApp logout auth setLang beep scrollDown; do
-    if ! grep -q "function $fn\|async function $fn" web/static/index.html; then
+    if ! grep -rq "function $fn\|async function $fn" web/static/js/; then
         echo "  FAIL: missing function $fn"
         exit 1
     fi
@@ -47,16 +47,16 @@ echo "  OK: all 15 core functions present"
 # 7. HTML validity — basic checks
 echo "[7/7] HTML checks..."
 # Check for unclosed tags
-OPENS=$(grep -o '<div' web/static/index.html | wc -l)
-CLOSES=$(grep -o '</div>' web/static/index.html | wc -l)
+OPENS=$(grep -o '<div' web/static/js/ | wc -l)
+CLOSES=$(grep -o '</div>' web/static/js/ | wc -l)
 echo "  divs: $OPENS open, $CLOSES close"
 if [ "$OPENS" -ne "$CLOSES" ]; then
     echo "  WARN: div mismatch ($OPENS != $CLOSES)"
 fi
 
 # Dead CSS check
-if grep -q 'msg-ava-right' web/static/index.html; then
-    if ! grep -q 'msg-ava-right' web/static/index.html | grep -v '{'; then
+if grep -q 'msg-ava-right' web/static/js/; then
+    if ! grep -q 'msg-ava-right' web/static/js/ | grep -v '{'; then
         echo "  WARN: msg-ava-right CSS exists but may be dead code"
     fi
 fi
