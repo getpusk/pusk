@@ -119,7 +119,7 @@ async function onDel(mid){if(!await confirmDialog(S.lang==='ru'?'\u0423\u0434\u0
 setMsgHandlers({onCb,startReply,onDel,unpinMsg});
 
 // ── FAB / Create modal ──
-$('fab').onclick=()=>{$('modal-bg').classList.add('open');$('m-name').value='';$('m-desc').value='';$('m-msg').textContent='';updModal();$('m-name').focus()};
+$('fab').onclick=()=>{$('modal-bg').classList.add('open');history.pushState(null,'',location.href);$('m-name').value='';$('m-desc').value='';$('m-msg').textContent='';updModal();$('m-name').focus()};
 $('m-cancel').onclick=()=>$('modal-bg').classList.remove('open');
 $('modal-bg').onclick=e=>{if(e.target===$('modal-bg'))$('modal-bg').classList.remove('open')};
 $('m-type').onchange=updModal;
