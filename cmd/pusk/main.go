@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -122,6 +123,31 @@ func main() {
 	})
 	// Static files (PWA)
 	mux.Handle("GET /", http.FileServer(http.Dir(*staticDir)))
+
+	// Message retention cleanup (default 30 days, PUSK_MSG_RETENTION_DAYS env)
+	retentionDays := 30
+	if v := os.Getenv("PUSK_MSG_RETENTION_DAYS"); v != "" {
+		if d, err := strconv.Atoi(v); err == nil && d > 0 {
+			retentionDays = d
+		}
+	}
+	if os.Getenv("PUSK_MSG_RETENTION_DAYS") != "0" {
+		go func() {
+			ticker := time.NewTicker(1 * time.Hour)
+			defer ticker.Stop()
+			for range ticker.C {
+				cutoff := time.Now().AddDate(0, 0, -retentionDays).UTC().Format(time.RFC3339)
+				for _, o := range orgs.List() {
+					if s, err := orgs.Get(o.Slug); err == nil {
+						s.CleanOldChannelMessages(cutoff)
+						s.CleanExpiredFileTokens()
+					}
+				}
+				slog.Info("retention cleanup done", "retention_days", retentionDays)
+			}
+		}()
+		slog.Info("message retention enabled", "days", retentionDays)
+	}
 
 	slog.Info("server starting", "addr", *addr)
 	slog.Info("routes",

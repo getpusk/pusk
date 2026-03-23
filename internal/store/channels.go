@@ -2,7 +2,10 @@
 // Licensed under the Business Source License 1.1. See LICENSE file for details.
 package store
 
-import "time"
+import (
+	"log/slog"
+	"time"
+)
 
 // Channel represents a broadcast channel.
 type Channel struct {
@@ -217,4 +220,14 @@ func (s *Store) GetPinnedMessage(channelID int64) int64 {
 	var id int64
 	s.db.QueryRow("SELECT COALESCE(pinned_message_id,0) FROM channels WHERE id=?", channelID).Scan(&id)
 	return id
+}
+
+func (s *Store) CleanOldChannelMessages(cutoff string) {
+	res, _ := s.db.Exec("DELETE FROM channel_messages WHERE created_at < ?", cutoff)
+	if res != nil {
+		n, _ := res.RowsAffected()
+		if n > 0 {
+			slog.Info("cleaned old channel messages", "org", s.OrgID, "deleted", n)
+		}
+	}
 }

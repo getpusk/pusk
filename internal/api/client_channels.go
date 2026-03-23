@@ -538,6 +538,19 @@ func (a *ClientAPI) uploadToChannel(w http.ResponseWriter, r *http.Request) {
 	size, _ := io.Copy(dst, file)
 	dst.Close()
 
+	// Check storage quota (default 1GB, PUSK_FILE_QUOTA_MB env)
+	quotaMB := int64(1024)
+	if v := os.Getenv("PUSK_FILE_QUOTA_MB"); v != "" {
+		if q, err := strconv.ParseInt(v, 10, 64); err == nil && q > 0 {
+			quotaMB = q
+		}
+	}
+	if s.TotalFileSize()+size > quotaMB*1024*1024 {
+		os.Remove(localPath)
+		jsonErr(w, "storage quota exceeded", 400)
+		return
+	}
+
 	// Save file record
 	s.SaveFile(fileID, 0, header.Filename, ct, size, localPath)
 
@@ -576,4 +589,17 @@ func (a *ClientAPI) uploadToChannel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(msg)
+}
+
+func (a *ClientAPI) createFileToken(w http.ResponseWriter, r *http.Request) {
+	userID := UserIDFromCtx(r.Context())
+	b := make([]byte, 16)
+	crand.Read(b)
+	token := hex.EncodeToString(b)
+	s := a.db(r)
+	if err := s.CreateFileToken(token, userID, 5*time.Minute); err != nil {
+		jsonErr(w, "internal error", 500)
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]string{"token": token})
 }
