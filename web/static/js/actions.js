@@ -56,7 +56,7 @@ let _ctxMsgEl=null,_ctxSavedText='';
 function showCtxMenu(x,y,msgEl){
   const mid=parseInt(msgEl.id.replace('m-',''));
   const isMine=msgEl.dataset.mine==='1';
-  const isAdmin=get('role')==='admin'||get('uid')==='1';
+  const isAdmin=get('role')==='admin';
   const sender=msgEl.dataset.sender;
   const text=msgEl.querySelector('.m-text')?.textContent||'';
   const name=msgEl.querySelector('.m-name')?.textContent||'';
