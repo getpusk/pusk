@@ -7,7 +7,7 @@
 <title>Pusk</title>
 <meta name="description" content="Pusk — self-hosted alert platform for ops teams. Telegram Bot API compatible. Monitoring, alerts, team chat — no external dependencies.">
 <meta property="og:title" content="Pusk — Alert Platform for Ops Teams">
-<meta property="og:description" content="Self-hosted Telegram Bot API. Monitoring, alerts, team chat. Works when everything else is blocked.">
+<meta property="og:description" content="Self-hosted платформа для алертов. Telegram Bot API совместимый. Мониторинг, алерты, командный чат — без внешних зависимостей.">
 <meta property="og:type" content="website">
 <meta property="og:image" content="/icon-512.png">
 <meta name="twitter:card" content="summary">
@@ -15,6 +15,9 @@
 <link rel="icon" type="image/svg+xml" href="/icon.svg">
 <link rel="apple-touch-icon" href="/icon-192.png">
 <link rel="stylesheet" href="/css/pusk.css">
+<link rel="modulepreload" href="/js/state.js">
+<link rel="modulepreload" href="/js/util.js">
+<link rel="modulepreload" href="/js/views.js">
 </head>
 <body>
 
@@ -114,7 +117,7 @@ bot = Bot(token="my-token",
 <div id="settings">
   <div id="s-profile"></div>
   <div class="s-row"><span id="s-lang-lbl"></span><button class="s-btn" id="s-lang-btn"></button></div>
-  <div class="s-row"><span>Push</span><button class="s-btn" id="s-push-btn" onclick="togglePush()">...</button><button class="s-btn" id="s-test-push" onclick="testPush()">Test</button></div>
+  <div class="s-row"><span>Push</span><button class="s-btn" id="s-push-btn" onclick="window.togglePush()">...</button><button class="s-btn" id="s-test-push" onclick="window.testPush()">Test</button></div>
   <div id="s-users" class="s-section"></div>
   <div id="s-org-switch" class="s-section"></div>
   <button class="s-btn s-full-btn" id="s-invite"></button>
@@ -161,7 +164,7 @@ bot = Bot(token="my-token",
 </div>
 
 <div id="offline-bar">Нет соединения / Offline</div>
-<div id="update-bar" onclick="location.reload()">Доступно обновление — нажмите для перезагрузки / Update available — tap to reload</div>
+<div id="update-bar"><span onclick="location.reload()">Доступно обновление — нажмите / Update available — tap to reload</span> <button onclick="this.parentElement.classList.remove('show')" style="background:none;border:none;color:#fff;cursor:pointer;font-size:16px;margin-left:8px">✕</button></div>
 <div id="ctx-menu"></div>
 <div id="toast"></div>
 
