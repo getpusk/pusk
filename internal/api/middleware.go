@@ -5,6 +5,9 @@ package api
 import (
 	"context"
 	"net/http"
+	"strconv"
+	"sync"
+	"time"
 
 	"github.com/pusk-platform/pusk/internal/auth"
 )
@@ -32,6 +35,14 @@ func ClaimsFromCtx(ctx context.Context) *auth.Claims {
 	return nil
 }
 
+// ── Token revocation ──
+var revokedUsers sync.Map // "orgID:userID" -> time.Time
+
+// RevokeUser invalidates all existing JWTs for a user (called on delete/password change).
+func RevokeUser(orgID string, userID int64) {
+	revokedUsers.Store(orgID+":"+strconv.FormatInt(userID, 10), time.Now())
+}
+
 // AuthRequired validates JWT from Authorization header or ?token= query param,
 // stores userID and claims in context, and returns 401 if invalid.
 func (a *ClientAPI) AuthRequired(next http.HandlerFunc) http.HandlerFunc {
@@ -48,6 +59,17 @@ func (a *ClientAPI) AuthRequired(next http.HandlerFunc) http.HandlerFunc {
 		if err != nil {
 			jsonErr(w, "unauthorized", 401)
 			return
+		}
+		// Check token revocation
+		rKey := claims.OrgID + ":" + strconv.FormatInt(claims.UserID, 10)
+		if t, ok := revokedUsers.Load(rKey); ok {
+			revokedAt := t.(time.Time)
+			if time.Since(revokedAt) > 7*24*time.Hour {
+				revokedUsers.Delete(rKey)
+			} else if claims.IssuedAt != nil && claims.IssuedAt.Time.Before(revokedAt) {
+				jsonErr(w, "token revoked", 401)
+				return
+			}
 		}
 		ctx := context.WithValue(r.Context(), ctxKeyUserID, claims.UserID)
 		ctx = context.WithValue(ctx, ctxKeyClaims, claims)
