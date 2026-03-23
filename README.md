@@ -230,6 +230,9 @@ Navigate to `http://localhost:8443` — register, pick a bot, chat.
 | sendVoice | Yes | multipart upload |
 | sendDocument | Yes | multipart upload |
 | setWebhook | Yes | |
+| deleteWebhook | Yes | |
+| getWebhookInfo | Yes | |
+| getUpdates | Yes | long polling |
 | getMe | Yes | |
 
 ## Configuration
@@ -258,7 +261,7 @@ pusk (15 MB binary)
 +-- WebSocket (/api/ws)              <- real-time push
 +-- File server (/file/<id>)         <- media files
 +-- PWA (/)                          <- built-in web client
-+-- SQLite (data/pusk.db)            <- zero-config storage
++-- SQLite (data/orgs/*/pusk.db)            <- zero-config storage
 ```
 
 ## Migrating from Telegram
