@@ -4,6 +4,7 @@ const SHELL = [
   '/',
   '/css/pusk.css',
   '/js/state.js',
+  '/js/storage.js',
   '/js/util.js',
   '/js/views.js',
   '/js/ws.js',

@@ -3,7 +3,9 @@
 package org
 
 import (
+	crand "crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -184,7 +186,9 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 	s.SetUserRole(admin.ID, "admin")
 
 	// Create default system bot (needed for channels)
-	botToken := slug + "-system-" + fmt.Sprintf("%d", len(m.orgs))
+	tokenBytes := make([]byte, 16)
+	crand.Read(tokenBytes)
+	botToken := hex.EncodeToString(tokenBytes)
 	sysBot, _ := s.CreateBot(botToken, name+" Bot")
 	if sysBot != nil {
 		m.registerTokenLocked(botToken, slug)
