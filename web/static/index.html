@@ -26,6 +26,14 @@
     <h1 class="land-logo">Pusk</h1>
     <div class="land-tag">Self-hosted замена Telegram для алертов и координации</div>
     <p class="land-desc">Self-hosted Telegram Bot API. Мониторинг, алерты, командный чат без внешних зависимостей. Работает, когда всё остальное заблокировано.</p>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:8px">Мигрируйте за одну строку:</p>
+    <div class="land-code"><em># Было (Telegram)</em>
+bot = Bot(token="123:ABC",
+  base_url="https://api.telegram.org")
+
+<em># Стало (Pusk)</em>
+bot = Bot(token="my-token",
+  base_url="https://your-server.ru")</div>
     <div class="land-stats">
       <div class="land-stat"><b>23 MB</b><span>Docker</span></div>
       <div class="land-stat"><b>12 MB</b><span>RAM</span></div>
@@ -39,13 +47,6 @@
       <li>PWA клиент из коробки</li>
       <li>Один бинарник, SQLite, zero config</li>
     </ul>
-    <div class="land-code"><em># Было (Telegram)</em>
-bot = Bot(token="123:ABC",
-  base_url="https://api.telegram.org")
-
-<em># Стало (Pusk)</em>
-bot = Bot(token="my-token",
-  base_url="https://your-server.ru")</div>
     <div class="land-btns">
       <button class="land-btn-p" id="land-demo">Попробовать демо</button>
       <button class="land-btn-s" id="land-create-org">Создать организацию</button>
