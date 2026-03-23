@@ -88,3 +88,10 @@ func (s *Store) DeleteUser(userID int64) error {
 	}
 	return tx.Commit()
 }
+
+// UserExists returns true if a user with the given ID exists.
+func (s *Store) UserExists(userID int64) bool {
+	var count int
+	s.db.QueryRow("SELECT COUNT(*) FROM users WHERE id=?", userID).Scan(&count)
+	return count > 0
+}
