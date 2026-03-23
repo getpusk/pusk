@@ -11,11 +11,33 @@ async function landApi(method,path,body){
   try{const r=await fetch(path,o);return await r.json()}catch{return{}}
 }
 function landAddMsg(who,text,tm,markup){
-  const el=$('land-msgs');const col=nameColor(who);let kb='';
-  if(markup){try{const m=typeof markup==='string'?JSON.parse(markup):markup;if(m.inline_keyboard){kb='<div class="m-kb">';m.inline_keyboard.forEach(row=>{kb+='<div class="m-kb-row">';row.forEach(btn=>{kb+=`<button class="m-kb-btn" onclick="window.landCb('${btn.callback_data}')">${esc(btn.text)}</button>`});kb+='</div>'});kb+='</div>'}}catch{}}
-  el.innerHTML+=`<div class="m"><div class="m-ava" style="background:${col}">${who[0].toUpperCase()}</div><div class="m-head"><span class="m-name">${esc(who)}</span><span class="m-time">${tm||''}</span></div><div class="m-text">${md(text||'')}</div>${kb}</div>`;
+  const el=$('land-msgs');const col=nameColor(who);
+
+  const wrap=document.createElement('div');wrap.className='m';
+
+  const ava=document.createElement('div');ava.className='m-ava';ava.style.background=col;ava.textContent=who[0].toUpperCase();wrap.appendChild(ava);
+
+  const head=document.createElement('div');head.className='m-head';
+  const nameSpan=document.createElement('span');nameSpan.className='m-name';nameSpan.textContent=who;head.appendChild(nameSpan);
+  const timeSpan=document.createElement('span');timeSpan.className='m-time';timeSpan.textContent=tm||'';head.appendChild(timeSpan);
+  wrap.appendChild(head);
+
+  const textDiv=document.createElement('div');textDiv.className='m-text';textDiv.innerHTML=md(text||'');wrap.appendChild(textDiv);
+
+  if(markup){try{const m=typeof markup==='string'?JSON.parse(markup):markup;if(m.inline_keyboard){const kbDiv=document.createElement('div');kbDiv.className='m-kb';m.inline_keyboard.forEach(row=>{const rowDiv=document.createElement('div');rowDiv.className='m-kb-row';row.forEach(btn=>{const b=document.createElement('button');b.className='m-kb-btn';b.dataset.cb=btn.callback_data;b.textContent=btn.text;rowDiv.appendChild(b)});kbDiv.appendChild(rowDiv)});wrap.appendChild(kbDiv)}}catch{}}
+
+  el.appendChild(wrap);
   el.scrollTop=el.scrollHeight;
 }
+
+// ── Event delegation on #land-msgs ──
+$('land-msgs').addEventListener('click',e=>{
+  const kbBtn=e.target.closest('.m-kb-btn');
+  if(kbBtn){landCb(kbBtn.dataset.cb);return}
+  const cmd=e.target.closest('.md-cmd');
+  if(cmd){$('land-input').value=cmd.dataset.cmd;$('land-input').focus();return}
+});
+
 export async function initLandingChat(){
   let r=await landApi('POST','/api/auth',{username:'guest',pin:'guest'});
   if(!r.token)r=await landApi('POST','/api/register',{username:'guest',pin:'guest',display_name:'Guest'});
@@ -51,10 +73,9 @@ $('org-ok').onclick=async()=>{
   const name=$('org-name').value.trim()||slug;const user=$('org-user').value.trim();const pin=$('org-pin').value.trim();const msg=$('org-msg');
   if(!slug||!user||!pin){msg.textContent=t('fill_all');msg.style.color='#e05d44';return}msg.textContent='';
   const r=await api('POST','/api/org/register',{slug,name,username:user,pin});
-  if(r.ok&&r.token){msg.textContent=name+' создана!';msg.style.color='#3db887';setTimeout(()=>{$('org-modal-bg').classList.remove('open');hideLanding();auth(r)},800)}
+  if(r.ok&&r.token){msg.textContent=name+' \u0441\u043e\u0437\u0434\u0430\u043d\u0430!';msg.style.color='#3db887';setTimeout(()=>{$('org-modal-bg').classList.remove('open');hideLanding();auth(r)},800)}
   else{msg.textContent=te(r.error||'Error');msg.style.color='#e05d44'}
 };
 
-// ── Window bindings ──
-window.landCb=landCb;
+// ── Window binding for views.js logout() ──
 window.initLandingChat=initLandingChat;
