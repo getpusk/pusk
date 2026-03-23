@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#17212b">
 <title>Pusk</title>
 <meta name="description" content="Pusk — self-hosted alert platform for ops teams. Telegram Bot API compatible. Monitoring, alerts, team chat — no external dependencies.">
@@ -23,7 +23,7 @@
 
 <div id="landing">
   <div class="land-left">
-    <div class="land-logo">Pusk</div>
+    <h1 class="land-logo">Pusk</h1>
     <div class="land-tag">Алерты и координация для ops-команд</div>
     <p class="land-desc">Self-hosted Telegram Bot API. Мониторинг, алерты, командный чат — без внешних зависимостей. Работает когда всё остальное заблокировано.</p>
     <div class="land-stats">
@@ -64,8 +64,8 @@ bot = Bot(token="my-token",
     <div class="land-chat-hdr"><span class="land-chat-dot"></span> DemoBot — публичная демо-среда</div>
     <div class="land-chat-body" id="land-msgs"></div>
     <div class="land-chat-input">
-      <input id="land-input" placeholder="Напишите боту...">
-      <button id="land-send">&#8594;</button>
+      <input id="land-input" placeholder="Напишите боту..." aria-label="Message to demo bot">
+      <button id="land-send" aria-label="Send">&#8594;</button>
     </div>
   </div>
 </div>
@@ -74,13 +74,13 @@ bot = Bot(token="my-token",
   <div class="auth-box">
     <div class="auth-logo">Pusk</div>
     <p class="auth-sub" id="auth-sub"></p>
-    <input id="a-user" autocomplete="username">
-    <div class="input-eye-wrap"><input id="a-pin" type="password" autocomplete="current-password" class="input-eye"><button type="button" id="eye-btn" class="eye-toggle"></button></div>
-    <input id="a-org" placeholder="ID организации (напр: acme)" class="auth-org">
+    <input id="a-user" autocomplete="username" aria-label="Username">
+    <div class="input-eye-wrap"><input id="a-pin" type="password" autocomplete="current-password" class="input-eye" aria-label="Password"><button type="button" id="eye-btn" class="eye-toggle"></button></div>
+    <input id="a-org" placeholder="ID организации (напр: acme)" class="auth-org" aria-label="Organization ID">
     <button class="abtn abtn-p" id="btn-login"></button>
     <button class="abtn abtn-s" id="btn-reg"></button>
     <button class="abtn abtn-g" id="btn-demo"></button>
-    <div class="auth-err" id="a-err"></div>
+    <div class="auth-err" id="a-err" role="alert" aria-live="assertive"></div>
     <div class="auth-foot">
       <a href="https://github.com/getpusk/pusk" target="_blank">GitHub</a> &middot;
       <a href="https://github.com/getpusk/pusk#readme" target="_blank">Docs</a> &middot;
@@ -91,7 +91,7 @@ bot = Bot(token="my-token",
 
 <div id="app">
   <header role="banner">
-    <span class="hdr-back" id="hdr-back" role="navigation" aria-label="Back"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></span>
+    <span class="hdr-back" id="hdr-back" role="button" tabindex="0" aria-label="Back"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></span>
     <h2 id="hdr-title"></h2>
     <span id="hdr-online" class="hdr-online"></span>
     <span class="hdr-dot" id="hdr-dot">&#9679;</span>
@@ -128,32 +128,32 @@ bot = Bot(token="my-token",
 </div>
 
 <div class="modal-bg" id="modal-bg">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true">
     <h3 id="m-title"></h3>
     <select id="m-type"><option value="channel"></option><option value="bot"></option></select>
-    <input id="m-name">
-    <input id="m-desc">
+    <input id="m-name" aria-label="Name">
+    <input id="m-desc" aria-label="Description">
     <div id="m-tok-row"><input id="m-tok" placeholder="Bot token"></div>
     <div class="modal-btns">
       <button class="mbtn-no" id="m-cancel"></button>
       <button class="mbtn-ok" id="m-ok"></button>
     </div>
-    <div class="modal-msg" id="m-msg"></div>
+    <div class="modal-msg" id="m-msg" role="status" aria-live="polite"></div>
   </div>
 </div>
 
 <div class="modal-bg" id="org-modal-bg">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true">
     <h3>Создать организацию</h3>
-    <input id="org-slug" placeholder="ID организации (латиница, напр: acme)">
-    <input id="org-name" placeholder="Название (напр: Acme Corp)">
-    <input id="org-user" placeholder="Логин администратора">
-    <div class="input-eye-wrap"><input id="org-pin" type="password" placeholder="Пароль" class="input-eye"><button type="button" id="org-eye-btn" class="eye-toggle"></button></div>
+    <input id="org-slug" aria-label="Organization ID" placeholder="ID организации (латиница, напр: acme)">
+    <input id="org-name" aria-label="Organization name" placeholder="Название (напр: Acme Corp)">
+    <input id="org-user" aria-label="Admin username" placeholder="Логин администратора">
+    <div class="input-eye-wrap"><input id="org-pin" type="password" aria-label="Admin password" placeholder="Пароль" class="input-eye"><button type="button" id="org-eye-btn" class="eye-toggle"></button></div>
     <div class="modal-btns">
       <button class="mbtn-no" id="org-cancel">Отмена</button>
       <button class="mbtn-ok" id="org-ok">Создать</button>
     </div>
-    <div class="modal-msg" id="org-msg"></div>
+    <div class="modal-msg" id="org-msg" role="status" aria-live="polite"></div>
   </div>
 </div>
 
@@ -165,9 +165,9 @@ bot = Bot(token="my-token",
 
 <div id="offline-bar">Нет соединения / Offline</div>
 <div id="update-bar"><span onclick="location.reload()">Доступно обновление — нажмите / Update available — tap to reload</span> <button onclick="this.parentElement.classList.remove('show')" style="background:none;border:none;color:#fff;cursor:pointer;font-size:16px;margin-left:8px">✕</button></div>
-<div class="modal-bg" id="confirm-bg"><div class="modal"><h3 id="confirm-title"></h3><div class="modal-btns"><button class="mbtn-no" id="confirm-no"></button><button class="mbtn-ok" id="confirm-yes"></button></div></div></div>
+<div class="modal-bg" id="confirm-bg"><div class="modal" role="dialog" aria-modal="true"><h3 id="confirm-title"></h3><div class="modal-btns"><button class="mbtn-no" id="confirm-no"></button><button class="mbtn-ok" id="confirm-yes"></button></div></div></div>
 <div id="ctx-menu"></div>
-<div id="toast"></div>
+<div id="toast" role="status" aria-live="polite"></div>
 
 <script type="module" src="/js/app.js"></script>
 </body>

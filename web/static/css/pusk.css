@@ -1,5 +1,5 @@
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#17212b;--surface:#0e1621;--primary:#4082bc;--accent:#6ab2f2;--text:#f5f5f5;--text2:#708499;--border:#1d2a3a;--msg-bot:#182533;--msg-user:#2b5278;--radius:12px}
+:root{--bg:#17212b;--surface:#0e1621;--primary:#3672a4;--accent:#6ab2f2;--text:#f5f5f5;--text2:#7d93a8;--border:#1d2a3a;--msg-bot:#182533;--msg-user:#2b5278;--radius:12px}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen,Ubuntu,sans-serif;font-size:14px;line-height:1.4286;background:var(--bg);color:var(--text);height:100dvh;display:flex;flex-direction:column;overflow:hidden}
 input,button,textarea,select{font-family:inherit;font-size:inherit}
 
@@ -55,7 +55,7 @@ input,button,textarea,select{font-family:inherit;font-size:inherit}
 .abtn-s{background:var(--surface);color:var(--text);border:1px solid var(--border)}
 .abtn-g{background:transparent;color:var(--text2);font-weight:400;font-size:13px}
 .auth-err{color:#e05d44;font-size:13px;margin-top:4px;min-height:18px}
-.auth-foot{margin-top:24px;font-size:12px;color:var(--text2);opacity:0.5}
+.auth-foot{margin-top:24px;font-size:12px;color:var(--text2)}
 .auth-foot a{color:var(--text2);text-decoration:none}
 .auth-foot a:hover{color:var(--accent)}
 
@@ -86,12 +86,12 @@ header h2{font-size:14px;font-weight:600;flex:1}
 .ch-badge{display:inline-block;width:8px;height:8px;border-radius:50%;background:#3db887;margin-left:6px;vertical-align:middle}
 .ch-desc{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sub-btn{padding:4px 12px;border-radius:8px;border:1px solid var(--primary);background:transparent;color:var(--accent);cursor:pointer;font-size:13px;line-height:20px;white-space:nowrap;min-width:80px;text-align:center;flex-shrink:0}
-.sub-btn.on{background:#3db887;color:#fff;border-color:#3db887}
+.sub-btn.on{background:#2d8a63;color:#fff;border-color:#2d8a63}
 .bot-row{padding:14px 16px;margin:4px 8px;background:var(--surface);border-radius:var(--radius);cursor:pointer;display:flex;align-items:center;gap:12px;border:1px solid var(--border)}
 .bot-row:hover{border-color:var(--accent)}
 .bot-ava{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;flex-shrink:0}
 .bot-name{font-weight:600}
-.list-foot{padding:16px;text-align:center;font-size:11px;color:var(--text2);opacity:0.5}
+.list-foot{padding:16px;text-align:center;font-size:11px;color:var(--text2)}
 
 /* Chat */
 #chat-view{display:none;flex-direction:column;flex:1;overflow:hidden}
@@ -118,7 +118,7 @@ header h2{font-size:14px;font-weight:600;flex:1}
 .m-kb-btn{flex:1;padding:10px 14px;border-radius:8px;border:1px solid var(--primary);background:rgba(64,130,188,0.1);color:var(--accent);cursor:pointer;font-size:14px;font-weight:600;text-align:center;min-height:44px;line-height:20px}
 .m-kb-btn:hover{background:var(--primary);color:#fff}
 .m-del{display:none;position:absolute;top:6px;right:4px;background:rgba(0,0,0,0.3);border:none;color:var(--text2);cursor:pointer;border-radius:50%;width:20px;height:20px;font-size:11px;line-height:20px;text-align:center}
-.m:hover .m-del{display:block}
+.m:hover .m-del,.m:focus-within .m-del{display:block}
 .m-empty{padding:40px;text-align:center;color:var(--text2)}
 .m-quote{border-left:3px solid var(--primary);padding:4px 8px;margin-bottom:4px;font-size:12px;line-height:18px;color:var(--text2);background:rgba(64,130,188,0.1);border-radius:0 4px 4px 0}
 .m-quote b{color:var(--accent)}
@@ -238,7 +238,7 @@ header h2{font-size:14px;font-weight:600;flex:1}
 .loading-skeleton{padding:16px}
 .skel-row{height:48px;margin:8px;border-radius:var(--radius);background:linear-gradient(90deg,var(--surface) 25%,var(--border) 50%,var(--surface) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
-#offline-bar{display:none;padding:6px 16px;background:#e05d44;color:#fff;font-size:12px;text-align:center;font-weight:600}
+#offline-bar{display:none;padding:6px 16px;background:#c0392b;color:#fff;font-size:12px;text-align:center;font-weight:600}
 #offline-bar.show{display:block}
 #update-bar{display:none;padding:8px 16px;background:var(--primary);color:#fff;font-size:13px;text-align:center;cursor:pointer}
 #update-bar.show{display:block}
@@ -261,3 +261,16 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .alert-filter{display:flex;gap:4px;padding:8px 0;position:sticky;top:0;z-index:10;background:var(--bg)}
 .af-btn{padding:4px 12px;border-radius:16px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-size:12px}
 .af-btn.af-active{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+/* Accessibility: prefers-reduced-motion */
+@media(prefers-reduced-motion:reduce){.skel-row{animation:none;background:var(--border)}*{transition-duration:0.01ms!important;animation-duration:0.01ms!important}}
+
+/* Accessibility: sr-only */
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+/* Safe area insets for notch devices */
+@supports(padding:env(safe-area-inset-top)){
+  header{padding-top:max(12px,env(safe-area-inset-top))}
+  #input-bar{padding-bottom:max(8px,env(safe-area-inset-bottom))}
+  #offline-bar{padding-top:max(6px,env(safe-area-inset-top))}
+}
