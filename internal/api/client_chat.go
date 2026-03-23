@@ -15,7 +15,8 @@ import (
 )
 
 func (a *ClientAPI) listBots(w http.ResponseWriter, r *http.Request) {
-	bots, err := a.db(r).ListBots()
+	s := a.db(r)
+	bots, err := s.ListBots()
 	if err != nil {
 		jsonErr(w, "internal error", 500)
 		return
@@ -23,13 +24,19 @@ func (a *ClientAPI) listBots(w http.ResponseWriter, r *http.Request) {
 	type botInfo struct {
 		ID      int64  `json:"id"`
 		Name    string `json:"name"`
-		Token   string `json:"token"`
-		Webhook string `json:"webhook"`
+		Token   string `json:"token,omitempty"`
+		Webhook string `json:"webhook,omitempty"`
 		IconURL string `json:"icon_url,omitempty"`
 	}
+	isAdmin := s.IsAdmin(UserIDFromCtx(r.Context()))
 	result := make([]botInfo, len(bots))
 	for i, b := range bots {
-		result[i] = botInfo{ID: b.ID, Name: b.Name, Token: b.Token, Webhook: "/hook/" + b.Token + "?format=raw", IconURL: b.IconURL}
+		bi := botInfo{ID: b.ID, Name: b.Name, IconURL: b.IconURL}
+		if isAdmin {
+			bi.Token = b.Token
+			bi.Webhook = "/hook/" + b.Token + "?format=raw"
+		}
+		result[i] = bi
 	}
 	json.NewEncoder(w).Encode(result)
 }

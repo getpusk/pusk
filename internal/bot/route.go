@@ -84,6 +84,7 @@ func (h *Handler) dispatchHook(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) dispatch(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1MB max for bot API
 	token, method, ok := extractTokenMethod(r.URL.Path)
 	if !ok {
 		jsonResp(w, 400, APIResponse{OK: false, Error: "invalid path, use /bot/<token>/<method>"})

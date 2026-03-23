@@ -198,7 +198,8 @@ func (a *ClientAPI) forwardCallback(s *store.Store, chatID, userID int64, data s
 
 func sendWebhook(url string, payload interface{}) {
 	data, _ := json.Marshal(payload)
-	resp, err := http.Post(url, "application/json", bytes.NewReader(data))
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Post(url, "application/json", bytes.NewReader(data))
 	if err != nil {
 		slog.Error("webhook send failed", "url", url, "error", err)
 		return

@@ -15,8 +15,29 @@ import (
 var authFailures sync.Map // key: "orgSlug:username" -> *failureInfo
 
 type failureInfo struct {
+	mu       sync.Mutex
 	count    int
 	lockedAt time.Time
+}
+
+func init() {
+	go func() {
+		ticker := time.NewTicker(15 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			authFailures.Range(func(key, value interface{}) bool {
+				f := value.(*failureInfo)
+				f.mu.Lock()
+				if time.Since(f.lockedAt) > 15*time.Minute {
+					f.mu.Unlock()
+					authFailures.Delete(key)
+				} else {
+					f.mu.Unlock()
+				}
+				return true
+			})
+		}
+	}()
 }
 
 func (a *ClientAPI) auth(w http.ResponseWriter, r *http.Request) {
@@ -41,7 +62,10 @@ func (a *ClientAPI) auth(w http.ResponseWriter, r *http.Request) {
 	lockKey := orgSlug + ":" + req.Username
 	if fi, ok := authFailures.Load(lockKey); ok {
 		f := fi.(*failureInfo)
-		if f.count >= 5 && time.Since(f.lockedAt) < 15*time.Minute {
+		f.mu.Lock()
+		locked := f.count >= 5 && time.Since(f.lockedAt) < 15*time.Minute
+		f.mu.Unlock()
+		if locked {
 			jsonErr(w, "too many attempts, try in 15 minutes", 429)
 			return
 		}
@@ -52,8 +76,10 @@ func (a *ClientAPI) auth(w http.ResponseWriter, r *http.Request) {
 		// Track failed attempt
 		fi, _ := authFailures.LoadOrStore(lockKey, &failureInfo{})
 		f := fi.(*failureInfo)
+		f.mu.Lock()
 		f.count++
 		f.lockedAt = time.Now()
+		f.mu.Unlock()
 		if req.Org == "" {
 			jsonErr(w, "invalid credentials — specify org / укажите организацию", 401)
 		} else {

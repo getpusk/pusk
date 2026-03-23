@@ -4,7 +4,9 @@ package api
 
 import (
 	"log/slog"
+	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -93,12 +95,22 @@ func (rl *RateLimiter) cleanup() {
 
 // RateLimit wraps a handler with rate limiting by client IP.
 // Returns 429 Too Many Requests when limit exceeded.
+func clientIP(r *http.Request) string {
+	host, _, _ := net.SplitHostPort(r.RemoteAddr)
+	ip := net.ParseIP(host)
+	// Only trust X-Forwarded-For from private/loopback
+	if ip != nil && (ip.IsLoopback() || ip.IsPrivate()) {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			parts := strings.Split(xff, ",")
+			return strings.TrimSpace(parts[0])
+		}
+	}
+	return host
+}
+
 func RateLimit(rl *RateLimiter, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ip := r.Header.Get("X-Forwarded-For")
-		if ip == "" {
-			ip = r.RemoteAddr
-		}
+		ip := clientIP(r)
 		if !rl.Allow(ip) {
 			slog.Warn("rate limit hit", "client_ip", ip, "path", r.URL.Path)
 			w.Header().Set("Content-Type", "application/json")
