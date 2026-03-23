@@ -67,6 +67,19 @@ func (a *ClientAPI) ackChannelMessage(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "message not found", 404)
 		return
 	}
+	// EDGE-9: reject unknown ACK actions
+	switch req.Action {
+	case "ack", "mute", "resolved":
+		// valid
+	default:
+		jsonErr(w, "invalid action", 400)
+		return
+	}
+	// BUG-11: prevent re-ACK on already ACK'd messages
+	if strings.Contains(msg.Text, "**ACK**") || strings.Contains(msg.Text, "**Resolved**") || strings.Contains(msg.Text, "**Muted") {
+		json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "already": true})
+		return
+	}
 	now := time.Now().Format("15:04")
 	var status string
 	switch req.Action {
@@ -169,6 +182,11 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 	json.NewDecoder(r.Body).Decode(&req)
 	if req.Text == "" {
 		jsonErr(w, "text required", 400)
+		return
+	}
+	// EDGE-10: message text length limit
+	if len(req.Text) > 4096 {
+		jsonErr(w, "text too long (max 4096 chars)", 400)
 		return
 	}
 
@@ -294,6 +312,25 @@ func (a *ClientAPI) setUserRole(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "role must be admin or member", 400)
 		return
 	}
+	// BUG-2: prevent self-demotion
+	if targetID == userID && req.Role == "member" {
+		jsonErr(w, "cannot demote yourself", 400)
+		return
+	}
+	// BUG-2: prevent demoting the last admin
+	if req.Role == "member" && s.IsAdmin(targetID) {
+		users, _ := s.ListUsers()
+		adminCount := 0
+		for _, u := range users {
+			if s.IsAdmin(u.ID) {
+				adminCount++
+			}
+		}
+		if adminCount <= 1 {
+			jsonErr(w, "cannot demote the last admin", 400)
+			return
+		}
+	}
 	s.SetUserRole(targetID, req.Role)
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
@@ -312,6 +349,11 @@ func (a *ClientAPI) deleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 	if targetID == 1 {
 		jsonErr(w, "cannot delete primary admin", 400)
+		return
+	}
+	// BUG-12: return 404 for nonexistent users
+	if !s.UserExists(targetID) {
+		jsonErr(w, "user not found", 404)
 		return
 	}
 	s.DeleteUser(targetID)
