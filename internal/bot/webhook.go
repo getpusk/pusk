@@ -37,6 +37,7 @@ func (h *Handler) webhook(w http.ResponseWriter, r *http.Request) {
 	channelName := r.URL.Query().Get("channel")
 
 	// Read body bytes for dedup check before parsing
+	r.Body = http.MaxBytesReader(w, r.Body, 2<<20) // 2MB max for webhooks
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(200)

@@ -27,6 +27,19 @@ import (
 	"github.com/pusk-platform/pusk/internal/ws"
 )
 
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' wss:; font-src 'self'")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		if r.Header.Get("X-Forwarded-Proto") == "https" {
+			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	// Structured logging
 	var handler slog.Handler
@@ -63,8 +76,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Demo mode: create guest user + DemoBot on first start
-	if os.Getenv("PUSK_NO_DEMO") == "" {
+	// Demo mode: create guest user + DemoBot (opt-in: PUSK_DEMO=1)
+	if os.Getenv("PUSK_DEMO") == "1" {
+		slog.Warn("DEMO MODE ACTIVE — disable in production by removing PUSK_DEMO=1")
 		initDemo(db)
 	}
 
@@ -157,7 +171,7 @@ func main() {
 		"admin", "POST /admin/bots",
 	)
 
-	srv := &http.Server{Addr: *addr, Handler: api.RequestLogger(bot.TelegramCompat(mux))}
+	srv := &http.Server{Addr: *addr, Handler: securityHeaders(api.RequestLogger(bot.TelegramCompat(mux)))}
 
 	// Graceful shutdown on SIGTERM/SIGINT
 	go func() {
