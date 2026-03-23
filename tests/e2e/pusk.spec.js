@@ -25,7 +25,7 @@ test.describe('Landing & Demo', () => {
 
   test('live demo chat loads messages', async ({ page }) => {
     await page.goto(BASE);
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(5000);
     const msgs = page.locator('#land-msgs .m');
     await expect(msgs.first()).toBeVisible();
   });
