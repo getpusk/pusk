@@ -9,7 +9,12 @@ $('hdr-ava').onclick=$('hdr-name').onclick=()=>{const v=$('settings').style.disp
 
 async function renderSettings(){const u=get('uname')||'?';const o=get('org')||'default';$('s-profile').textContent=u+' @ '+o;const h=await api('GET','/api/health');$('s-about').innerHTML='Pusk '+(h.version||'?')+' <a href="https://github.com/getpusk/pusk" target="_blank" class="s-about-link">GitHub</a> <a href="https://github.com/getpusk/pusk#readme" target="_blank" class="s-about-link">Docs</a>';$('s-push-btn').textContent=Notification.permission==='granted'?t('push_on'):t('push_off');
   const ib=$('s-install');const isStandalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone;if(!isStandalone){ib.style.display='block';if(S.deferredPrompt){ib.textContent=S.lang==='ru'?'\u0423\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435':'Install app';ib.onclick=async()=>{if(S.deferredPrompt){S.deferredPrompt.prompt();const r=await S.deferredPrompt.userChoice;if(r.outcome==='accepted'){ib.style.display='none';toast(S.lang==='ru'?'\u0423\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u043e!':'Installed!')}S.deferredPrompt=null}}}else{ib.textContent=S.lang==='ru'?'\u0423\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c: \u041c\u0435\u043d\u044e \u0431\u0440\u0430\u0443\u0437\u0435\u0440\u0430 \u2192 \u041d\u0430 \u0433\u043b\u0430\u0432\u043d\u044b\u0439 \u044d\u043a\u0440\u0430\u043d':'Install: Browser menu \u2192 Add to home screen';ib.onclick=null;ib.style.opacity='0.7'}}else{ib.style.display='none'}
-  if(!$('s-change-pwd')){const pwdBtn=document.createElement('button');pwdBtn.id='s-change-pwd';pwdBtn.className='s-btn s-full-btn';pwdBtn.textContent=S.lang==='ru'?'\u0421\u043c\u0435\u043d\u0438\u0442\u044c \u043f\u0430\u0440\u043e\u043b\u044c':'Change password';pwdBtn.onclick=async()=>{const oldP=prompt(S.lang==='ru'?'\u0422\u0435\u043a\u0443\u0449\u0438\u0439 \u043f\u0430\u0440\u043e\u043b\u044c:':'Current password:');if(!oldP)return;const newP=prompt(S.lang==='ru'?'\u041d\u043e\u0432\u044b\u0439 \u043f\u0430\u0440\u043e\u043b\u044c (\u043c\u0438\u043d. 6 \u0441\u0438\u043c\u0432\u043e\u043b\u043e\u0432):':'New password (min 6 chars):');if(!newP||newP.length<6){toast(S.lang==='ru'?'\u041c\u0438\u043d\u0438\u043c\u0443\u043c 6 \u0441\u0438\u043c\u0432\u043e\u043b\u043e\u0432':'Min 6 characters');return}const r=await api('POST','/api/change-password',{old_pin:oldP,new_pin:newP});if(r.ok)toast(S.lang==='ru'?'\u041f\u0430\u0440\u043e\u043b\u044c \u0438\u0437\u043c\u0435\u043d\u0451\u043d':'Password changed');else toast(r.error||'Error')};$('s-out').before(pwdBtn)}}
+
+  // Hide invite for non-admin
+  if(get("role")!=="admin"){$("s-invite").style.display="none"}else{$("s-invite").style.display=""}
+  // Password change (small link, not full button)
+  if(!$("s-change-pwd")){const p=document.createElement("button");p.id="s-change-pwd";p.className="s-btn";p.style.cssText="width:100%;font-size:12px;padding:6px;margin-top:4px;color:var(--text2)";p.textContent=S.lang==="ru"?"Сменить пароль":"Change password";p.onclick=async()=>{const o=prompt(S.lang==="ru"?"Текущий пароль:":"Current password:");if(!o)return;const n=prompt(S.lang==="ru"?"Новый пароль (мин. 6):":"New password (min 6):");if(!n||n.length<6){toast(S.lang==="ru"?"Минимум 6 символов":"Min 6 chars");return}const r=await api("POST","/api/change-password",{old_pin:o,new_pin:n});if(r.ok)toast(S.lang==="ru"?"Пароль изменён":"Password changed");else toast(r.error||"Error")};$("s-out").before(p)}
+}
 
 function togglePush(){if(Notification.permission==='granted'){$('s-push-btn').textContent=t('push_reload')}else{Notification.requestPermission().then(p=>{if(p==='granted'){registerPush();$('s-push-btn').textContent=t('push_on')}else{$('s-push-btn').textContent=t('push_blocked')}})}}
 
@@ -26,9 +31,12 @@ function renderOrgSwitch(){const el=$('s-org-switch');const orgs=getJSON('orgs')
       el.appendChild(btn);
     });
   }
+  if(get("uname")!=="guest"){
   const addBtn=document.createElement('button');addBtn.className='s-btn s-full-btn';addBtn.textContent=S.lang==='ru'?'+ \u041d\u043e\u0432\u0430\u044f \u043e\u0440\u0433\u0430\u043d\u0438\u0437\u0430\u0446\u0438\u044f':'+ New organization';
   addBtn.onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none';$('org-modal-bg').classList.add('open');history.pushState(null,'',location.href);$('org-slug').focus()};
   el.appendChild(addBtn);
+  }
+    }
 }
 
 // ── Event delegation on #s-org-switch ──
