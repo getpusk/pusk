@@ -131,7 +131,7 @@ func (m *Manager) Get(slug string) (*store.Store, error) {
 		return nil, fmt.Errorf("org not found: %s", slug)
 	}
 
-	orgDir := filepath.Join(m.dir, slug)
+	orgDir := filepath.Join(m.dir, filepath.Base(slug))
 	os.MkdirAll(orgDir, 0755)
 	dbPath := filepath.Join(orgDir, "pusk.db")
 
@@ -165,7 +165,7 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 	}
 
 	// Create org directory and database
-	orgDir := filepath.Join(m.dir, slug)
+	orgDir := filepath.Join(m.dir, filepath.Base(slug))
 	os.MkdirAll(orgDir, 0755)
 	dbPath := filepath.Join(orgDir, "pusk.db")
 
