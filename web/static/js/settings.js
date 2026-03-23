@@ -44,7 +44,7 @@ $('s-org-switch').addEventListener('click',e=>{
   if(btn)switchOrg(btn.dataset.org);
 });
 
-async function renderUsers(){const el=$('s-users');const isAdmin=get('role')==='admin'||get('uid')==='1';const users=await api('GET','/api/users');if(!users||!users.length){el.innerHTML='';return}const me=get('uname');
+async function renderUsers(){const el=$('s-users');const isAdmin=get('role')==='admin';const users=await api('GET','/api/users');if(!users||!users.length){el.innerHTML='';return}const me=get('uname');
   el.innerHTML='';
   const label=document.createElement('div');label.className='s-label';label.textContent=(S.lang==='ru'?'\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0438':'Users')+' ('+users.length+'):';el.appendChild(label);
   users.forEach(u=>{
