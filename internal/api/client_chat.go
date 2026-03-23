@@ -251,7 +251,18 @@ func (a *ClientAPI) websocket(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) health(w http.ResponseWriter, r *http.Request) {
+	s := a.db(r)
+	dbOK := s.Ping() == nil
+
+	status := "ok"
+	if !dbOK {
+		status = "degraded"
+	}
+
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status": "ok", "online": a.hub.Online(), "version": Version,
+		"status":  status,
+		"online":  a.hub.Online(),
+		"version": Version,
+		"db":      dbOK,
 	})
 }

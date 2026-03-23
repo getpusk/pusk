@@ -25,6 +25,7 @@ func New(path string) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
+	db.SetMaxOpenConns(1)                           // SQLite: serialize writes to prevent "database is locked"
 	db.Exec("PRAGMA journal_size_limit = 67108864") // 64MB
 	db.Exec("PRAGMA synchronous = NORMAL")
 	s := &Store{db: db}
@@ -37,6 +38,12 @@ func New(path string) (*Store, error) {
 // Close closes the underlying database connection.
 func (s *Store) Close() error {
 	return s.db.Close()
+}
+
+// Ping checks that the database is accessible.
+func (s *Store) Ping() error {
+	var n int
+	return s.db.QueryRow("SELECT 1").Scan(&n)
 }
 
 func (s *Store) migrate() error {

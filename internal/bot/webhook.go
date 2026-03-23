@@ -8,10 +8,49 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/pusk-platform/pusk/internal/metrics"
 )
+
+// ── Per-bot webhook rate limiter ──
+
+var (
+	webhookLimits   sync.Map // bot token -> *rateBucket
+	webhookLimitMax = 60     // requests per minute per bot
+)
+
+type rateBucket struct {
+	mu    sync.Mutex
+	count int
+	reset time.Time
+}
+
+func init() {
+	if v := os.Getenv("PUSK_WEBHOOK_RATE_LIMIT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			webhookLimitMax = n
+		}
+	}
+}
+
+func webhookAllowed(token string) bool {
+	now := time.Now()
+	v, _ := webhookLimits.LoadOrStore(token, &rateBucket{reset: now.Add(time.Minute)})
+	b := v.(*rateBucket)
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if now.After(b.reset) {
+		b.count = 0
+		b.reset = now.Add(time.Minute)
+	}
+	b.count++
+	return b.count <= webhookLimitMax
+}
 
 // WebhookHandler handles incoming webhooks from monitoring systems
 // and converts them to Pusk channel messages.
@@ -26,6 +65,13 @@ func (h *Handler) webhook(w http.ResponseWriter, r *http.Request) {
 	bot, err := h.authBot(r)
 	if err != nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if !webhookAllowed(bot.Token) {
+		slog.Warn("webhook rate limited", "bot", bot.Name, "token_prefix", bot.Token[:8])
+		w.WriteHeader(200)
+		json.NewEncoder(w).Encode(map[string]string{"status": "rate_limited"})
 		return
 	}
 
