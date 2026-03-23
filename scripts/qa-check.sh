@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================================
-# Pusk Pre-Release QA Panel
+# Pusk Pre-Release QA Check
 # Usage: ./qa-panel.sh [url]
 #   url — Pusk server URL (default: https://getpusk.ru)
 #
@@ -42,7 +42,7 @@ section() {
 }
 
 echo "======================================================================"
-echo "  Pusk Pre-Release QA Panel"
+echo "  Pusk Pre-Release QA Check"
 echo "  $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 echo "  Target: $BASE"
 echo "======================================================================"
@@ -102,7 +102,7 @@ check "$(curl -sf -o /dev/null -w '%{http_code}' "$BASE/bot/fake-token/getMe" 2>
 
 # sendMessage
 CHAT=$(curl -sf "$BASE/api/bots/1/start" -X POST -H "Authorization: $GUEST_TOKEN" 2>/dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin).get("id",""))' 2>/dev/null)
-SEND=$(curl -sf "$BASE/bot/demo-bot-token/sendMessage" -X POST -H 'Content-Type: application/json' -d "{\"chat_id\":$CHAT,\"text\":\"QA Panel test\"}" 2>/dev/null)
+SEND=$(curl -sf "$BASE/bot/demo-bot-token/sendMessage" -X POST -H 'Content-Type: application/json' -d "{\"chat_id\":$CHAT,\"text\":\"QA Check test\"}" 2>/dev/null)
 check "$(echo "$SEND" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("ok",""))' 2>/dev/null)" "True" "sendMessage → ok"
 
 # ============================================================================
