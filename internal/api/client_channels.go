@@ -23,6 +23,15 @@ import (
 	"github.com/pusk-platform/pusk/internal/ws"
 )
 
+// broadcastChannel sends a WS event to all subscribers of a channel.
+func (a *ClientAPI) broadcastChannel(s *store.Store, channelID int64, orgID, evType string, payload []byte) {
+	subs, _ := s.ChannelSubscribers(channelID)
+	for _, uid := range subs {
+		key := orgID + ":" + fmt.Sprintf("%d", uid)
+		a.hub.SendToUser(key, ws.Event{Type: evType, ChatID: channelID, Payload: payload})
+	}
+}
+
 func (a *ClientAPI) channelReaders(w http.ResponseWriter, r *http.Request) {
 	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
 	s := a.db(r)
@@ -203,16 +212,12 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 		if claims != nil {
 			orgID = claims.OrgID
 		}
-		subs, _ := s.ChannelSubscribers(ch.ID)
 		payload, _ := json.Marshal(map[string]interface{}{
 			"message":      msg,
 			"channel_name": ch.Name,
 			"sender_name":  username,
 		})
-		for _, uid := range subs {
-			key := orgID + ":" + fmt.Sprintf("%d", uid)
-			a.hub.SendToUser(key, ws.Event{Type: "channel_message", ChatID: ch.ID, Payload: payload})
-		}
+		a.broadcastChannel(s, ch.ID, orgID, "channel_message", payload)
 
 		// @mentions: push notification to mentioned users
 		if strings.Contains(req.Text, "@") {
@@ -357,12 +362,8 @@ func (a *ClientAPI) editChannelMessage(w http.ResponseWriter, r *http.Request) {
 		if claims != nil {
 			orgID = claims.OrgID
 		}
-		subs, _ := s.ChannelSubscribers(channelID)
 		payload, _ := json.Marshal(updated)
-		for _, uid := range subs {
-			key := orgID + ":" + fmt.Sprintf("%d", uid)
-			a.hub.SendToUser(key, ws.Event{Type: "channel_message_edit", ChatID: channelID, Payload: payload})
-		}
+		a.broadcastChannel(s, channelID, orgID, "channel_message_edit", payload)
 	}
 
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
@@ -391,12 +392,8 @@ func (a *ClientAPI) deleteChannelMessage(w http.ResponseWriter, r *http.Request)
 	if claims != nil {
 		orgID = claims.OrgID
 	}
-	subs, _ := s.ChannelSubscribers(msg.ChannelID)
 	payload, _ := json.Marshal(map[string]int64{"message_id": msgID})
-	for _, uid := range subs {
-		key := orgID + ":" + fmt.Sprintf("%d", uid)
-		a.hub.SendToUser(key, ws.Event{Type: "channel_message_delete", ChatID: msg.ChannelID, Payload: payload})
-	}
+	a.broadcastChannel(s, msg.ChannelID, orgID, "channel_message_delete", payload)
 
 	s.DeleteChannelMessage(msgID)
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
@@ -570,16 +567,12 @@ func (a *ClientAPI) uploadToChannel(w http.ResponseWriter, r *http.Request) {
 		if claims != nil {
 			orgID = claims.OrgID
 		}
-		subs, _ := s.ChannelSubscribers(ch.ID)
 		payload, _ := json.Marshal(map[string]interface{}{
 			"message":      msg,
 			"channel_name": ch.Name,
 			"sender_name":  username,
 		})
-		for _, uid := range subs {
-			key := orgID + ":" + fmt.Sprintf("%d", uid)
-			a.hub.SendToUser(key, ws.Event{Type: "channel_message", ChatID: ch.ID, Payload: payload})
-		}
+		a.broadcastChannel(s, ch.ID, orgID, "channel_message", payload)
 	}
 
 	json.NewEncoder(w).Encode(msg)
