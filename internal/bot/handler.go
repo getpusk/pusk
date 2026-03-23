@@ -149,9 +149,10 @@ type SetWebhookRequest struct {
 }
 
 type APIResponse struct {
-	OK     bool        `json:"ok"`
-	Result interface{} `json:"result,omitempty"`
-	Error  string      `json:"description,omitempty"`
+	OK        bool        `json:"ok"`
+	ErrorCode int         `json:"error_code,omitempty"`
+	Result    interface{} `json:"result,omitempty"`
+	Error     string      `json:"description,omitempty"`
 }
 
 // ── Route ──
@@ -173,6 +174,9 @@ func (h *Handler) db(r *http.Request) *store.Store {
 }
 
 func jsonResp(w http.ResponseWriter, status int, resp APIResponse) {
+	if !resp.OK && resp.ErrorCode == 0 {
+		resp.ErrorCode = status
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(resp)
@@ -198,6 +202,8 @@ func formToMap(r *http.Request) map[string]interface{} {
 			// Try to parse as number
 			if n, err := strconv.ParseInt(v[0], 10, 64); err == nil {
 				m[k] = n
+			} else if b, err := strconv.ParseBool(v[0]); err == nil {
+				m[k] = b
 			} else {
 				m[k] = v[0]
 			}
