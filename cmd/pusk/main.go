@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"flag"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -108,7 +109,14 @@ func main() {
 		http.Redirect(w, r, target, http.StatusFound)
 	})
 
-	mux.Handle("GET /metrics", promhttp.Handler())
+	mux.HandleFunc("GET /metrics", func(w http.ResponseWriter, r *http.Request) {
+		host, _, _ := net.SplitHostPort(r.RemoteAddr)
+		if host != "127.0.0.1" && host != "::1" && !strings.HasPrefix(host, "10.") && !strings.HasPrefix(host, "192.168.") {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		promhttp.Handler().ServeHTTP(w, r)
+	})
 	// Static files (PWA)
 	mux.Handle("GET /", http.FileServer(http.Dir(*staticDir)))
 
