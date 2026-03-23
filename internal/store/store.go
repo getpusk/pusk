@@ -24,6 +24,8 @@ func New(path string) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
+	db.Exec("PRAGMA journal_size_limit = 67108864") // 64MB
+	db.Exec("PRAGMA synchronous = NORMAL")
 	s := &Store{db: db}
 	if err := s.migrate(); err != nil {
 		return nil, fmt.Errorf("migrate: %w", err)
@@ -641,13 +643,20 @@ func (s *Store) IsAdmin(userID int64) bool {
 }
 
 func (s *Store) DeleteUser(userID int64) error {
-	s.db.Exec("DELETE FROM channel_subscribers WHERE user_id=?", userID)
-	s.db.Exec("DELETE FROM channel_reads WHERE user_id=?", userID)
-	s.db.Exec("DELETE FROM push_subscriptions WHERE user_id=?", userID)
-	s.db.Exec("DELETE FROM messages WHERE chat_id IN (SELECT id FROM chats WHERE user_id=?)", userID)
-	s.db.Exec("DELETE FROM chats WHERE user_id=?", userID)
-	_, err := s.db.Exec("DELETE FROM users WHERE id=?", userID)
-	return err
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	tx.Exec("DELETE FROM channel_subscribers WHERE user_id=?", userID)
+	tx.Exec("DELETE FROM channel_reads WHERE user_id=?", userID)
+	tx.Exec("DELETE FROM push_subscriptions WHERE user_id=?", userID)
+	tx.Exec("DELETE FROM messages WHERE chat_id IN (SELECT id FROM chats WHERE user_id=?)", userID)
+	tx.Exec("DELETE FROM chats WHERE user_id=?", userID)
+	if _, err := tx.Exec("DELETE FROM users WHERE id=?", userID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *Store) DeleteChannelMessage(id int64) error {
