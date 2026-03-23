@@ -71,7 +71,7 @@ test.describe('Org Registration', () => {
 
   test('create org via API', async () => {
     const r = await api('POST', '/api/org/register', {
-      slug, name: 'E2E Test Org', username: 'admin', pin: '1234'
+      slug, name: 'E2E Test Org', username: 'admin', pin: 'test1234'
     });
     expect(r.status).toBe(200);
     expect(r.data.ok).toBe(true);
@@ -81,14 +81,14 @@ test.describe('Org Registration', () => {
 
   test('duplicate org → error', async () => {
     const r = await api('POST', '/api/org/register', {
-      slug, name: 'Dup', username: 'admin', pin: '1234'
+      slug, name: 'Dup', username: 'admin', pin: 'test1234'
     });
     expect(r.status).toBe(400);
   });
 
   test('invalid slug → error', async () => {
     const r = await api('POST', '/api/org/register', {
-      slug: '../evil', name: 'Evil', username: 'admin', pin: '1234'
+      slug: '../evil', name: 'Evil', username: 'admin', pin: 'test1234'
     });
     // 400 (invalid slug) or 429 (rate limited) — both are correct rejections
     expect([400, 429]).toContain(r.status);
@@ -97,7 +97,7 @@ test.describe('Org Registration', () => {
   test('new org has system bot + #general', async () => {
     const slug2 = 'e2ebot-' + Date.now();
     const reg = await api('POST', '/api/org/register', {
-      slug: slug2, name: 'E2E Bot', username: 'admin', pin: 'test'
+      slug: slug2, name: 'E2E Bot', username: 'admin', pin: 'test1234'
     });
     if (reg.status === 429) { test.skip(); return; }
     const token = reg.data.token;
@@ -115,7 +115,7 @@ test.describe('Org Registration', () => {
   test('new org welcome message exists', async () => {
     const slug3 = 'e2ewelc-' + Date.now();
     const reg = await api('POST', '/api/org/register', {
-      slug: slug3, name: 'E2E Welcome', username: 'admin', pin: 'test'
+      slug: slug3, name: 'E2E Welcome', username: 'admin', pin: 'test1234'
     });
     if (reg.status === 429) { test.skip(); return; }
     const token = reg.data.token;
@@ -131,7 +131,7 @@ test.describe('Org Registration', () => {
 // ══════════════════════════════════════════
 test.describe('Auth & Security', () => {
   test('wrong credentials → 401', async () => {
-    const r = await api('POST', '/api/auth', { username: 'nobody-' + Date.now(), pin: 'wrong' });
+    const r = await api('POST', '/api/auth', { username: 'nobody-' + Date.now(), pin: 'wrong123' });
     expect(r.status).toBe(401);
   });
 
@@ -165,11 +165,12 @@ test.describe('Auth & Security', () => {
     // In same org: create 2 users, verify user2 cant read user1's chat
     const slug = 'idor-' + Date.now();
     const reg = await api('POST', '/api/org/register', {
-      slug, name: 'IDOR', username: 'user1', pin: '1234'
+      slug, name: 'IDOR', username: 'user1', pin: 'test1234'
     });
     const token1 = reg.data.token;
-    // Create user2 in same org
-    const reg2 = await api('POST', '/api/register', { username: 'user2', pin: '5678', org: slug });
+    // Create user2 via invite
+    const inv = await api('POST', '/api/invite', null, token1);
+    const reg2 = await api('POST', '/api/invite/accept?org=' + slug, { code: inv.data.code, username: 'user2', pin: 'test5678' });
     const token2 = reg2.data.token;
 
     // user1 starts chat
@@ -202,13 +203,13 @@ test.describe('SSRF Protection', () => {
 test.describe('Multi-tenant Isolation', () => {
   test('org1 data not visible from org2', async () => {
     const org1 = await api('POST', '/api/org/register', {
-      slug: 'iso1-' + Date.now(), name: 'ISO1', username: 'admin', pin: '1234'
+      slug: 'iso1-' + Date.now(), name: 'ISO1', username: 'admin', pin: 'test1234'
     });
     if (org1.status === 429) { test.skip(); return; }
     // wait for rate limit to reset slightly
     await new Promise(r => setTimeout(r, 1000));
     const org2 = await api('POST', '/api/org/register', {
-      slug: 'iso2-' + Date.now(), name: 'ISO2', username: 'admin', pin: '1234'
+      slug: 'iso2-' + Date.now(), name: 'ISO2', username: 'admin', pin: 'test1234'
     });
     if (org2.status === 429) { test.skip(); return; }
 
@@ -230,7 +231,7 @@ test.describe('Multi-tenant Isolation', () => {
     expect(defaultBots.data.length).toBe(2); // DemoBot + MonitorBot
 
     const newOrg = await api('POST', '/api/org/register', {
-      slug: 'clnorg-' + Date.now(), name: 'Clean', username: 'admin', pin: '1234'
+      slug: 'clnorg-' + Date.now(), name: 'Clean', username: 'admin', pin: 'test1234'
     });
     if (newOrg.status === 429) { test.skip(); return; }
     const newBots = await api('GET', '/api/bots', null, newOrg.data.token);
@@ -245,7 +246,7 @@ test.describe('Bot API', () => {
   test('sendMessage via Bot API', async () => {
     // Use isolated org so E2E tests don't pollute default demo data
     const slug = 'e2e-botapi-' + Date.now();
-    const reg = await api('POST', '/api/org/register', { slug, name: slug, username: 'admin', pin: 'admin' });
+    const reg = await api('POST', '/api/org/register', { slug, name: slug, username: 'admin', pin: 'admin123' });
     const token = reg.data.token;
     const bots = await api('GET', '/api/bots', null, token);
     const botToken = bots.data[0].token;
@@ -368,9 +369,9 @@ test.describe('Rate Limiting', () => {
   test('rate limiting after 20 auth attempts', async () => {
     const user = 'ratelimit-' + Date.now();
     for (let i = 0; i < 20; i++) {
-      await api('POST', '/api/auth', { username: user, pin: 'wrong' });
+      await api('POST', '/api/auth', { username: user, pin: 'wrong123' });
     }
-    const r = await api('POST', '/api/auth', { username: user, pin: 'wrong' });
+    const r = await api('POST', '/api/auth', { username: user, pin: 'wrong123' });
     expect(r.status).toBe(429);
   });
 });
