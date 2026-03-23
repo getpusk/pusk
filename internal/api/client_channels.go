@@ -357,6 +357,10 @@ func (a *ClientAPI) deleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.DeleteUser(targetID)
+	claims := ClaimsFromCtx(r.Context())
+	if claims != nil {
+		RevokeUser(claims.OrgID, targetID)
+	}
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 

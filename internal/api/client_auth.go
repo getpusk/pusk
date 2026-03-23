@@ -291,5 +291,6 @@ func (a *ClientAPI) changePassword(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "failed to update password", 500)
 		return
 	}
+	RevokeUser(claims.OrgID, claims.UserID)
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }

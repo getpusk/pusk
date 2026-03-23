@@ -242,6 +242,14 @@ func (a *AdminAPI) resetPassword(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, err.Error(), 400)
 		return
 	}
+	// Revoke old tokens
+	users, _ := s.ListUsers()
+	for _, u := range users {
+		if u.Username == req.Username {
+			RevokeUser(req.Org, u.ID)
+			break
+		}
+	}
 	slog.Info("password reset", "org", req.Org, "username", req.Username)
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
