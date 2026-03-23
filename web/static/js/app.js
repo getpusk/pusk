@@ -23,6 +23,7 @@ initEye('eye-btn','a-pin');
 initEye('org-eye-btn','org-pin');
 
 // ── Init ──
+try{
 setLang();
 (async()=>{const h=await fetch('/api/health').then(r=>r.json()).catch(()=>({}));const ver=h.version||'';$('a-ver').textContent=ver;if($('land-ver'))$('land-ver').textContent=ver})();
 
@@ -42,6 +43,7 @@ if(S.invite&&!S.token){
   initLandingChat();
 }
 
+}catch(e){console.error("[pusk] init error:",e)}
 // ── Offline indicator ──
 const offBar = $('offline-bar');
 if (offBar) {
@@ -65,3 +67,10 @@ if ('serviceWorker' in navigator) {
     });
   });
 }
+
+// ── Mobile back button ──
+window.addEventListener('popstate', () => {
+  if (S.curChat || S.curChan) {
+    import('./views.js').then(v => v.showList());
+  }
+});

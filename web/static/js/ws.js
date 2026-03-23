@@ -13,9 +13,9 @@ export function connectWS(){
   S.ws=new WebSocket(`${p}//${location.host}/api/ws?token=${S.token}`);
   S.ws.onopen=()=>$('hdr-dot').style.color='#3db887';
   S.ws.onclose=()=>{$('hdr-dot').style.color='#e05d44';S.wsReconnectTimer=setTimeout(connectWS,3000)};
-  S.ws.onmessage=e=>{const ev=JSON.parse(e.data);const d=ev.payload;console.log('[ws]',ev.type,ev.chat_id,JSON.stringify(d).substring(0,100));
+  S.ws.onmessage=e=>{const ev=JSON.parse(e.data);const d=ev.payload;
 if(ev.type==='new_message'&&ev.chat_id===S.curChat){addMsg(d.message);scrollDown()}
-if(ev.type==='channel_message'){const myName=localStorage.getItem('pusk_uname');const msg=d.message||d;const senderName=msg.sender_name||d.sender_name||'';if(ev.chat_id===S.curChan){if(senderName===myName){const els=$('msgs').querySelectorAll('.m[data-mine="1"]');for(let i=els.length-1;i>=0;i--){const fid=parseInt(els[i].id.replace('m-',''));if(fid>1e12){els[i].id='m-'+msg.message_id;break}}}else{if(!msg.sender)msg.sender='bot';beep();addMsg(msg);scrollDown()}}else if(senderName!==myName){beep();const badge=document.querySelector(`.ch-badge-${ev.chat_id}`);if(badge){badge.style.display='inline-block';const n=parseInt(badge.textContent||'0')+1;badge.textContent=n}}}
+if(ev.type==='channel_message'){const myName=localStorage.getItem('pusk_uname');const msg=d.message||d;const senderName=msg.sender_name||d.sender_name||'';if(ev.chat_id===S.curChan){if(senderName===myName){const els=$('msgs').querySelectorAll('.m[data-mine="1"]');for(let i=0;i<els.length;i++){const fid=parseInt(els[i].id.replace('m-',''));if(fid>1e12){els[i].id='m-'+msg.message_id;break}}}else{if(!msg.sender)msg.sender='bot';beep();addMsg(msg);scrollDown()}}else if(senderName!==myName){beep();const badge=document.querySelector(`.ch-badge-${ev.chat_id}`);if(badge){badge.style.display='inline-block';const n=parseInt(badge.textContent||'0')+1;badge.textContent=n}}}
 if(ev.type==='edit_message'){const old=document.getElementById('m-'+d.message_id);if(old)old.remove();addMsg(d);scrollDown()}
 if(ev.type==='channel_message_edit'){const old=document.getElementById('m-'+d.message_id);if(old){const txt=old.querySelector('.m-text');if(txt)txt.innerHTML=md(d.text||'');const head=old.querySelector('.m-head');if(head&&!head.querySelector('.m-edited')){const s=document.createElement('span');s.className='m-edited';s.textContent=S.lang==='ru'?'(ред.)':'(edited)';head.appendChild(s)}}}
 if(ev.type==='channel_message_delete'){const el=document.getElementById('m-'+d.message_id);if(el)el.remove()}
@@ -28,6 +28,7 @@ export function disconnectWS(){
   S.wsReconnectTimer=null;
   if(S.ws){S.ws.onclose=null;S.ws.close();S.ws=null}
 }
+window.disconnectWS=disconnectWS;
 
 // ── Away status ──
 document.addEventListener('visibilitychange',()=>{
@@ -41,7 +42,6 @@ export async function registerPush(){
   if(!('serviceWorker' in navigator)||!('PushManager' in window)||!S.token)return;
   try{
     const perm=await Notification.requestPermission();
-    console.log('[push] permission:',perm);
     if(perm!=='granted')return;
     const reg=await navigator.serviceWorker.register('/sw.js');
     await navigator.serviceWorker.ready;
@@ -49,6 +49,5 @@ export async function registerPush(){
     let sub=await reg.pushManager.getSubscription();
     if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:Uint8Array.from(atob(key.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-key.length%4)%4)),c=>c.charCodeAt(0))});
     const resp=await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json',Authorization:S.token},body:JSON.stringify(sub.toJSON())});
-    console.log('[push] subscribed:',resp.status);
-  }catch(e){console.log('[push] error:',e)}
+  }catch(e){}
 }
