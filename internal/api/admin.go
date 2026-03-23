@@ -3,6 +3,7 @@
 package api
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -42,7 +43,7 @@ func (a *AdminAPI) Route(mux *http.ServeMux) {
 func (a *AdminAPI) getOrgStore(r *http.Request) (*store.Store, bool) {
 	authHeader := r.Header.Get("Authorization")
 	// Try ADMIN_TOKEN first (global admin → default org)
-	if a.adminToken != "" && strings.TrimPrefix(authHeader, "Bearer ") == a.adminToken {
+	if a.adminToken != "" && subtle.ConstantTimeCompare([]byte(strings.TrimPrefix(authHeader, "Bearer ")), []byte(a.adminToken)) == 1 {
 		return a.store, true
 	}
 	// Try JWT (org user → their org store)
@@ -59,7 +60,7 @@ func (a *AdminAPI) getOrgStore(r *http.Request) (*store.Store, bool) {
 // requireAdmin checks that the request is from admin token or a JWT user with admin role.
 func (a *AdminAPI) requireAdmin(r *http.Request, s *store.Store) bool {
 	authHeader := r.Header.Get("Authorization")
-	if a.adminToken != "" && strings.TrimPrefix(authHeader, "Bearer ") == a.adminToken {
+	if a.adminToken != "" && subtle.ConstantTimeCompare([]byte(strings.TrimPrefix(authHeader, "Bearer ")), []byte(a.adminToken)) == 1 {
 		return true // global admin token
 	}
 	// JWT user — verify admin role
