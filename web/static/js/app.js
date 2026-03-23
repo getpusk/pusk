@@ -75,3 +75,19 @@ window.addEventListener('popstate', () => {
     import('./views.js').then(v => v.showList());
   }
 });
+
+// ── Escape key closes overlays ──
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const ctx = $('ctx-menu');
+    if (ctx && ctx.style.display === 'block') { ctx.style.display = 'none'; return; }
+    const confirm = $('confirm-bg');
+    if (confirm && confirm.classList.contains('open')) { confirm.classList.remove('open'); return; }
+    const modal = $('modal-bg');
+    if (modal && modal.classList.contains('open')) { modal.classList.remove('open'); return; }
+    const orgModal = $('org-modal-bg');
+    if (orgModal && orgModal.classList.contains('open')) { orgModal.classList.remove('open'); return; }
+    const settings = $('settings');
+    if (settings && settings.style.display === 'block') { settings.style.display = 'none'; $('settings-bg').style.display = 'none'; return; }
+  }
+});
