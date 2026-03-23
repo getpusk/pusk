@@ -18,7 +18,7 @@ input,button,textarea,select{font-family:inherit;font-size:inherit}
 .land-feat{list-style:none;margin-bottom:24px}
 .land-feat li{padding:6px 0;font-size:14px;color:var(--text2)}
 .land-feat li::before{content:'';display:inline-block;width:6px;height:6px;background:var(--primary);border-radius:50%;margin-right:10px;vertical-align:middle}
-.land-code{background:#0a1218;border:2px solid var(--primary);border-radius:var(--radius);padding:18px 20px;font-size:14px;line-height:1.6;margin-bottom:24px;overflow:hidden;white-space:pre-wrap;word-break:break-word;font-family:monospace;color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,0.3)}
+.land-code{background:#0a1218;border:2px solid var(--primary);border-radius:var(--radius);padding:18px 20px;font-size:14px;line-height:1.6;margin-bottom:24px;overflow:visible;white-space:pre-wrap;word-break:break-word;font-family:monospace;color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,0.3)}
 .land-code em{color:var(--accent);font-style:normal}
 .land-btns{display:flex;gap:10px;margin-bottom:16px}
 .land-btns a,.land-btns button{padding:14px 24px;border-radius:var(--radius);border:none;font-size:15px;font-weight:600;cursor:pointer;text-decoration:none;text-align:center}
