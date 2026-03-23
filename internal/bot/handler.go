@@ -445,6 +445,19 @@ func (h *Handler) sendFile(fileType string) http.HandlerFunc {
 		size, _ := io.Copy(dst, file)
 		dst.Close()
 
+		// Check storage quota (default 1GB, PUSK_FILE_QUOTA_MB env)
+		quotaMB := int64(1024)
+		if v := os.Getenv("PUSK_FILE_QUOTA_MB"); v != "" {
+			if q, err := strconv.ParseInt(v, 10, 64); err == nil && q > 0 {
+				quotaMB = q
+			}
+		}
+		if h.db(r).TotalFileSize()+size > quotaMB*1024*1024 {
+			os.Remove(localPath)
+			jsonResp(w, 400, APIResponse{OK: false, Error: "storage quota exceeded"})
+			return
+		}
+
 		h.db(r).SaveFile(fileID, bot.ID, header.Filename,
 			header.Header.Get("Content-Type"), size, localPath)
 
@@ -461,7 +474,7 @@ func (h *Handler) sendFile(fileType string) http.HandlerFunc {
 }
 
 func (h *Handler) serveFile(w http.ResponseWriter, r *http.Request) {
-	// Auth: require JWT via Authorization header or ?token= query
+	// Auth: require JWT or file-token via Authorization header or ?token= query
 	tokenStr := r.Header.Get("Authorization")
 	if tokenStr == "" {
 		tokenStr = r.URL.Query().Get("token")
@@ -471,18 +484,42 @@ func (h *Handler) serveFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Inject token for org resolution
-	r.Header.Set("Authorization", tokenStr)
 	fileID := r.PathValue("fileID")
 
-	// Use org store from JWT
+	// Try JWT first
 	s := h.storeForJWT(tokenStr)
 	f, err := s.GetFile(fileID)
-	if err != nil {
-		http.NotFound(w, r)
+	if err == nil {
+		http.ServeFile(w, r, f.Path)
 		return
 	}
-	http.ServeFile(w, r, f.Path)
+
+	// Try as file-token (opaque 32-hex-char token)
+	if h.orgs != nil {
+		for _, o := range h.orgs.List() {
+			if os, err := h.orgs.Get(o.Slug); err == nil {
+				if _, err := os.ValidateFileToken(tokenStr); err == nil {
+					f, err := os.GetFile(fileID)
+					if err == nil {
+						http.ServeFile(w, r, f.Path)
+						return
+					}
+				}
+			}
+		}
+	}
+	// Fallback: try default store file-token
+	if h.store != nil {
+		if _, err := h.store.ValidateFileToken(tokenStr); err == nil {
+			f, err := h.store.GetFile(fileID)
+			if err == nil {
+				http.ServeFile(w, r, f.Path)
+				return
+			}
+		}
+	}
+
+	http.NotFound(w, r)
 }
 
 // ── WebSocket push ──
