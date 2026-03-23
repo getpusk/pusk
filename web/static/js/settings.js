@@ -1,5 +1,5 @@
 import S from './state.js';
-import {$,esc,escJs,t,api,toast,setLang} from './util.js';
+import {$,esc,escJs,t,api,toast,setLang,confirmDialog} from './util.js';
 import {showApp,showList,logout} from './views.js';
 import {registerPush} from './ws.js';
 
@@ -18,7 +18,7 @@ function renderOrgSwitch(){const el=$('s-org-switch');const orgs=JSON.parse(loca
 async function renderUsers(){const el=$('s-users');const isAdmin=localStorage.getItem('pusk_role')==='admin'||localStorage.getItem('pusk_uid')==='1';const users=await api('GET','/api/users');if(!users||!users.length){el.innerHTML='';return}const me=localStorage.getItem('pusk_uname');el.innerHTML='<div class="s-label">'+(S.lang==='ru'?'Пользователи':'Users')+' ('+users.length+'):</div>'+users.map(u=>{let actions='';if(isAdmin&&u.username!==me&&u.id!==1){actions=`<span class="user-actions"><button class="s-btn s-btn-sm" onclick="window.setRole(${u.id},'${u.role==='admin'?'member':'admin'}')">${u.role==='admin'?'→member':'→admin'}</button><button class="s-btn s-btn-sm danger" onclick="window.delUser(${u.id},'${escJs(u.username)}')">x</button></span>`}return`<div class="user-row"><span class="${u.role==='admin'?'user-admin':'user-member'}">${esc(u.username)}</span><span class="user-role">${u.role}</span>${actions}</div>`}).join('')}
 
 function setRole(uid,role){api('POST',`/api/users/${uid}/role`,{role}).then(()=>renderUsers())}
-function delUser(uid,name){if(!confirm((S.lang==='ru'?'Удалить пользователя ':'Delete user ')+name+'?'))return;api('DELETE',`/api/users/${uid}`).then(()=>renderUsers())}
+async function delUser(uid,name){if(!await confirmDialog((S.lang==='ru'?'Удалить пользователя ':'Delete user ')+name+'?'))return;await api('DELETE',`/api/users/${uid}`);renderUsers()}
 function switchOrg(slug){const orgs=JSON.parse(localStorage.getItem('pusk_orgs')||'{}');const o=orgs[slug];if(!o)return;S.token=o.token;localStorage.setItem('pusk_token',o.token);localStorage.setItem('pusk_uname',o.user);localStorage.setItem('pusk_org',slug);if(o.role)localStorage.setItem('pusk_role',o.role);$('settings').style.display='none';$('settings-bg').style.display='none';if(window.disconnectWS)window.disconnectWS();showApp()}
 
 $('settings-bg').onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none'};
