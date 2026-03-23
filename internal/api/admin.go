@@ -126,6 +126,12 @@ func (a *AdminAPI) createChannel(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": err.Error()})
 		return
 	}
+	// BUG-7: validate channel name
+	if len(req.Name) < 1 || len(req.Name) > 64 {
+		w.WriteHeader(400)
+		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": "channel name must be 1-64 characters"})
+		return
+	}
 	bots, _ := s.ListBots()
 	if len(bots) == 0 {
 		w.WriteHeader(400)

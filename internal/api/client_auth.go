@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 )
@@ -123,6 +124,12 @@ func (a *ClientAPI) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// BUG-1: non-default orgs require invite link
+	if orgSlug != "default" {
+		jsonErr(w, "use invite link to join this organization", 403)
+		return
+	}
+
 	if !regexp.MustCompile(`^[a-zA-Z0-9_-]{2,32}$`).MatchString(req.Username) {
 		jsonErr(w, "username must be 2-32 alphanumeric characters", 400)
 		return
@@ -134,7 +141,12 @@ func (a *ClientAPI) register(w http.ResponseWriter, r *http.Request) {
 
 	user, err := s.CreateUser(req.Username, req.Pin, req.DisplayName)
 	if err != nil {
-		jsonErr(w, err.Error(), 400)
+		// BUG-10: sanitize SQLite errors
+		if strings.Contains(err.Error(), "UNIQUE") {
+			jsonErr(w, "username already taken", 400)
+		} else {
+			jsonErr(w, "registration failed", 400)
+		}
 		return
 	}
 	token, _ := a.jwt.Generate(user.ID, orgSlug, req.Username)
@@ -165,6 +177,11 @@ func (a *ClientAPI) createInvite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s := a.db(r)
+	// EDGE-5: only admins can create invites
+	if !s.IsAdmin(userID) {
+		jsonErr(w, "admin only", 403)
+		return
+	}
 	b := make([]byte, 16)
 	rand.Read(b)
 	code := fmt.Sprintf("%x", b)
@@ -209,13 +226,25 @@ func (a *ClientAPI) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.UseInvite(req.Code); err != nil {
+	// Validate invite before creating user
+	if err := s.ValidateInvite(req.Code); err != nil {
 		jsonErr(w, err.Error(), 400)
 		return
 	}
 
 	user, err := s.CreateUser(req.Username, req.Pin, req.DisplayName)
 	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE") {
+			jsonErr(w, "username already taken", 400)
+		} else {
+			jsonErr(w, "registration failed", 400)
+		}
+		return
+	}
+
+	// BUG-3: consume invite only after successful user creation
+	if err := s.UseInvite(req.Code); err != nil {
+		// User created but invite failed — unlikely but not fatal
 		jsonErr(w, err.Error(), 400)
 		return
 	}
