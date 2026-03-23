@@ -71,6 +71,11 @@ if ('serviceWorker' in navigator) {
 
 // ── Mobile back button ──
 window.addEventListener('popstate', () => {
+  // Close overlays first
+  for(const id of ['ctx-menu']){const el=$(id);if(el&&el.style.display==='block'){el.style.display='none';history.pushState(null,'',location.href);return}}
+  for(const id of ['onboard-bg','confirm-bg','modal-bg','org-modal-bg']){const el=$(id);if(el&&el.classList.contains('open')){el.classList.remove('open');history.pushState(null,'',location.href);return}}
+  const stg=$('settings');if(stg&&stg.style.display==='block'){stg.style.display='none';$('settings-bg').style.display='none';history.pushState(null,'',location.href);return}
+  // Navigate back from chat/channel
   if (S.curChat || S.curChan) {
     import('./views.js').then(v => v.showList());
   }
