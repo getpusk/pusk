@@ -158,6 +158,17 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 			return fmt.Errorf("slug must contain only lowercase letters, digits and hyphens")
 		}
 	}
+	// EDGE-4: slug must have at least one alphanumeric character
+	hasAlphaNum := false
+	for _, c := range slug {
+		if (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') {
+			hasAlphaNum = true
+			break
+		}
+	}
+	if !hasAlphaNum {
+		return fmt.Errorf("slug must contain at least one letter or digit")
+	}
 
 	m.mu.Lock()
 	defer m.mu.Unlock()

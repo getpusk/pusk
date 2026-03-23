@@ -34,3 +34,21 @@ func (s *Store) UseInvite(code string) error {
 	}
 	return nil
 }
+
+// ValidateInvite checks if an invite code is valid without consuming it.
+func (s *Store) ValidateInvite(code string) error {
+	var used bool
+	var expiresAt string
+	err := s.db.QueryRow("SELECT used, expires_at FROM invites WHERE code=?", code).Scan(&used, &expiresAt)
+	if err != nil {
+		return fmt.Errorf("invite not found")
+	}
+	if used {
+		return fmt.Errorf("invite already used")
+	}
+	expTime, err := time.Parse(time.RFC3339, expiresAt)
+	if err != nil || time.Now().UTC().After(expTime) {
+		return fmt.Errorf("invite expired")
+	}
+	return nil
+}
