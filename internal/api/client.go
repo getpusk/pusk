@@ -115,6 +115,9 @@ func (a *ClientAPI) Route(mux *http.ServeMux) {
 	// Auth-required routes: Invites
 	mux.HandleFunc("POST /api/invite", a.AuthRequired(limitBody(a.createInvite)))
 	mux.HandleFunc("POST /api/file-token", a.AuthRequired(a.createFileToken))
+
+	// Self-service password change
+	mux.HandleFunc("POST /api/change-password", a.AuthRequired(limitBody(a.changePassword)))
 }
 
 // ── Helpers ──
