@@ -165,6 +165,17 @@ bot = Bot(token="my-token",
 
 <div id="offline-bar">Нет соединения / Offline</div>
 <div id="update-bar"><span onclick="location.reload()">Доступно обновление — нажмите / Update available — tap to reload</span> <button onclick="this.parentElement.classList.remove('show')" style="background:none;border:none;color:#fff;cursor:pointer;font-size:16px;margin-left:8px">✕</button></div>
+<div class="modal-bg" id="onboard-bg">
+  <div class="modal" role="dialog" aria-modal="true">
+    <h3 id="onboard-title">Quick Setup</h3>
+    <div id="onboard-body"></div>
+    <div class="modal-btns">
+      <button class="mbtn-no" id="onboard-skip">Skip</button>
+      <button class="mbtn-ok" id="onboard-next">Next</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="confirm-bg"><div class="modal" role="dialog" aria-modal="true"><h3 id="confirm-title"></h3><div class="modal-btns"><button class="mbtn-no" id="confirm-no"></button><button class="mbtn-ok" id="confirm-yes"></button></div></div></div>
 <div id="ctx-menu"></div>
 <div id="toast" role="status" aria-live="polite"></div>
