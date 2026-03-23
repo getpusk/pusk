@@ -1,6 +1,7 @@
 // Shared mutable state — imported by all modules
+import {get} from './storage.js';
 const S = {
-  token: localStorage.getItem('pusk_token'),
+  token: get('token'),
   curChat: null,
   curChan: null,
   ws: null,
@@ -8,7 +9,7 @@ const S = {
   replyToText: '',
   channels: [],
   mentionUsers: [],
-  lang: localStorage.getItem('pusk_lang') || 'ru',
+  lang: get('lang') || 'ru',
   lastMsgDate: '',
   editMsgId: 0,
   editChanId: 0,
