@@ -231,3 +231,74 @@ func (s *Store) CleanOldChannelMessages(cutoff string) {
 		}
 	}
 }
+
+// ChannelInfo is a pre-joined view used by ListChannelsForUser to avoid N+1 queries.
+type ChannelInfo struct {
+	ID              int64  `json:"id"`
+	BotID           int64  `json:"bot_id"`
+	Name            string `json:"name"`
+	Description     string `json:"description,omitempty"`
+	Subscribed      bool   `json:"subscribed"`
+	Unread          int    `json:"unread"`
+	PinnedMessageID int64  `json:"pinned_message_id"`
+}
+
+// ListChannelsForUser returns all channels with subscription/unread status in a single query.
+func (s *Store) ListChannelsForUser(userID int64) ([]ChannelInfo, error) {
+	rows, err := s.db.Query(`
+		SELECT c.id, c.bot_id, c.name, COALESCE(c.description,''),
+		       COALESCE(c.pinned_message_id, 0),
+		       CASE WHEN cs.user_id IS NOT NULL THEN 1 ELSE 0 END AS subscribed,
+		       (SELECT COUNT(*) FROM channel_messages cm
+		        WHERE cm.channel_id = c.id
+		        AND cm.id > COALESCE((SELECT last_read_id FROM channel_reads cr
+		            WHERE cr.channel_id = c.id AND cr.user_id = ?), 0)) AS unread
+		FROM channels c
+		LEFT JOIN channel_subscribers cs ON c.id = cs.channel_id AND cs.user_id = ?
+		ORDER BY c.name`, userID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var result []ChannelInfo
+	for rows.Next() {
+		var ci ChannelInfo
+		var sub int
+		if err := rows.Scan(&ci.ID, &ci.BotID, &ci.Name, &ci.Description, &ci.PinnedMessageID, &sub, &ci.Unread); err != nil {
+			continue
+		}
+		ci.Subscribed = sub == 1
+		result = append(result, ci)
+	}
+	return result, nil
+}
+
+// ChannelReader represents a user who has read messages in a channel.
+type ChannelReader struct {
+	UserID   int64  `json:"user_id"`
+	Username string `json:"username"`
+	LastRead int64  `json:"last_read_id"`
+}
+
+// ChannelReadersJoin returns readers with usernames in a single JOIN query (replaces N+1).
+func (s *Store) ChannelReadersJoin(channelID int64) ([]ChannelReader, error) {
+	rows, err := s.db.Query(`
+		SELECT cr.user_id, u.username, cr.last_read_id
+		FROM channel_reads cr
+		JOIN users u ON cr.user_id = u.id
+		JOIN channel_subscribers cs ON cs.channel_id = cr.channel_id AND cs.user_id = cr.user_id
+		WHERE cr.channel_id = ? AND cr.last_read_id > 0`, channelID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var readers []ChannelReader
+	for rows.Next() {
+		var r ChannelReader
+		if err := rows.Scan(&r.UserID, &r.Username, &r.LastRead); err != nil {
+			continue
+		}
+		readers = append(readers, r)
+	}
+	return readers, nil
+}
