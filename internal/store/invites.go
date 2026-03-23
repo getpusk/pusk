@@ -14,19 +14,23 @@ func (s *Store) CreateInvite(code string, ttl time.Duration) error {
 }
 
 func (s *Store) UseInvite(code string) error {
-	var used bool
-	var expiresAt string
-	err := s.db.QueryRow("SELECT used, expires_at FROM invites WHERE code=?", code).Scan(&used, &expiresAt)
+	res, err := s.db.Exec("UPDATE invites SET used=TRUE WHERE code=? AND used=FALSE AND expires_at > ?", code, time.Now().UTC().Format(time.RFC3339))
 	if err != nil {
-		return fmt.Errorf("invite not found")
+		return fmt.Errorf("invite error")
 	}
-	if used {
-		return fmt.Errorf("invite already used")
-	}
-	expires, _ := time.Parse(time.RFC3339, expiresAt)
-	if time.Now().After(expires) {
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		// Check why: not found, already used, or expired
+		var used bool
+		var expiresAt string
+		err := s.db.QueryRow("SELECT used, expires_at FROM invites WHERE code=?", code).Scan(&used, &expiresAt)
+		if err != nil {
+			return fmt.Errorf("invite not found")
+		}
+		if used {
+			return fmt.Errorf("invite already used")
+		}
 		return fmt.Errorf("invite expired")
 	}
-	_, err = s.db.Exec("UPDATE invites SET used=TRUE WHERE code=?", code)
-	return err
+	return nil
 }
