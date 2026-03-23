@@ -59,33 +59,31 @@ func (a *ClientAPI) ackChannelMessage(w http.ResponseWriter, r *http.Request) {
 		username = claims.Username
 	}
 
-	msgs, _ := s.ChannelMessages(channelID, 200)
-	for _, m := range msgs {
-		if m.ID == req.MessageID {
-			now := time.Now().Format("15:04")
-			var status string
-			switch req.Action {
-			case "ack":
-				status = fmt.Sprintf("\n\n**ACK**: @%s в %s", username, now)
-			case "mute":
-				status = fmt.Sprintf("\n\n**Muted 1h**: @%s в %s", username, now)
-			case "resolved":
-				status = fmt.Sprintf("\n\n**Resolved**: @%s в %s", username, now)
-			}
-			newText := m.Text + status
-			s.UpdateChannelMessageText(m.ID, newText, "")
-
-			// Alertmanager silence on ACK/mute
-			amURL := os.Getenv("PUSK_ALERTMANAGER_URL")
-			if amURL != "" && (req.Action == "ack" || req.Action == "mute") {
-				go createAlertmanagerSilence(amURL, username, m.Text)
-			}
-
-			json.NewEncoder(w).Encode(map[string]bool{"ok": true})
-			return
-		}
+	msg, err := s.GetChannelMessage(req.MessageID)
+	if err != nil || msg.ChannelID != channelID {
+		jsonErr(w, "message not found", 404)
+		return
 	}
-	jsonErr(w, "message not found", 404)
+	now := time.Now().Format("15:04")
+	var status string
+	switch req.Action {
+	case "ack":
+		status = fmt.Sprintf("\n\n**ACK**: @%s в %s", username, now)
+	case "mute":
+		status = fmt.Sprintf("\n\n**Muted 1h**: @%s в %s", username, now)
+	case "resolved":
+		status = fmt.Sprintf("\n\n**Resolved**: @%s в %s", username, now)
+	}
+	newText := msg.Text + status
+	s.UpdateChannelMessageText(msg.ID, newText, "")
+
+	// Alertmanager silence on ACK/mute
+	amURL := os.Getenv("PUSK_ALERTMANAGER_URL")
+	if amURL != "" && (req.Action == "ack" || req.Action == "mute") {
+		go createAlertmanagerSilence(amURL, username, msg.Text)
+	}
+
+	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
 func (a *ClientAPI) listChannels(w http.ResponseWriter, r *http.Request) {
@@ -473,7 +471,8 @@ func createAlertmanagerSilence(amURL, username, alertText string) {
 	}
 
 	data, _ := json.Marshal(silence)
-	resp, err := http.Post(amURL+"/api/v2/silences", "application/json", bytes.NewReader(data))
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Post(amURL+"/api/v2/silences", "application/json", bytes.NewReader(data))
 	if err != nil {
 		slog.Warn("alertmanager silence failed", "error", err)
 		return
