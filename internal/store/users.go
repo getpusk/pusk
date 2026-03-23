@@ -69,7 +69,7 @@ func (s *Store) SetUserRole(userID int64, role string) error {
 func (s *Store) IsAdmin(userID int64) bool {
 	var role string
 	s.db.QueryRow("SELECT COALESCE(role,'member') FROM users WHERE id=?", userID).Scan(&role)
-	return role == "admin" || userID == 1
+	return role == "admin"
 }
 
 func (s *Store) DeleteUser(userID int64) error {

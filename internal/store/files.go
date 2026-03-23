@@ -48,6 +48,8 @@ func (s *Store) ValidateFileToken(token string) (int64, error) {
 		s.db.Exec("DELETE FROM file_tokens WHERE token=?", token)
 		return 0, fmt.Errorf("file token expired")
 	}
+	// Consume token (single-use)
+	s.db.Exec("DELETE FROM file_tokens WHERE token=?", token)
 	return userID, nil
 }
 

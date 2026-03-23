@@ -19,6 +19,7 @@ jobs:
           go-version: '1.25.x'
       - run: go build -o pusk ./cmd/pusk/
       - run: go vet ./...
+      - run: go test -race ./...
       - name: gofmt
         run: test -z "$(gofmt -l .)"
       - name: JS function integrity
