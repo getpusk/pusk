@@ -1,7 +1,4 @@
-// localStorage key centralization — future use
-// Import and use: import { storage } from './storage.js';
-// storage.get('token') instead of localStorage.getItem('pusk_token')
-
+// js/storage.js — centralized localStorage access
 const K = {
   token: 'pusk_token',
   uid: 'pusk_uid',
@@ -14,10 +11,8 @@ const K = {
   installDismissed: 'pusk_install_dismissed',
 };
 
-export const storage = {
-  get(key) { return localStorage.getItem(K[key] || key); },
-  set(key, val) { localStorage.setItem(K[key] || key, val); },
-  remove(key) { localStorage.removeItem(K[key] || key); },
-  getJSON(key) { try { return JSON.parse(localStorage.getItem(K[key] || key) || 'null'); } catch { return null; } },
-  setJSON(key, val) { localStorage.setItem(K[key] || key, JSON.stringify(val)); },
-};
+export function get(key) { return localStorage.getItem(K[key] || key); }
+export function set(key, val) { localStorage.setItem(K[key] || key, val); }
+export function remove(key) { localStorage.removeItem(K[key] || key); }
+export function getJSON(key) { try { return JSON.parse(localStorage.getItem(K[key] || key) || 'null'); } catch { return null; } }
+export function setJSON(key, val) { localStorage.setItem(K[key] || key, JSON.stringify(val)); }
