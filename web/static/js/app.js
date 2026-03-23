@@ -1,6 +1,6 @@
 import S from './state.js';
 import {get,set} from './storage.js';
-import {$,t,api,setLang,initEye} from './util.js';
+import {$,t,api,setLang,initEye,toast} from './util.js';
 import {showApp,logout} from './views.js';
 import {initLandingChat,hideLanding} from './landing.js';
 // Side-effect imports: register event handlers
@@ -78,6 +78,14 @@ window.addEventListener('popstate', () => {
   // Navigate back from chat/channel
   if (S.curChat || S.curChan) {
     import('./views.js').then(v => v.showList());
+    return;
+  }
+  // On main list: double-back to exit
+  if (!S._backExit) {
+    S._backExit = true;
+    history.pushState(null, '', location.href);
+    toast(S.lang === 'ru' ? 'Нажмите ещё раз для выхода' : 'Press back again to exit');
+    setTimeout(() => { S._backExit = false; }, 2000);
   }
 });
 
