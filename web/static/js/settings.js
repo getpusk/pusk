@@ -19,7 +19,7 @@ async function renderUsers(){const el=$('s-users');const isAdmin=localStorage.ge
 
 function setRole(uid,role){api('POST',`/api/users/${uid}/role`,{role}).then(()=>renderUsers())}
 function delUser(uid,name){if(!confirm((S.lang==='ru'?'Удалить пользователя ':'Delete user ')+name+'?'))return;api('DELETE',`/api/users/${uid}`).then(()=>renderUsers())}
-function switchOrg(slug){const orgs=JSON.parse(localStorage.getItem('pusk_orgs')||'{}');const o=orgs[slug];if(!o)return;S.token=o.token;localStorage.setItem('pusk_token',o.token);localStorage.setItem('pusk_uname',o.user);localStorage.setItem('pusk_org',slug);if(o.role)localStorage.setItem('pusk_role',o.role);$('settings').style.display='none';$('settings-bg').style.display='none';if(S.ws)S.ws.close();showApp()}
+function switchOrg(slug){const orgs=JSON.parse(localStorage.getItem('pusk_orgs')||'{}');const o=orgs[slug];if(!o)return;S.token=o.token;localStorage.setItem('pusk_token',o.token);localStorage.setItem('pusk_uname',o.user);localStorage.setItem('pusk_org',slug);if(o.role)localStorage.setItem('pusk_role',o.role);$('settings').style.display='none';$('settings-bg').style.display='none';if(window.disconnectWS)window.disconnectWS();showApp()}
 
 $('settings-bg').onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none'};
 $('s-lang-btn').onclick=()=>{S.lang=S.lang==='ru'?'en':'ru';localStorage.setItem('pusk_lang',S.lang);setLang();if($('app').style.display==='flex')showList()};
