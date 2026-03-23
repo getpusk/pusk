@@ -35,6 +35,9 @@ func (a *AdminAPI) Route(mux *http.ServeMux) {
 	mux.HandleFunc("POST /admin/channel", a.createChannel)
 	mux.HandleFunc("DELETE /admin/channel/{channelID}", a.deleteChannel)
 
+	mux.HandleFunc("POST /admin/reset-password", a.resetPassword)
+	mux.HandleFunc("POST /admin/set-role", a.adminSetRole)
+
 	orgRL := NewRateLimiter(10, time.Minute)
 	mux.HandleFunc("POST /api/org/register", RateLimit(orgRL, a.registerOrg))
 }
@@ -208,4 +211,63 @@ func (a *AdminAPI) registerOrg(w http.ResponseWriter, r *http.Request) {
 		"username": req.Username,
 	})
 	slog.Info("org registered", "slug", req.Slug, "admin", req.Username)
+}
+
+func (a *AdminAPI) resetPassword(w http.ResponseWriter, r *http.Request) {
+	authHeader := r.Header.Get("Authorization")
+	if a.adminToken == "" || subtle.ConstantTimeCompare([]byte(strings.TrimPrefix(authHeader, "Bearer ")), []byte(a.adminToken)) != 1 {
+		http.Error(w, `{"error":"admin token required"}`, 403)
+		return
+	}
+	var req struct {
+		Org      string `json:"org"`
+		Username string `json:"username"`
+		NewPin   string `json:"new_pin"`
+	}
+	json.NewDecoder(r.Body).Decode(&req)
+	if req.Org == "" || req.Username == "" || req.NewPin == "" {
+		http.Error(w, `{"error":"org, username and new_pin required"}`, 400)
+		return
+	}
+	if len(req.NewPin) < 6 {
+		http.Error(w, `{"error":"password must be at least 6 characters"}`, 400)
+		return
+	}
+	s, err := a.orgs.Get(req.Org)
+	if err != nil {
+		jsonErr(w, "org not found", 404)
+		return
+	}
+	if err := s.ResetPassword(req.Username, req.NewPin); err != nil {
+		jsonErr(w, err.Error(), 400)
+		return
+	}
+	slog.Info("password reset", "org", req.Org, "username", req.Username)
+	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+}
+
+func (a *AdminAPI) adminSetRole(w http.ResponseWriter, r *http.Request) {
+	authHeader := r.Header.Get("Authorization")
+	if a.adminToken == "" || subtle.ConstantTimeCompare([]byte(strings.TrimPrefix(authHeader, "Bearer ")), []byte(a.adminToken)) != 1 {
+		http.Error(w, `{"error":"admin token required"}`, 403)
+		return
+	}
+	var req struct {
+		Org    string `json:"org"`
+		UserID int64  `json:"user_id"`
+		Role   string `json:"role"`
+	}
+	json.NewDecoder(r.Body).Decode(&req)
+	if req.Org == "" || req.UserID == 0 || (req.Role != "admin" && req.Role != "member") {
+		http.Error(w, `{"error":"org, user_id and role (admin/member) required"}`, 400)
+		return
+	}
+	s, err := a.orgs.Get(req.Org)
+	if err != nil {
+		jsonErr(w, "org not found", 404)
+		return
+	}
+	s.SetUserRole(req.UserID, req.Role)
+	slog.Info("admin role set", "org", req.Org, "user_id", req.UserID, "role", req.Role)
+	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
