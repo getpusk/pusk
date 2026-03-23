@@ -95,3 +95,20 @@ func (s *Store) UserExists(userID int64) bool {
 	s.db.QueryRow("SELECT COUNT(*) FROM users WHERE id=?", userID).Scan(&count)
 	return count > 0
 }
+
+// ResetPassword updates the password (pin) for a user by username.
+func (s *Store) ResetPassword(username, newPin string) error {
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPin), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash error")
+	}
+	res, err := s.db.Exec("UPDATE users SET pin=? WHERE username=?", string(hash), username)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("user not found")
+	}
+	return nil
+}
