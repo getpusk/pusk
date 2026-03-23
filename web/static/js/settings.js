@@ -36,7 +36,6 @@ function renderOrgSwitch(){const el=$('s-org-switch');const orgs=getJSON('orgs')
   addBtn.onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none';$('org-modal-bg').classList.add('open');history.pushState(null,'',location.href);$('org-slug').focus()};
   el.appendChild(addBtn);
   }
-    }
 }
 
 // ── Event delegation on #s-org-switch ──
