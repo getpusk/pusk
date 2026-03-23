@@ -130,5 +130,6 @@ func IsLocalURL(rawURL string) bool {
 	}
 
 	// Check private/loopback/link-local ranges
-	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast()
+	// BUG-6: also block 0.0.0.0 (IsUnspecified)
+	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified()
 }

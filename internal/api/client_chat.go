@@ -133,6 +133,17 @@ func (a *ClientAPI) sendToBot(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewDecoder(r.Body).Decode(&req)
 
+	// BUG-9: reject empty text
+	if req.Text == "" {
+		jsonErr(w, "text is required", 400)
+		return
+	}
+	// EDGE-10: message text length limit
+	if len(req.Text) > 4096 {
+		jsonErr(w, "text too long (max 4096 chars)", 400)
+		return
+	}
+
 	s := a.db(r)
 	msg, err := s.SaveMessage(chatID, "user", req.Text, "", "", "")
 	if err != nil {

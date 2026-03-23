@@ -233,6 +233,17 @@ func (h *Handler) sendMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// BUG-8: reject empty text
+	if req.Text == "" {
+		jsonResp(w, 400, APIResponse{OK: false, Error: "text is required"})
+		return
+	}
+	// EDGE-10: message text length limit
+	if len(req.Text) > 4096 {
+		jsonResp(w, 400, APIResponse{OK: false, Error: "text too long (max 4096 chars)"})
+		return
+	}
+
 	markup := ""
 	if req.ReplyMarkup != nil {
 		raw := string(req.ReplyMarkup)
@@ -247,6 +258,14 @@ func (h *Handler) sendMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s := h.db(r)
+
+	// BUG-4: validate chat_id exists
+	if req.ChatID > 0 {
+		if _, err := s.ChatBotID(req.ChatID); err != nil {
+			jsonResp(w, 404, APIResponse{OK: false, Error: "chat not found"})
+			return
+		}
+	}
 
 	// Negative chat_id = channel (Telegram convention: channels have negative IDs)
 	if req.ChatID < 0 {
@@ -302,6 +321,27 @@ func (h *Handler) editMessageText(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// BUG-5: handle channel messages (negative chat_id)
+	if req.ChatID < 0 {
+		markup := ""
+		if req.ReplyMarkup != nil {
+			raw := string(req.ReplyMarkup)
+			if len(raw) > 1 && raw[0] == '"' {
+				var unquoted string
+				if json.Unmarshal(req.ReplyMarkup, &unquoted) == nil {
+					raw = unquoted
+				}
+			}
+			markup = raw
+		}
+		if err := h.db(r).UpdateChannelMessageText(req.MessageID, req.Text, markup); err != nil {
+			jsonResp(w, 500, APIResponse{OK: false, Error: err.Error()})
+			return
+		}
+		jsonResp(w, 200, APIResponse{OK: true, Result: true})
+		return
+	}
+
 	// Ownership check: verify bot owns this chat
 	chatBotID, _ := h.db(r).ChatBotID(req.ChatID)
 	if chatBotID != bot.ID {
@@ -342,6 +382,13 @@ func (h *Handler) deleteMessage(w http.ResponseWriter, r *http.Request) {
 	var req DeleteMessageRequest
 	if err := decodeBody(r, &req); err != nil {
 		jsonResp(w, 400, APIResponse{OK: false, Error: err.Error()})
+		return
+	}
+
+	// BUG-5: handle channel messages (negative chat_id)
+	if req.ChatID < 0 {
+		h.db(r).DeleteChannelMessage(req.MessageID)
+		jsonResp(w, 200, APIResponse{OK: true, Result: true})
 		return
 	}
 
@@ -624,6 +671,12 @@ func (h *Handler) createChannel(w http.ResponseWriter, r *http.Request) {
 	var req CreateChannelRequest
 	if err := decodeBody(r, &req); err != nil {
 		jsonResp(w, 400, APIResponse{OK: false, Error: err.Error()})
+		return
+	}
+
+	// BUG-7: validate channel name
+	if len(req.Name) < 1 || len(req.Name) > 64 {
+		jsonResp(w, 400, APIResponse{OK: false, Error: "channel name must be 1-64 characters"})
 		return
 	}
 
