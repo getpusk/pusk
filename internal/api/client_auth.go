@@ -261,3 +261,35 @@ func (a *ClientAPI) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		"token": token, "user_id": user.ID, "username": req.Username, "org": orgSlug, "role": "member",
 	})
 }
+
+func (a *ClientAPI) changePassword(w http.ResponseWriter, r *http.Request) {
+	s := a.db(r)
+	var req struct {
+		OldPin string `json:"old_pin"`
+		NewPin string `json:"new_pin"`
+	}
+	json.NewDecoder(r.Body).Decode(&req)
+	if req.OldPin == "" || req.NewPin == "" {
+		jsonErr(w, "old_pin and new_pin required", 400)
+		return
+	}
+	if len(req.NewPin) < 6 {
+		jsonErr(w, "password must be at least 6 characters", 400)
+		return
+	}
+	claims := ClaimsFromCtx(r.Context())
+	if claims == nil {
+		jsonErr(w, "unauthorized", 401)
+		return
+	}
+	_, err := s.AuthUser(claims.Username, req.OldPin)
+	if err != nil {
+		jsonErr(w, "wrong current password", 403)
+		return
+	}
+	if err := s.ResetPassword(claims.Username, req.NewPin); err != nil {
+		jsonErr(w, "failed to update password", 500)
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+}
