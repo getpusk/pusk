@@ -53,6 +53,12 @@ if (offBar) {
   if (!navigator.onLine) offBar.classList.add('show');
 }
 
+// ── Update bar handlers ──
+const updReload = $('update-reload');
+if (updReload) updReload.onclick = () => location.reload();
+const updDismiss = $('update-dismiss');
+if (updDismiss) updDismiss.onclick = () => $('update-bar').classList.remove('show');
+
 // ── SW update notification ──
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').then(reg => {

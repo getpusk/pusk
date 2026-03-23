@@ -117,7 +117,7 @@ bot = Bot(token="my-token",
 <div id="settings">
   <div id="s-profile"></div>
   <div class="s-row"><span id="s-lang-lbl"></span><button class="s-btn" id="s-lang-btn"></button></div>
-  <div class="s-row"><span>Push</span><button class="s-btn" id="s-push-btn" onclick="window.togglePush()">...</button><button class="s-btn" id="s-test-push" onclick="window.testPush()">Test</button></div>
+  <div class="s-row"><span>Push</span><button class="s-btn" id="s-push-btn" >...</button><button class="s-btn" id="s-test-push">Test</button></div>
   <div id="s-users" class="s-section"></div>
   <div id="s-org-switch" class="s-section"></div>
   <button class="s-btn s-full-btn" id="s-invite"></button>
@@ -164,7 +164,7 @@ bot = Bot(token="my-token",
 </div>
 
 <div id="offline-bar">Нет соединения / Offline</div>
-<div id="update-bar"><span onclick="location.reload()">Доступно обновление — нажмите / Update available — tap to reload</span> <button onclick="this.parentElement.classList.remove('show')" style="background:none;border:none;color:#fff;cursor:pointer;font-size:16px;margin-left:8px">✕</button></div>
+<div id="update-bar"><span id="update-reload">Доступно обновление — нажмите / Update available — tap to reload</span> <button id="update-dismiss" class="pin-close" style="color:#fff;margin-left:8px">✕</button></div>
 <div class="modal-bg" id="onboard-bg">
   <div class="modal" role="dialog" aria-modal="true">
     <h3 id="onboard-title">Quick Setup</h3>
