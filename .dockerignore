@@ -1,6 +1,8 @@
-/pusk
-/pusk-linux
-data/
-*.db
-.env
 .git
+tests
+data
+pusk-bin
+pusk.bak
+pusk-old*
+demo-bots
+*.tar.gz

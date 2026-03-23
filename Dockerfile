@@ -15,4 +15,7 @@ RUN mkdir -p data
 EXPOSE 8443
 VOLUME /app/data
 ENV PUSK_ADDR=:8443
+RUN addgroup -S pusk && adduser -S pusk -G pusk && chown -R pusk:pusk /app
+USER pusk
+HEALTHCHECK --interval=30s --timeout=3s CMD wget -qO- http://localhost:8443/api/health || exit 1
 CMD ["./pusk"]
