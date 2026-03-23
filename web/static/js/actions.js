@@ -1,4 +1,5 @@
 import S from './state.js';
+import {get} from './storage.js';
 import {$,esc,escJs,md,t,te,toast,api,confirmDialog} from './util.js';
 import {addMsg,scrollDown,showList,renderPinBar} from './views.js';
 
@@ -13,7 +14,7 @@ $('file-input').onchange=async function(){if(!this.files.length)return;const fil
 const _slashCmds=['/start','/help','/status'];
 $('msg-in').addEventListener('input',function(){const v=this.value;const cursor=this.selectionStart;const before=v.substring(0,cursor);
   if(S.curChat){const slashMatch=before.match(/^\/(\w*)$/);if(slashMatch){const q=slashMatch[1].toLowerCase();const matches=_slashCmds.filter(c=>c.substring(1).startsWith(q));if(matches.length>0){const ml=$('mention-list');ml.innerHTML=matches.map(c=>`<div class="ac-item" onmousedown="window.insertSlash('${c}')">${c}</div>`).join('');ml.style.display='block';return}}}
-  if(S.curChan){const atMatch=before.match(/@(\w*)$/);if(atMatch){const query=atMatch[1].toLowerCase();const me=localStorage.getItem('pusk_uname')||'';const matches=S.mentionUsers.filter(u=>u.username.toLowerCase().startsWith(query)&&u.username!==me);if(matches.length>0){const ml=$('mention-list');ml.innerHTML=matches.slice(0,8).map(u=>`<div class="ac-item-user" onmousedown="window.insertMention('${escJs(u.username)}')">${esc(u.username)}</div>`).join('');ml.style.display='block';return}}}$('mention-list').style.display='none';
+  if(S.curChan){const atMatch=before.match(/@(\w*)$/);if(atMatch){const query=atMatch[1].toLowerCase();const me=get('uname')||'';const matches=S.mentionUsers.filter(u=>u.username.toLowerCase().startsWith(query)&&u.username!==me);if(matches.length>0){const ml=$('mention-list');ml.innerHTML=matches.slice(0,8).map(u=>`<div class="ac-item-user" onmousedown="window.insertMention('${escJs(u.username)}')">${esc(u.username)}</div>`).join('');ml.style.display='block';return}}}$('mention-list').style.display='none';
   if(S.curChan&&S.ws&&S.ws.readyState===WebSocket.OPEN){
     if(!S.typingTimer){S.ws.send(JSON.stringify({type:'typing',channel_id:S.curChan}))}
     clearTimeout(S.typingTimer);
@@ -40,14 +41,14 @@ function startEdit(mid,chanId,text){S.editMsgId=mid;S.editChanId=chanId;S.replyT
 
 async function sendMsg(){const inp=$('msg-in');const txt=inp.value.trim();if(!txt)return;inp.value='';
   if(S.editMsgId&&S.editChanId){const mid=S.editMsgId;const cid=S.editChanId;cancelEdit();await api('PUT',`/api/channels/${cid}/messages/${mid}`,{text:txt});const el=document.getElementById('m-'+mid);if(el){const t=el.querySelector('.m-text');if(t)t.innerHTML=md(txt);const head=el.querySelector('.m-head');if(head&&!head.querySelector('.m-edited')){const s=document.createElement('span');s.className='m-edited';s.textContent=S.lang==='ru'?'(ред.)':'(edited)';head.appendChild(s)}}return}
-  const uname=localStorage.getItem('pusk_uname')||'You';const rid=S.replyToId;S.replyToId=0;$('reply-bar').style.display='none';if(S.curChan){addMsg({sender:'user',sender_name:uname,text:txt,reply_to:rid,date:new Date().toISOString(),message_id:Date.now()});scrollDown();await api('POST',`/api/channels/${S.curChan}/send`,{text:txt,reply_to:rid})}else if(S.curChat){addMsg({sender:'user',text:txt,date:new Date().toISOString(),message_id:Date.now()});scrollDown();await api('POST',`/api/chats/${S.curChat}/send`,{text:txt})}}
+  const uname=get('uname')||'You';const rid=S.replyToId;S.replyToId=0;$('reply-bar').style.display='none';if(S.curChan){addMsg({sender:'user',sender_name:uname,text:txt,reply_to:rid,date:new Date().toISOString(),message_id:Date.now()});scrollDown();await api('POST',`/api/channels/${S.curChan}/send`,{text:txt,reply_to:rid})}else if(S.curChat){addMsg({sender:'user',text:txt,date:new Date().toISOString(),message_id:Date.now()});scrollDown();await api('POST',`/api/chats/${S.curChat}/send`,{text:txt})}}
 
 // ── Context menu ──
 let _ctxMsgEl=null,_ctxSavedText='';
 function showCtxMenu(x,y,msgEl){
   const mid=parseInt(msgEl.id.replace('m-',''));
   const isMine=msgEl.dataset.mine==='1';
-  const isAdmin=localStorage.getItem('pusk_role')==='admin'||localStorage.getItem('pusk_uid')==='1';
+  const isAdmin=get('role')==='admin'||get('uid')==='1';
   const sender=msgEl.dataset.sender;
   const text=msgEl.querySelector('.m-text')?.textContent||'';
   const name=msgEl.querySelector('.m-name')?.textContent||'';
@@ -86,11 +87,11 @@ document.addEventListener('contextmenu',e=>{const m=e.target.closest('.m');if(!m
 
 // ── Pin / Delete ──
 async function delChanMsg(mid){const ci=S.channels.find(c=>c.id===S.curChan);const isPinned=ci&&ci.pinned_message_id===mid;const msg=isPinned?(S.lang==='ru'?'Это закреплённое сообщение. Удалить и открепить?':'This is a pinned message. Delete and unpin?'):(S.lang==='ru'?'Удалить сообщение?':'Delete message?');if(!await confirmDialog(msg))return;await api('DELETE',`/api/channels/messages/${mid}`);const el=document.getElementById('m-'+mid);if(el)el.remove();if(isPinned){$('pinned-bar').innerHTML='';ci.pinned_message_id=0}}
-async function pinMsg(mid){if(!S.curChan)return;const r=await api('POST',`/api/channels/${S.curChan}/pin`,{message_id:mid});if(r&&r.ok){const u=localStorage.getItem('pusk_uname')||'?';toast(S.lang==='ru'?'Закреплено':'Pinned');const msgEl=document.getElementById('m-'+mid);const text=msgEl?msgEl.querySelector('.m-text')?.textContent||'':'';renderPinBar(mid,text,u);const ci=S.channels.find(c=>c.id===S.curChan);if(ci)ci.pinned_message_id=mid}}
+async function pinMsg(mid){if(!S.curChan)return;const r=await api('POST',`/api/channels/${S.curChan}/pin`,{message_id:mid});if(r&&r.ok){const u=get('uname')||'?';toast(S.lang==='ru'?'Закреплено':'Pinned');const msgEl=document.getElementById('m-'+mid);const text=msgEl?msgEl.querySelector('.m-text')?.textContent||'':'';renderPinBar(mid,text,u);const ci=S.channels.find(c=>c.id===S.curChan);if(ci)ci.pinned_message_id=mid}}
 async function unpinMsg(){if(!S.curChan)return;const r=await api('POST',`/api/channels/${S.curChan}/pin`,{message_id:0});if(r&&r.ok){toast(S.lang==='ru'?'Откреплено':'Unpinned');$('pinned-bar').innerHTML='';const ci=S.channels.find(c=>c.id===S.curChan);if(ci)ci.pinned_message_id=0}}
 
 // ── Callbacks & Delete ──
-async function onCb(el){if(S.curChan){await api('POST',`/api/channels/${S.curChan}/ack`,{action:el.dataset.cb,message_id:parseInt(el.dataset.mid)});const u=localStorage.getItem('pusk_uname')||'?';const tm=new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});el.closest('.m-kb').innerHTML=`<span class="ack-result">${el.textContent} @${u} ${tm}</span>`;toast(el.textContent+' ✓');const msg=el.closest('.m');if(msg){msg.classList.remove('m-alert');msg.classList.add('m-acked')}}else if(S.curChat){el.disabled=true;el.style.opacity='0.5';await api('POST',`/api/chats/${S.curChat}/callback`,{data:el.dataset.cb,message_id:parseInt(el.dataset.mid)})}}
+async function onCb(el){if(S.curChan){await api('POST',`/api/channels/${S.curChan}/ack`,{action:el.dataset.cb,message_id:parseInt(el.dataset.mid)});const u=get('uname')||'?';const tm=new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});el.closest('.m-kb').innerHTML=`<span class="ack-result">${el.textContent} @${u} ${tm}</span>`;toast(el.textContent+' ✓');const msg=el.closest('.m');if(msg){msg.classList.remove('m-alert');msg.classList.add('m-acked')}}else if(S.curChat){el.disabled=true;el.style.opacity='0.5';await api('POST',`/api/chats/${S.curChat}/callback`,{data:el.dataset.cb,message_id:parseInt(el.dataset.mid)})}}
 async function onDel(mid){if(!await confirmDialog(S.lang==='ru'?'Удалить сообщение?':'Delete message?'))return;await api('DELETE',`/api/messages/${mid}`);const el=document.getElementById('m-'+mid);if(el)el.remove()}
 
 // ── FAB / Create modal ──

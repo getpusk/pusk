@@ -1,4 +1,5 @@
 import S from './state.js';
+import {get} from './storage.js';
 import {$,esc,md,nameColor,fmtTime,t,te,api} from './util.js';
 import {auth} from './views.js';
 
@@ -33,7 +34,7 @@ $('land-input').onkeydown=e=>{if(e.key==='Enter')landSend()};
 async function landSend(){const inp=$('land-input');const txt=inp.value.trim();if(!txt||!S.landChat)return;inp.value='';landAddMsg('Guest',txt,'');await landApi('POST',`/api/chats/${S.landChat}/send`,{text:txt})}
 async function landCb(data){if(!S.landChat)return;await landApi('POST',`/api/chats/${S.landChat}/callback`,{data,message_id:0});setTimeout(async()=>{const msgs=await landApi('GET',`/api/chats/${S.landChat}/messages?limit=1`);if(msgs&&msgs.length){const m=msgs[0];if(m.sender==='bot')landAddMsg('DemoBot',m.text,fmtTime(m.date),m.reply_markup)}},1500)}
 export function hideLanding(){$('landing').style.display='none'}
-$('land-login').onclick=()=>{hideLanding();$('auth').style.display='flex';const savedOrg=localStorage.getItem('pusk_org');if(savedOrg)$('a-org').value=savedOrg}
+$('land-login').onclick=()=>{hideLanding();$('auth').style.display='flex';const savedOrg=get('org');if(savedOrg)$('a-org').value=savedOrg}
 $('land-demo').onclick=async()=>{let r=await api('POST','/api/auth',{username:'guest',pin:'guest'});if(!r.token)r=await api('POST','/api/register',{username:'guest',pin:'guest',display_name:'Guest'});if(!r.token)return;hideLanding();auth(r)};
 
 // ── Auth buttons ──
