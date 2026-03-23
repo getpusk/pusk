@@ -24,7 +24,7 @@
 <div id="landing">
   <div class="land-left">
     <h1 class="land-logo">Pusk</h1>
-    <div class="land-tag">Алерты и координация для ops-команд</div>
+    <div class="land-tag">Self-hosted замена Telegram для алертов и координации</div>
     <p class="land-desc">Self-hosted Telegram Bot API. Мониторинг, алерты, командный чат без внешних зависимостей. Работает, когда всё остальное заблокировано.</p>
     <div class="land-stats">
       <div class="land-stat"><b>23 MB</b><span>Docker</span></div>
@@ -62,7 +62,7 @@ bot = Bot(token="my-token",
   </div>
   <div class="land-right">
     <div class="land-chat-hdr"><span class="land-chat-dot"></span> DemoBot — публичная демо-среда</div>
-    <div class="land-chat-body" id="land-msgs"></div>
+    <div class="land-chat-body" id="land-msgs"><div class="m-empty" id="land-fallback">Загрузка демо...</div></div>
     <div class="land-chat-input">
       <input id="land-input" placeholder="Напишите боту..." aria-label="Message to demo bot">
       <button id="land-send" aria-label="Send">&#8594;</button>
