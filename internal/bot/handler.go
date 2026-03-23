@@ -691,6 +691,24 @@ func (h *Handler) getWebhookInfo(w http.ResponseWriter, r *http.Request) {
 	}})
 }
 
+// addFileFields adds file-related fields (photo/document/voice/video) to a Telegram-compatible message map.
+func addFileFields(m map[string]interface{}, fileID, fileType string) {
+	if fileID == "" {
+		return
+	}
+	fileObj := []map[string]interface{}{{"file_id": fileID}}
+	switch fileType {
+	case "photo":
+		m["photo"] = fileObj
+	case "voice":
+		m["voice"] = map[string]interface{}{"file_id": fileID}
+	case "video":
+		m["video"] = map[string]interface{}{"file_id": fileID}
+	default:
+		m["document"] = map[string]interface{}{"file_id": fileID}
+	}
+}
+
 // telegramMessage converts a store.Message to Telegram-compatible format.
 // PTB expects: message_id, chat{id,type}, from{id,is_bot,first_name}, date(unix), text, reply_markup, photo/document/voice/video.
 func telegramMessage(msg *store.Message, bot *store.Bot) map[string]interface{} {
@@ -711,21 +729,7 @@ func telegramMessage(msg *store.Message, bot *store.Bot) map[string]interface{} 
 	if msg.ReplyMarkup != "" {
 		m["reply_markup"] = json.RawMessage(msg.ReplyMarkup)
 	}
-	if msg.FileID != "" {
-		fileObj := []map[string]interface{}{{"file_id": msg.FileID}}
-		switch msg.FileType {
-		case "photo":
-			m["photo"] = fileObj
-		case "document":
-			m["document"] = map[string]interface{}{"file_id": msg.FileID}
-		case "voice":
-			m["voice"] = map[string]interface{}{"file_id": msg.FileID}
-		case "video":
-			m["video"] = map[string]interface{}{"file_id": msg.FileID}
-		default:
-			m["document"] = map[string]interface{}{"file_id": msg.FileID}
-		}
-	}
+	addFileFields(m, msg.FileID, msg.FileType)
 	return m
 }
 
@@ -743,20 +747,6 @@ func telegramChannelMessage(msg *store.ChannelMessage) map[string]interface{} {
 	if msg.ReplyMarkup != "" {
 		m["reply_markup"] = json.RawMessage(msg.ReplyMarkup)
 	}
-	if msg.FileID != "" {
-		fileObj := []map[string]interface{}{{"file_id": msg.FileID}}
-		switch msg.FileType {
-		case "photo":
-			m["photo"] = fileObj
-		case "document":
-			m["document"] = map[string]interface{}{"file_id": msg.FileID}
-		case "voice":
-			m["voice"] = map[string]interface{}{"file_id": msg.FileID}
-		case "video":
-			m["video"] = map[string]interface{}{"file_id": msg.FileID}
-		default:
-			m["document"] = map[string]interface{}{"file_id": msg.FileID}
-		}
-	}
+	addFileFields(m, msg.FileID, msg.FileType)
 	return m
 }
