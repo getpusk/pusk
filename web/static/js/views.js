@@ -121,6 +121,8 @@ export async function showList(){S.curChat=null;S.curChan=null;S.replyToId=0;$('
     const secTitle=document.createElement('div');secTitle.className='sec-title';secTitle.textContent=t('ch');el.appendChild(secTitle);
     for(const c of chs){
       const row=document.createElement('div');row.className='ch-row';row.dataset.chanId=c.id;row.dataset.chanName=c.name;
+      row.setAttribute("tabindex","0");
+      row.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();row.click()}});
 
       const hash=document.createElement('span');hash.className='ch-hash';hash.textContent='#';row.appendChild(hash);
 
@@ -141,6 +143,8 @@ export async function showList(){S.curChat=null;S.curChan=null;S.replyToId=0;$('
     const secTitle=document.createElement('div');secTitle.className='sec-title';secTitle.textContent=t('bots');el.appendChild(secTitle);
     for(const b of bots){
       const row=document.createElement('div');row.className='bot-row';row.dataset.botId=b.id;row.dataset.botName=b.name;
+      row.setAttribute("tabindex","0");
+      row.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();row.click()}});
 
       const ava=document.createElement('div');ava.className='bot-ava';ava.style.background=nameColor(b.name);ava.textContent=b.name[0].toUpperCase();row.appendChild(ava);
 
