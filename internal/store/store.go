@@ -168,5 +168,14 @@ func (s *Store) migrate() error {
 		s.db.Exec("PRAGMA user_version = 2")
 	}
 
+	if version < 3 {
+		s.db.Exec(`CREATE TABLE IF NOT EXISTS file_tokens (
+			token TEXT PRIMARY KEY,
+			user_id INTEGER NOT NULL,
+			expires_at DATETIME NOT NULL
+		)`)
+		s.db.Exec("PRAGMA user_version = 3")
+	}
+
 	return nil
 }
