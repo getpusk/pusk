@@ -1,4 +1,5 @@
 import S from './state.js';
+import {get} from './storage.js';
 import {$,md,toast} from './util.js';
 import {addMsg,scrollDown} from './views.js';
 
@@ -15,13 +16,13 @@ export function connectWS(){
   S.ws.onclose=()=>{$('hdr-dot').style.color='#e05d44';S.wsReconnectTimer=setTimeout(connectWS,3000)};
   S.ws.onmessage=e=>{const ev=JSON.parse(e.data);const d=ev.payload;
 if(ev.type==='new_message'&&ev.chat_id===S.curChat){addMsg(d.message);scrollDown()}
-if(ev.type==='channel_message'){const myName=localStorage.getItem('pusk_uname');const msg=d.message||d;const senderName=msg.sender_name||d.sender_name||'';if(ev.chat_id===S.curChan){if(senderName===myName){const els=$('msgs').querySelectorAll('.m[data-mine="1"]');for(let i=0;i<els.length;i++){const fid=parseInt(els[i].id.replace('m-',''));if(fid>1e12){els[i].id='m-'+msg.message_id;break}}}else{if(!msg.sender)msg.sender='bot';beep();addMsg(msg);scrollDown()}}else if(senderName!==myName){beep();const badge=document.querySelector(`.ch-badge-${ev.chat_id}`);if(badge){badge.style.display='inline-block';const n=parseInt(badge.textContent||'0')+1;badge.textContent=n}}}
+if(ev.type==='channel_message'){const myName=get('uname');const msg=d.message||d;const senderName=msg.sender_name||d.sender_name||'';if(ev.chat_id===S.curChan){if(senderName===myName){const els=$('msgs').querySelectorAll('.m[data-mine="1"]');for(let i=0;i<els.length;i++){const fid=parseInt(els[i].id.replace('m-',''));if(fid>1e12){els[i].id='m-'+msg.message_id;break}}}else{if(!msg.sender)msg.sender='bot';beep();addMsg(msg);scrollDown()}}else if(senderName!==myName){beep();const badge=document.querySelector(`.ch-badge-${ev.chat_id}`);if(badge){badge.style.display='inline-block';const n=parseInt(badge.textContent||'0')+1;badge.textContent=n}}}
 if(ev.type==='edit_message'){const old=document.getElementById('m-'+d.message_id);if(old)old.remove();addMsg(d);scrollDown()}
 if(ev.type==='channel_message_edit'){const old=document.getElementById('m-'+d.message_id);if(old){const txt=old.querySelector('.m-text');if(txt)txt.innerHTML=md(d.text||'');const head=old.querySelector('.m-head');if(head&&!head.querySelector('.m-edited')){const s=document.createElement('span');s.className='m-edited';s.textContent=S.lang==='ru'?'(ред.)':'(edited)';head.appendChild(s)}}}
 if(ev.type==='channel_message_delete'){const el=document.getElementById('m-'+d.message_id);if(el)el.remove()}
 if(ev.type==='typing'&&ev.chat_id===S.curChan){const td=ev.payload;$('typing-bar').textContent=td.username+(S.lang==='ru'?' печатает...' :' is typing...');$('typing-bar').style.display='block';clearTimeout(window._typingHide);window._typingHide=setTimeout(()=>{$('typing-bar').style.display='none'},3000)}
 if(ev.type==='callback_answer'){if(d.show_alert)alert(d.text);else toast(d.text)}
-if(ev.type==='mention'){beep();toast('@'+localStorage.getItem('pusk_uname')+' in #'+(d.channel||''))}}}
+if(ev.type==='mention'){beep();toast('@'+get('uname')+' in #'+(d.channel||''))}}}
 
 export function disconnectWS(){
   clearTimeout(S.wsReconnectTimer);

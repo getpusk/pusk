@@ -1,4 +1,5 @@
 import S from './state.js';
+import {get,set} from './storage.js';
 import {$,t,api,setLang,initEye} from './util.js';
 import {showApp,logout} from './views.js';
 import {initLandingChat,hideLanding} from './landing.js';
@@ -10,13 +11,13 @@ import './settings.js';
 // ── PWA Install Prompt ──
 window.addEventListener('beforeinstallprompt',e=>{
   e.preventDefault();S.deferredPrompt=e;
-  if(!localStorage.getItem('pusk_install_dismissed')){$('install-banner').style.display='block'}
+  if(!get('installDismissed')){$('install-banner').style.display='block'}
 });
 $('install-btn').onclick=async()=>{
   if(S.deferredPrompt){S.deferredPrompt.prompt();const r=await S.deferredPrompt.userChoice;if(r.outcome==='accepted')console.log('[pwa] installed');S.deferredPrompt=null}
   $('install-banner').style.display='none';
 };
-$('install-dismiss').onclick=()=>{$('install-banner').style.display='none';localStorage.setItem('pusk_install_dismissed','1')};
+$('install-dismiss').onclick=()=>{$('install-banner').style.display='none';set('installDismissed','1')};
 
 // ── Eye toggle (all DOM ready) ──
 initEye('eye-btn','a-pin');
