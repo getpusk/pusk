@@ -1,5 +1,5 @@
 // Pusk Service Worker — App Shell cache + Push notifications
-const CACHE = 'pusk-v2';
+const CACHE = 'pusk-v3';
 const SHELL = [
   '/',
   '/css/pusk.css',
@@ -44,23 +44,18 @@ self.addEventListener('fetch', e => {
       url.pathname === '/metrics') {
     return;
   }
-  // Cache-first for static assets
+  // Stale-while-revalidate for static assets
   e.respondWith(
     caches.match(e.request).then(cached => {
-      if (cached) return cached;
-      return fetch(e.request).then(resp => {
-        // Cache new static files (CSS, JS, images)
+      const fetchPromise = fetch(e.request).then(resp => {
         if (resp.ok && e.request.method === 'GET') {
-          const clone = resp.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
+          caches.open(CACHE).then(c => c.put(e.request, resp.clone()));
         }
         return resp;
-      });
+      }).catch(() => cached);
+      return cached || fetchPromise;
     }).catch(() => {
-      // Offline fallback for navigation
-      if (e.request.mode === 'navigate') {
-        return caches.match('/');
-      }
+      if (e.request.mode === 'navigate') return caches.match('/');
     })
   );
 });
