@@ -46,6 +46,7 @@ export async function initLandingChat(){
   const chat=await landApi('POST','/api/bots/1/start');
   if(!chat.id)return;S.landChat=chat.id;
   const msgs=await landApi('GET',`/api/chats/${chat.id}/messages`);
+  const fb=document.getElementById("land-fallback");if(fb)fb.remove();
   if(msgs&&msgs.length)msgs.reverse().forEach(m=>{
     const who=m.sender==='bot'?'DemoBot':'Guest';
     landAddMsg(who,m.text,fmtTime(m.date),m.reply_markup);

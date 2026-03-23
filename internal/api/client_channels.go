@@ -35,19 +35,13 @@ func (a *ClientAPI) broadcastChannel(s *store.Store, channelID int64, orgID, evT
 func (a *ClientAPI) channelReaders(w http.ResponseWriter, r *http.Request) {
 	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
 	s := a.db(r)
-
-	users, _ := s.ListUsers()
-	type reader struct {
-		UserID   int64  `json:"user_id"`
-		Username string `json:"username"`
-		LastRead int64  `json:"last_read_id"`
+	readers, err := s.ChannelReadersJoin(channelID)
+	if err != nil {
+		jsonErr(w, "internal error", 500)
+		return
 	}
-	var readers []reader
-	for _, u := range users {
-		lastRead := s.GetLastRead(channelID, u.ID)
-		if lastRead > 0 {
-			readers = append(readers, reader{UserID: u.ID, Username: u.Username, LastRead: lastRead})
-		}
+	if readers == nil {
+		readers = []store.ChannelReader{}
 	}
 	json.NewEncoder(w).Encode(readers)
 }
@@ -97,27 +91,14 @@ func (a *ClientAPI) ackChannelMessage(w http.ResponseWriter, r *http.Request) {
 
 func (a *ClientAPI) listChannels(w http.ResponseWriter, r *http.Request) {
 	userID := UserIDFromCtx(r.Context())
-	channels, err := a.db(r).ListChannels()
+	s := a.db(r)
+	result, err := s.ListChannelsForUser(userID)
 	if err != nil {
 		jsonErr(w, "internal error", 500)
 		return
 	}
-	type channelInfo struct {
-		ID              int64  `json:"id"`
-		Name            string `json:"name"`
-		Description     string `json:"description,omitempty"`
-		Subscribed      bool   `json:"subscribed"`
-		Unread          int    `json:"unread"`
-		PinnedMessageID int64  `json:"pinned_message_id"`
-	}
-	s := a.db(r)
-	result := make([]channelInfo, 0, len(channels))
-	for _, ch := range channels {
-		result = append(result, channelInfo{
-			ID: ch.ID, Name: ch.Name, Description: ch.Description, PinnedMessageID: s.GetPinnedMessage(ch.ID),
-			Subscribed: s.IsSubscribed(ch.ID, userID),
-			Unread:     s.UnreadCount(ch.ID, userID),
-		})
+	if result == nil {
+		result = []store.ChannelInfo{}
 	}
 	json.NewEncoder(w).Encode(result)
 }
@@ -462,8 +443,8 @@ func createAlertmanagerSilence(amURL, username, alertText string) {
 
 	now := time.Now()
 	silence := map[string]interface{}{
-		"matchers": []map[string]string{
-			{"name": "alertname", "value": alertname, "isRegex": "false"},
+		"matchers": []map[string]interface{}{
+			{"name": "alertname", "value": alertname, "isRegex": false},
 		},
 		"startsAt":  now.Format(time.RFC3339),
 		"endsAt":    now.Add(1 * time.Hour).Format(time.RFC3339),
