@@ -40,7 +40,7 @@ document.addEventListener('visibilitychange',()=>{
 // ── Push ──
 export async function registerPush(){
   if(!('serviceWorker' in navigator)||!('PushManager' in window)||!S.token)return;
-  if((localStorage.getItem('org')||'default')==='default')return;
+  if((localStorage.getItem('pusk_org')||'default')==='default')return;
   try{
     const perm=await Notification.requestPermission();
     if(perm!=='granted')return;
