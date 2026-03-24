@@ -12,7 +12,7 @@ import (
 )
 
 // botAuthFail tracks IPs that fail bot auth repeatedly.
-// After 10 failures in 60s, the IP is blocked for 60s.
+// After 50 failures in 60s, the IP+token is blocked for 60s.
 var botAuthFail = struct {
 	mu    sync.Mutex
 	fails map[string]*authFail
@@ -89,7 +89,7 @@ func trackBotAuthFail(r *http.Request) {
 		return
 	}
 	f.count++
-	if f.count >= 10 {
+	if f.count >= 50 {
 		f.blocked = now
 		slog.Warn("bot auth rate limit triggered",
 			"ip", botIPFromRequest(r), "token", token, "failures", f.count)
