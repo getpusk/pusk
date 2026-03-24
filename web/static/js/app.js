@@ -62,15 +62,23 @@ if (updDismiss) updDismiss.onclick = () => $('update-bar').classList.remove('sho
 // ── SW update notification ──
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').then(reg => {
+    // Check for updates every 60s (Android PWA doesn't auto-check)
+    setInterval(() => reg.update().catch(() => {}), 60000);
     reg.addEventListener('updatefound', () => {
       const newSW = reg.installing;
       newSW.addEventListener('statechange', () => {
-        if (newSW.state === 'activated' && navigator.serviceWorker.controller) {
-          // New version available
-          const bar = $('update-bar');
-          if (bar) bar.classList.add('show');
+        if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+          // New SW installed, force activate it
+          newSW.postMessage('SKIP_WAITING');
         }
       });
+    });
+    // When new SW takes over, reload page silently
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing) return;
+      refreshing = true;
+      location.reload();
     });
   });
 }
