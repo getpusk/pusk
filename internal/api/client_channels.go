@@ -222,6 +222,19 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 		})
 		a.broadcastChannel(s, ch.ID, orgID, "channel_message", payload)
 
+		// Push notification to all channel subscribers (except sender)
+		subs, _ := s.ChannelSubscribers(ch.ID)
+		for _, uid := range subs {
+			if uid == userID {
+				continue
+			} // dont push to sender
+			a.push.SendToUser(s, uid, notify.PushPayload{
+				Title: "#" + ch.Name,
+				Body:  claims.Username + ": " + req.Text[:min(len(req.Text), 100)],
+				Tag:   "channel-" + strconv.FormatInt(ch.ID, 10),
+			})
+		}
+
 		// @mentions: push notification to mentioned users
 		if strings.Contains(req.Text, "@") {
 			users, _ := s.ListUsers()
