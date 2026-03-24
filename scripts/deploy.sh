@@ -25,16 +25,34 @@ echo "=== Deploying Pusk $VER ==="
 
 # --- Build ---
 echo "[1/6] Building..."
-CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/pusk-platform/pusk/internal/api.Version=$VER" \
-  -o /tmp/pusk-deploy ./cmd/pusk
+if [ -f go.mod ]; then
+  # Local build (running on build host)
+  CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/pusk-platform/pusk/internal/api.Version=$VER"     -o /tmp/pusk-deploy ./cmd/pusk
+else
+  # Remote build via BUILD_HOST
+  BUILD_HOST="${PUSK_BUILD_HOST:?Set PUSK_BUILD_HOST or run from source dir}"
+  BUILD_KEY="${PUSK_BUILD_KEY:?Set PUSK_BUILD_KEY}"
+  BUILD_DIR="${PUSK_BUILD_DIR:-/srv/projects/pusk}"
+  BSSH="ssh -i $BUILD_KEY $BUILD_HOST"
+  $BSSH "cd $BUILD_DIR && export PATH=\\$PATH:/usr/local/go/bin && CGO_ENABLED=0 go build -ldflags \"-s -w -X github.com/pusk-platform/pusk/internal/api.Version=$VER\" -o /tmp/pusk-deploy ./cmd/pusk"
+  scp -i "$BUILD_KEY" "$BUILD_HOST:/tmp/pusk-deploy" /tmp/pusk-deploy
+fi
 echo "  Binary: $(du -h /tmp/pusk-deploy | cut -f1)"
 
 # --- Upload ---
 echo "[2/6] Uploading binary + static..."
 $SCP /tmp/pusk-deploy "$REMOTE_HOST:/tmp/pusk-deploy"
-for f in web/static/sw.js web/static/css/pusk.css web/static/js/*.js; do
-  $SCP "$f" "$REMOTE_HOST:$REMOTE_DIR/$f"
-done
+if [ -f go.mod ]; then
+  for f in web/static/sw.js web/static/css/pusk.css web/static/js/*.js; do
+    $SCP "$f" "$REMOTE_HOST:$REMOTE_DIR/$f"
+  done
+else
+  BSSH="ssh -i $BUILD_KEY $BUILD_HOST"
+  for f in sw.js css/pusk.css js/state.js js/storage.js js/util.js js/views.js js/ws.js js/actions.js js/settings.js js/landing.js js/onboard.js js/app.js; do
+    scp -i "$BUILD_KEY" "$BUILD_HOST:$BUILD_DIR/web/static/$f" "/tmp/pusk-static-$(basename $f)"
+    $SCP "/tmp/pusk-static-$(basename $f)" "$REMOTE_HOST:$REMOTE_DIR/web/static/$f"
+  done
+fi
 
 # --- Backup ---
 echo "[3/6] Backing up current binary..."
