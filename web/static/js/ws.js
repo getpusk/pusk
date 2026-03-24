@@ -52,5 +52,8 @@ export async function registerPush(){
     if(sub){try{const old=await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json',Authorization:S.token},body:JSON.stringify(sub.toJSON())});if(!old.ok){await sub.unsubscribe();sub=null}}catch{await sub.unsubscribe();sub=null}}
     if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:appKey});
     await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json',Authorization:S.token},body:JSON.stringify(sub.toJSON())});
+    // Warn if subscription provider doesn't match browser
+    const ep=sub.endpoint||'';const isFF=navigator.userAgent.includes('Firefox');const isMoz=ep.includes('mozilla');
+    if(isFF&&!isMoz){const{toast:t2}=await import('./util.js');t2(localStorage.getItem('pusk_lang')==='en'?'Push registered via Chrome. Open in Firefox to get Firefox push.':'Push подписка от Chrome. Откройте в Firefox и нажмите Push Вкл для подписки Firefox.')}
   }catch(e){}
 }
