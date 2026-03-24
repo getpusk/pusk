@@ -52,38 +52,36 @@ func botIPFromRequest(r *http.Request) string {
 	return host
 }
 
-// checkBotAuthRL returns true if the IP is rate-limited due to auth failures.
-func checkBotAuthRL(r *http.Request) bool {
-	ip := botIPFromRequest(r)
+// checkBotAuthRL returns true if this IP+token combo is rate-limited.
+func checkBotAuthRL(r *http.Request, token string) bool {
+	key := botIPFromRequest(r) + ":" + token
 	botAuthFail.mu.Lock()
 	defer botAuthFail.mu.Unlock()
-	f, ok := botAuthFail.fails[ip]
+	f, ok := botAuthFail.fails[key]
 	if !ok {
 		return false
 	}
-	// If blocked and block hasn't expired
 	if !f.blocked.IsZero() && time.Since(f.blocked) < 60*time.Second {
 		return true
 	}
-	// Reset if window expired
 	if time.Since(f.firstAt) > 60*time.Second {
-		delete(botAuthFail.fails, ip)
+		delete(botAuthFail.fails, key)
 	}
 	return false
 }
 
-// trackBotAuthFail records a bot auth failure for the IP.
+// trackBotAuthFail records a bot auth failure for IP+token.
 func trackBotAuthFail(r *http.Request) {
-	ip := botIPFromRequest(r)
+	token := r.Header.Get("X-Bot-Token")
+	key := botIPFromRequest(r) + ":" + token
 	botAuthFail.mu.Lock()
 	defer botAuthFail.mu.Unlock()
-	f, ok := botAuthFail.fails[ip]
+	f, ok := botAuthFail.fails[key]
 	now := time.Now()
 	if !ok {
-		botAuthFail.fails[ip] = &authFail{count: 1, firstAt: now}
+		botAuthFail.fails[key] = &authFail{count: 1, firstAt: now}
 		return
 	}
-	// Reset window if >60s since first failure
 	if now.Sub(f.firstAt) > 60*time.Second {
 		f.count = 1
 		f.firstAt = now
@@ -93,7 +91,8 @@ func trackBotAuthFail(r *http.Request) {
 	f.count++
 	if f.count >= 10 {
 		f.blocked = now
-		slog.Warn("bot auth rate limit triggered", "ip", ip, "failures", f.count)
+		slog.Warn("bot auth rate limit triggered",
+			"ip", botIPFromRequest(r), "token", token, "failures", f.count)
 	}
 }
 
@@ -139,17 +138,17 @@ func extractTokenMethod(path string) (token, method string, ok bool) {
 }
 
 func (h *Handler) dispatchGet(w http.ResponseWriter, r *http.Request) {
-	if checkBotAuthRL(r) {
-		w.Header().Set("Retry-After", "60")
-		jsonResp(w, 429, APIResponse{OK: false, Error: "too many failed auth attempts, retry in 60s"})
-		return
-	}
 	token, method, ok := extractTokenMethod(r.URL.Path)
 	if !ok {
 		jsonResp(w, 400, APIResponse{OK: false, Error: "invalid path"})
 		return
 	}
 	r.Header.Set("X-Bot-Token", token)
+	if checkBotAuthRL(r, token) {
+		w.Header().Set("Retry-After", "60")
+		jsonResp(w, 429, APIResponse{OK: false, Error: "too many failed auth attempts, retry in 60s"})
+		return
+	}
 	switch method {
 	case "relay":
 		h.relayWebSocket(w, r)
@@ -179,11 +178,6 @@ func (h *Handler) dispatchHook(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) dispatch(w http.ResponseWriter, r *http.Request) {
-	if checkBotAuthRL(r) {
-		w.Header().Set("Retry-After", "60")
-		jsonResp(w, 429, APIResponse{OK: false, Error: "too many failed auth attempts, retry in 60s"})
-		return
-	}
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1MB max for bot API
 	token, method, ok := extractTokenMethod(r.URL.Path)
 	if !ok {
@@ -191,6 +185,11 @@ func (h *Handler) dispatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.Header.Set("X-Bot-Token", token)
+	if checkBotAuthRL(r, token) {
+		w.Header().Set("Retry-After", "60")
+		jsonResp(w, 429, APIResponse{OK: false, Error: "too many failed auth attempts, retry in 60s"})
+		return
+	}
 
 	switch method {
 	case "sendMessage":
