@@ -231,8 +231,27 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 			a.push.SendToUser(s, uid, notify.PushPayload{
 				Title: "#" + ch.Name,
 				Body:  claims.Username + ": " + req.Text[:min(len(req.Text), 100)],
-				Tag:   "channel-" + strconv.FormatInt(ch.ID, 10),
+				Tag:   fmt.Sprintf("ch-%d-%d", ch.ID, msg.ID),
 			})
+		}
+
+		// Reply push: notify the original message author
+		if req.ReplyTo > 0 {
+			origMsg, rerr := s.GetChannelMessage(req.ReplyTo)
+			if rerr == nil && origMsg.Sender == "user" && origMsg.SenderName != "" {
+				users, _ := s.ListUsers()
+				for _, u := range users {
+					if u.Username == origMsg.SenderName && u.ID != userID {
+						a.push.SendToUser(s, u.ID, notify.PushPayload{
+							Title: "#" + ch.Name + " \u2014 reply",
+							Body:  username + ": " + req.Text[:min(len(req.Text), 100)],
+							Tag:   fmt.Sprintf("reply-%d-%d", ch.ID, msg.ID),
+							URL:   "/",
+						})
+						break
+					}
+				}
+			}
 		}
 
 		// @mentions: push notification to mentioned users
