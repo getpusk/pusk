@@ -163,9 +163,14 @@ func (h *Handler) authBot(r *http.Request) (*store.Bot, error) {
 	s := h.storeForRequest(r)
 	token := r.Header.Get("X-Bot-Token")
 	if token == "" {
+		trackBotAuthFail(r)
 		return nil, fmt.Errorf("missing token")
 	}
-	return s.BotByToken(token)
+	bot, err := s.BotByToken(token)
+	if err != nil {
+		trackBotAuthFail(r)
+	}
+	return bot, err
 }
 
 // db returns the store for the current request (set by storeForRequest)
