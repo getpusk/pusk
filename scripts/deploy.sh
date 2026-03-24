@@ -20,7 +20,11 @@ cd "$SCRIPT_DIR/.."
 export PATH=$PATH:/usr/local/go/bin
 
 # --- Version ---
-VER=$(git describe --tags --always 2>/dev/null || echo "dev")
+if [ -f go.mod ]; then
+  VER=$(git describe --tags --always 2>/dev/null || echo "dev")
+else
+  VER=$(ssh -i "$PUSK_BUILD_KEY" "$PUSK_BUILD_HOST" "cd $PUSK_BUILD_DIR && git describe --tags --always" 2>/dev/null || echo "dev")
+fi
 echo "=== Deploying Pusk $VER ==="
 
 # --- Build ---
@@ -78,8 +82,8 @@ if echo "$HEALTH" | grep -q '"status":"ok"'; then
   echo "  Version: $VERSION"
   echo "  Online:  $ONLINE users"
 
-  ERRORS=$($SSH "tail -10 $REMOTE_DIR/pusk.log 2>/dev/null | grep -c 'ERROR\|panic'" 2>/dev/null || echo "0")
-  [ "$ERRORS" -gt 0 ] && echo "  WARNING: $ERRORS errors in recent log"
+  ERRORS=$($SSH "tail -10 $REMOTE_DIR/pusk.log 2>/dev/null | grep -c 'ERROR\|panic'" 2>/dev/null | tr -d '[:space:]' || echo "0")
+  [ "${ERRORS:-0}" -gt 0 ] 2>/dev/null && echo "  WARNING: $ERRORS errors in recent log"
 else
   echo ""
   echo "=== HEALTH FAILED — ROLLING BACK ==="
