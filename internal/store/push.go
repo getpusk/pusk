@@ -2,8 +2,6 @@
 // Licensed under the Business Source License 1.1. See LICENSE file for details.
 package store
 
-import "strings"
-
 // PushSubscription represents a Web Push subscription.
 type PushSubscription struct {
 	ID       int64  `json:"id"`
@@ -14,39 +12,18 @@ type PushSubscription struct {
 }
 
 func (s *Store) SavePushSubscription(userID int64, endpoint, p256dh, auth string) error {
-	// Upsert per-provider: one sub per browser type (chrome/firefox) per user.
-	// Detect provider from endpoint URL.
-	provider := "other"
-	if strings.Contains(endpoint, "fcm.googleapis.com") {
-		provider = "fcm"
-	} else if strings.Contains(endpoint, "mozilla.com") || strings.Contains(endpoint, "push.services.mozilla") {
-		provider = "mozilla"
-	}
-	tx, err := s.db.Begin()
+	// Upsert by endpoint — each device/browser has a unique endpoint.
+	// Max 5 subscriptions per user; remove oldest if exceeded.
+	_, err := s.db.Exec(`INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?)
+		ON CONFLICT(endpoint) DO UPDATE SET user_id=?, p256dh=?, auth=?`,
+		userID, endpoint, p256dh, auth, userID, p256dh, auth)
 	if err != nil {
 		return err
 	}
-	// Delete old subs from same provider for this user
-	tx.Exec("DELETE FROM push_subscriptions WHERE user_id=? AND endpoint LIKE ?",
-		userID, providerPattern(provider))
-	_, err = tx.Exec("INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?)",
-		userID, endpoint, p256dh, auth)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-	return tx.Commit()
-}
-
-func providerPattern(provider string) string {
-	switch provider {
-	case "fcm":
-		return "%fcm.googleapis.com%"
-	case "mozilla":
-		return "%push.services.mozilla%"
-	default:
-		return "%"
-	}
+	// Trim to max 5 per user
+	s.db.Exec(`DELETE FROM push_subscriptions WHERE user_id=? AND id NOT IN
+		(SELECT id FROM push_subscriptions WHERE user_id=? ORDER BY id DESC LIMIT 5)`, userID, userID)
+	return nil
 }
 
 func (s *Store) UserPushSubscriptions(userID int64) ([]PushSubscription, error) {
