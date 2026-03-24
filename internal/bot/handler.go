@@ -642,7 +642,7 @@ func (h *Handler) pushChannelMessage(s *store.Store, ch *store.Channel, bot *sto
 		h.push.SendToUser(s, userID, notify.PushPayload{
 			Title: "#" + ch.Name,
 			Body:  truncate(msg.Text, 100),
-			Tag:   "channel-" + ch.Name,
+			Tag:   fmt.Sprintf("ch-%d-%d", ch.ID, msg.ID),
 			URL:   "/",
 		})
 	}
