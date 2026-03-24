@@ -282,6 +282,11 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) pushSubscribe(w http.ResponseWriter, r *http.Request) {
+	claims := ClaimsFromCtx(r.Context())
+	if claims == nil || claims.OrgID == "" || claims.OrgID == "default" {
+		jsonErr(w, "push not available in default org", 403)
+		return
+	}
 	userID := UserIDFromCtx(r.Context())
 	var req struct {
 		Endpoint string `json:"endpoint"`
@@ -308,6 +313,10 @@ func (a *ClientAPI) testPush(w http.ResponseWriter, r *http.Request) {
 	username := ""
 	if claims != nil {
 		username = claims.Username
+	}
+	if claims == nil || claims.OrgID == "" || claims.OrgID == "default" {
+		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": "push not available in default org"})
+		return
 	}
 	s := a.db(r)
 	subs, _ := s.UserPushSubscriptions(userID)
