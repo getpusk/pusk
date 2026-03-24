@@ -1,5 +1,5 @@
 // Pusk Service Worker — App Shell cache + Push notifications
-const CACHE = 'pusk-v11';
+const CACHE = 'pusk-v12';
 const SHELL = [
   '/',
   '/css/pusk.css',
@@ -60,6 +60,11 @@ self.addEventListener('fetch', e => {
       if (e.request.mode === 'navigate') return caches.match('/');
     })
   );
+});
+
+// 3.5. Force update: skip waiting when app requests it
+self.addEventListener('message', e => {
+  if (e.data === 'SKIP_WAITING') self.skipWaiting();
 });
 
 // 4. Push notifications
