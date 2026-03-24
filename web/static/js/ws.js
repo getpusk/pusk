@@ -47,8 +47,10 @@ export async function registerPush(){
     const reg=await navigator.serviceWorker.register('/sw.js');
     await navigator.serviceWorker.ready;
     const r=await fetch('/api/push/vapid');const{key}=await r.json();if(!key)return;
+    const appKey=Uint8Array.from(atob(key.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-key.length%4)%4)),c=>c.charCodeAt(0));
     let sub=await reg.pushManager.getSubscription();
-    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:Uint8Array.from(atob(key.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-key.length%4)%4)),c=>c.charCodeAt(0))});
-    const resp=await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json',Authorization:S.token},body:JSON.stringify(sub.toJSON())});
+    if(sub){try{const old=await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json',Authorization:S.token},body:JSON.stringify(sub.toJSON())});if(!old.ok){await sub.unsubscribe();sub=null}}catch{await sub.unsubscribe();sub=null}}
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:appKey});
+    await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json',Authorization:S.token},body:JSON.stringify(sub.toJSON())});
   }catch(e){}
 }
