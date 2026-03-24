@@ -2,6 +2,8 @@
 // Licensed under the Business Source License 1.1. See LICENSE file for details.
 package store
 
+import "strings"
+
 // PushSubscription represents a Web Push subscription.
 type PushSubscription struct {
 	ID       int64  `json:"id"`
@@ -12,13 +14,21 @@ type PushSubscription struct {
 }
 
 func (s *Store) SavePushSubscription(userID int64, endpoint, p256dh, auth string) error {
-	// Replace all subscriptions for this user — one active browser at a time.
-	// Stale endpoints accumulate and waste push delivery attempts.
+	// Upsert per-provider: one sub per browser type (chrome/firefox) per user.
+	// Detect provider from endpoint URL.
+	provider := "other"
+	if strings.Contains(endpoint, "fcm.googleapis.com") {
+		provider = "fcm"
+	} else if strings.Contains(endpoint, "mozilla.com") || strings.Contains(endpoint, "push.services.mozilla") {
+		provider = "mozilla"
+	}
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
 	}
-	tx.Exec("DELETE FROM push_subscriptions WHERE user_id=?", userID)
+	// Delete old subs from same provider for this user
+	tx.Exec("DELETE FROM push_subscriptions WHERE user_id=? AND endpoint LIKE ?",
+		userID, providerPattern(provider))
 	_, err = tx.Exec("INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?)",
 		userID, endpoint, p256dh, auth)
 	if err != nil {
@@ -26,6 +36,17 @@ func (s *Store) SavePushSubscription(userID int64, endpoint, p256dh, auth string
 		return err
 	}
 	return tx.Commit()
+}
+
+func providerPattern(provider string) string {
+	switch provider {
+	case "fcm":
+		return "%fcm.googleapis.com%"
+	case "mozilla":
+		return "%push.services.mozilla%"
+	default:
+		return "%"
+	}
 }
 
 func (s *Store) UserPushSubscriptions(userID int64) ([]PushSubscription, error) {
