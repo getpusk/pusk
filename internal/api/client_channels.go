@@ -304,12 +304,19 @@ func (a *ClientAPI) vapidKey(w http.ResponseWriter, r *http.Request) {
 
 func (a *ClientAPI) testPush(w http.ResponseWriter, r *http.Request) {
 	userID := UserIDFromCtx(r.Context())
+	claims := ClaimsFromCtx(r.Context())
+	username := ""
+	if claims != nil {
+		username = claims.Username
+	}
 	s := a.db(r)
 	subs, _ := s.UserPushSubscriptions(userID)
 	if len(subs) == 0 {
+		slog.Info("push test: no subscriptions", "user_id", userID, "username", username)
 		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": "no push subscription", "subscriptions": 0})
 		return
 	}
+	slog.Info("push test", "user_id", userID, "username", username, "subscriptions", len(subs))
 	a.push.SendToUser(s, userID, notify.PushPayload{
 		Title: "Pusk Test",
 		Body:  "Push works! / Push работает!",
