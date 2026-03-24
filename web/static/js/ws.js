@@ -52,8 +52,11 @@ export async function registerPush(){
     if(sub){try{const old=await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json',Authorization:S.token},body:JSON.stringify(sub.toJSON())});if(!old.ok){await sub.unsubscribe();sub=null}}catch{await sub.unsubscribe();sub=null}}
     if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:appKey});
     await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json',Authorization:S.token},body:JSON.stringify(sub.toJSON())});
-    // Warn if subscription provider doesn't match browser
-    const ep=sub.endpoint||'';const isFF=navigator.userAgent.includes('Firefox');const isMoz=ep.includes('mozilla');
-    if(isFF&&!isMoz){const{toast:t2}=await import('./util.js');t2(localStorage.getItem('pusk_lang')==='en'?'Push registered via Chrome. Open in Firefox to get Firefox push.':'Push подписка от Chrome. Откройте в Firefox и нажмите Push Вкл для подписки Firefox.')}
+    // Detect browser and push provider mismatch
+    const ep=sub.endpoint||'';const ua=navigator.userAgent;
+    const bName=(()=>{if(ua.includes('YaBrowser'))return'Яндекс Браузер';if(ua.includes('Edg/'))return'Edge';if(ua.includes('OPR/')||ua.includes('Opera'))return'Opera';if(ua.includes('Vivaldi'))return'Vivaldi';if(ua.includes('Brave'))return'Brave';if(ua.includes('Firefox'))return'Firefox';if(ua.includes('Safari')&&!ua.includes('Chrome'))return'Safari';if(ua.includes('Chrome'))return'Chrome';return''})();
+    const epName=ep.includes('mozilla')?'Firefox':ep.includes('fcm.googleapis')?'Chrome/Chromium':ep.includes('windows.com')?'Edge':ep.includes('apple.com')?'Safari':'';
+    const isFF=bName==='Firefox';const isMoz=ep.includes('mozilla');const isChromium=!isFF&&!ep.includes('apple')&&!ep.includes('windows');
+    if((isFF&&!isMoz)||(!isFF&&isMoz)){const{toast:t2}=await import('./util.js');const ru=localStorage.getItem('pusk_lang')!=='en';t2(ru?'Push подписка от '+epName+'. Вы в '+bName+'. Нажмите Push Вкл для подписки '+bName+'.':'Push subscription from '+epName+'. You are in '+bName+'. Click Push On to subscribe.')}
   }catch(e){}
 }
