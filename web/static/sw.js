@@ -70,6 +70,7 @@ self.addEventListener('push', e => {
     icon: data.icon || '/icon-192.png',
     badge: '/icon-192.png',
     tag: data.tag || 'pusk-msg',
+    requireInteraction: true,
     data: { url: data.url || '/' },
   }));
 });
