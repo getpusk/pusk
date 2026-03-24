@@ -12,10 +12,20 @@ type PushSubscription struct {
 }
 
 func (s *Store) SavePushSubscription(userID int64, endpoint, p256dh, auth string) error {
-	_, err := s.db.Exec(`INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?)
-		ON CONFLICT(endpoint) DO UPDATE SET user_id=?, p256dh=?, auth=?`,
-		userID, endpoint, p256dh, auth, userID, p256dh, auth)
-	return err
+	// Replace all subscriptions for this user — one active browser at a time.
+	// Stale endpoints accumulate and waste push delivery attempts.
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	tx.Exec("DELETE FROM push_subscriptions WHERE user_id=?", userID)
+	_, err = tx.Exec("INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?)",
+		userID, endpoint, p256dh, auth)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *Store) UserPushSubscriptions(userID int64) ([]PushSubscription, error) {
