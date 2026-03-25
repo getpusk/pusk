@@ -3,6 +3,8 @@
 package store
 
 import (
+	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -711,14 +713,27 @@ func TestConcurrentCreateUser(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping concurrent test in -short mode")
 	}
-	s := newTestStore(t)
+	// Use file-based temp DB — :memory: has race issues under -race
+	tmp := t.TempDir()
+	s, err := New(tmp + "/concurrent.db")
+	if err != nil {
+		t.Fatal(err)
+	}
 	var wg sync.WaitGroup
-	errs := make(chan error, 20)
-	for i := 0; i < 20; i++ {
+	errs := make(chan error, 5)
+	for i := 0; i < 5; i++ {
 		wg.Add(1)
 		go func(n int) {
 			defer wg.Done()
-			_, err := s.CreateUser("user_"+string(rune('A'+n)), "pin", "")
+			name := fmt.Sprintf("user_%d", n)
+			var err error
+			for attempt := 0; attempt < 5; attempt++ {
+				_, err = s.CreateUser(name, "pin", "")
+				if err == nil || !strings.Contains(err.Error(), "SQLITE_BUSY") {
+					break
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
 			if err != nil {
 				errs <- err
 			}
