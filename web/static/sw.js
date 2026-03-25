@@ -1,5 +1,5 @@
 // Pusk Service Worker — App Shell cache + Push notifications
-const CACHE = 'pusk-v10';
+const CACHE = 'pusk-v13';
 const SHELL = [
   '/',
   '/css/pusk.css',
@@ -17,7 +17,7 @@ const SHELL = [
   '/icon-192.png',
 ];
 
-// 1. Install: precache app shell
+// 1. Install: precache app shell, activate immediately
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE)
@@ -26,7 +26,7 @@ self.addEventListener('install', e => {
   );
 });
 
-// 2. Activate: clean old caches
+// 2. Activate: clean old caches, claim clients
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
@@ -35,7 +35,7 @@ self.addEventListener('activate', e => {
   );
 });
 
-// 3. Fetch: cache-first for shell, network-only for API/WS
+// 3. Fetch: network-first for JS/CSS, cache fallback for offline
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   // Network-only for API, WebSocket, and bot/hook/file endpoints
@@ -46,7 +46,20 @@ self.addEventListener('fetch', e => {
       url.pathname === '/metrics') {
     return;
   }
-  // Stale-while-revalidate for static assets
+  // JS and CSS: network-first (always fresh code, cache as offline fallback)
+  if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
+    e.respondWith(
+      fetch(e.request).then(resp => {
+        if (resp.ok) {
+          const clone = resp.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+        }
+        return resp;
+      }).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+  // Everything else: stale-while-revalidate
   e.respondWith(
     caches.match(e.request).then(cached => {
       const fetchPromise = fetch(e.request).then(resp => {
@@ -70,6 +83,8 @@ self.addEventListener('push', e => {
     icon: data.icon || '/icon-192.png',
     badge: '/icon-192.png',
     tag: data.tag || 'pusk-msg',
+    renotify: true,
+    requireInteraction: true,
     data: { url: data.url || '/' },
   }));
 });
