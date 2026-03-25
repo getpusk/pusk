@@ -336,6 +336,11 @@ func (a *ClientAPI) testPush(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) listUsers(w http.ResponseWriter, r *http.Request) {
+	claims := ClaimsFromCtx(r.Context())
+	if claims != nil && (claims.OrgID == "" || claims.OrgID == "default") {
+		json.NewEncoder(w).Encode([]interface{}{})
+		return
+	}
 	users, err := a.db(r).ListUsers()
 	if err != nil {
 		jsonErr(w, "internal error", 500)
