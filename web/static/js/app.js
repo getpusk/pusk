@@ -62,11 +62,24 @@ if (updDismiss) updDismiss.onclick = () => $('update-bar').classList.remove('sho
 // ── SW update notification ──
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').then(reg => {
+    // Check for updates when tab becomes visible (covers Android PWA)
+    // Mobile keyboard: scroll messages when virtual keyboard opens
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+      const msgs = $('msgs');
+      if (msgs && msgs.style && getComputedStyle(msgs).display !== 'none') {
+        setTimeout(() => msgs.scrollTop = msgs.scrollHeight, 100);
+      }
+    });
+  }
+
+  document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) reg.update().catch(() => {});
+    });
     reg.addEventListener('updatefound', () => {
       const newSW = reg.installing;
       newSW.addEventListener('statechange', () => {
         if (newSW.state === 'activated' && navigator.serviceWorker.controller) {
-          // New version available
           const bar = $('update-bar');
           if (bar) bar.classList.add('show');
         }

@@ -6,3 +6,4 @@ data/
 .env
 *.secret
 tests/e2e/node_modules/
+scripts/deploy.env

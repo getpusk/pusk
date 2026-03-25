@@ -222,17 +222,40 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 		})
 		a.broadcastChannel(s, ch.ID, orgID, "channel_message", payload)
 
-		// Push notification to all channel subscribers (except sender)
+		// Push notification to offline channel subscribers (skip sender + online users)
 		subs, _ := s.ChannelSubscribers(ch.ID)
 		for _, uid := range subs {
 			if uid == userID {
 				continue
-			} // dont push to sender
+			}
+			wsKey := orgID + ":" + fmt.Sprintf("%d", uid)
+			if a.hub.IsConnected(wsKey) {
+				continue
+			} // skip online users — they get WS event
 			a.push.SendToUser(s, uid, notify.PushPayload{
 				Title: "#" + ch.Name,
 				Body:  claims.Username + ": " + req.Text[:min(len(req.Text), 100)],
-				Tag:   "channel-" + strconv.FormatInt(ch.ID, 10),
+				Tag:   fmt.Sprintf("ch-%d-%d", ch.ID, msg.ID),
 			})
+		}
+
+		// Reply push: notify the original message author
+		if req.ReplyTo > 0 {
+			origMsg, rerr := s.GetChannelMessage(req.ReplyTo)
+			if rerr == nil && origMsg.Sender == "user" && origMsg.SenderName != "" {
+				users, _ := s.ListUsers()
+				for _, u := range users {
+					if u.Username == origMsg.SenderName && u.ID != userID {
+						a.push.SendToUser(s, u.ID, notify.PushPayload{
+							Title: "#" + ch.Name + " \u2014 reply",
+							Body:  username + ": " + req.Text[:min(len(req.Text), 100)],
+							Tag:   fmt.Sprintf("reply-%d-%d", ch.ID, msg.ID),
+							URL:   "/",
+						})
+						break
+					}
+				}
+			}
 		}
 
 		// @mentions: push notification to mentioned users
@@ -263,6 +286,11 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) pushSubscribe(w http.ResponseWriter, r *http.Request) {
+	claims := ClaimsFromCtx(r.Context())
+	if claims == nil || claims.OrgID == "" || claims.OrgID == "default" {
+		jsonErr(w, "push not available in default org", 403)
+		return
+	}
 	userID := UserIDFromCtx(r.Context())
 	var req struct {
 		Endpoint string `json:"endpoint"`
@@ -285,12 +313,23 @@ func (a *ClientAPI) vapidKey(w http.ResponseWriter, r *http.Request) {
 
 func (a *ClientAPI) testPush(w http.ResponseWriter, r *http.Request) {
 	userID := UserIDFromCtx(r.Context())
+	claims := ClaimsFromCtx(r.Context())
+	username := ""
+	if claims != nil {
+		username = claims.Username
+	}
+	if claims == nil || claims.OrgID == "" || claims.OrgID == "default" {
+		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": "push not available in default org"})
+		return
+	}
 	s := a.db(r)
 	subs, _ := s.UserPushSubscriptions(userID)
 	if len(subs) == 0 {
+		slog.Info("push test: no subscriptions", "user_id", userID, "username", username)
 		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": "no push subscription", "subscriptions": 0})
 		return
 	}
+	slog.Info("push test", "user_id", userID, "username", username, "subscriptions", len(subs))
 	a.push.SendToUser(s, userID, notify.PushPayload{
 		Title: "Pusk Test",
 		Body:  "Push works! / Push работает!",
@@ -301,6 +340,11 @@ func (a *ClientAPI) testPush(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) listUsers(w http.ResponseWriter, r *http.Request) {
+	claims := ClaimsFromCtx(r.Context())
+	if claims != nil && (claims.OrgID == "" || claims.OrgID == "default") {
+		json.NewEncoder(w).Encode([]interface{}{})
+		return
+	}
 	users, err := a.db(r).ListUsers()
 	if err != nil {
 		jsonErr(w, "internal error", 500)
