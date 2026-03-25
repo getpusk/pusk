@@ -1,9 +1,7 @@
-[![License: BSL-1.1](https://img.shields.io/badge/License-BSL--1.1-blue.svg)](LICENSE)
-[![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go&logoColor=white)](https://go.dev)
+[![Go](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go&logoColor=white)](https://go.dev)
 [![CI](https://github.com/getpusk/pusk/actions/workflows/ci.yml/badge.svg)](https://github.com/getpusk/pusk/actions/workflows/ci.yml)
 [![Bot API](https://img.shields.io/badge/Telegram_Bot_API-13_methods-2CA5E0?logo=telegram)](https://core.telegram.org/bots/api)
 [![SQLite](https://img.shields.io/badge/SQLite-per_tenant-003B57?logo=sqlite)](https://www.sqlite.org)
-[![Docker](https://img.shields.io/badge/Docker-22_MB-2496ED?logo=docker&logoColor=white)](https://github.com/getpusk/pusk/pkgs/container/pusk)
 [![Go Report Card](https://goreportcard.com/badge/github.com/getpusk/pusk)](https://goreportcard.com/report/github.com/getpusk/pusk)
 
 <img src=".github/assets/landing.png" alt="Pusk Landing" width="960" />
@@ -15,7 +13,7 @@
 > Alerts, coordination, inline keyboards. One binary, zero config.
 > 13 of 80+ Telegram Bot API methods implemented — enough for alerting bots and simple interactions.
 
-**15 MB** binary | **12 MB** RAM | **1s** startup | **SQLite** storage
+**22 MB** binary | **12 MB** RAM | **1s** startup | **SQLite** storage
 
 ## Features
 
@@ -265,7 +263,7 @@ Pusk implements **13 of 80+ Telegram Bot API methods** — the core subset used 
 ## Architecture
 
 ```
-pusk (15 MB binary)
+pusk (22 MB binary)
 +-- Bot API (/bot/<token>/<method>)  <- Telegram-compatible
 +-- Client API (/api/*)              <- PWA backend
 +-- WebSocket (/api/ws)              <- real-time push
