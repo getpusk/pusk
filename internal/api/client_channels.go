@@ -24,9 +24,12 @@ import (
 )
 
 // broadcastChannel sends a WS event to all subscribers of a channel.
-func (a *ClientAPI) broadcastChannel(s *store.Store, channelID int64, orgID, evType string, payload []byte) {
+func (a *ClientAPI) broadcastChannel(s *store.Store, channelID int64, orgID, evType string, payload []byte, excludeUserID ...int64) {
 	subs, _ := s.ChannelSubscribers(channelID)
 	for _, uid := range subs {
+		if len(excludeUserID) > 0 && uid == excludeUserID[0] {
+			continue
+		}
 		key := orgID + ":" + fmt.Sprintf("%d", uid)
 		a.hub.SendToUser(key, ws.Event{Type: evType, ChatID: channelID, Payload: payload})
 	}
@@ -220,7 +223,7 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 			"channel_name": ch.Name,
 			"sender_name":  username,
 		})
-		a.broadcastChannel(s, ch.ID, orgID, "channel_message", payload)
+		a.broadcastChannel(s, ch.ID, orgID, "channel_message", payload, userID)
 
 		// Push notification to offline channel subscribers (skip sender + online users)
 		subs, _ := s.ChannelSubscribers(ch.ID)
@@ -230,12 +233,17 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 			}
 			wsKey := orgID + ":" + fmt.Sprintf("%d", uid)
 			if a.hub.IsConnected(wsKey) {
-				continue
-			} // skip online users — they get WS event
+				st := a.hub.GetStatus(wsKey)
+				ach := a.hub.GetActiveChannel(wsKey)
+				if st == "online" && ach == ch.ID {
+					continue
+				}
+			}
 			a.push.SendToUser(s, uid, notify.PushPayload{
 				Title: "#" + ch.Name,
 				Body:  claims.Username + ": " + req.Text[:min(len(req.Text), 100)],
 				Tag:   fmt.Sprintf("ch-%d-%d", ch.ID, msg.ID),
+				URL:   fmt.Sprintf("/?channel=%d", ch.ID),
 			})
 		}
 
@@ -250,7 +258,7 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 							Title: "#" + ch.Name + " \u2014 reply",
 							Body:  username + ": " + req.Text[:min(len(req.Text), 100)],
 							Tag:   fmt.Sprintf("reply-%d-%d", ch.ID, msg.ID),
-							URL:   "/",
+							URL:   fmt.Sprintf("/?channel=%d", ch.ID),
 						})
 						break
 					}
@@ -275,7 +283,7 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 						Title: "#" + ch.Name + " — @" + u.Username,
 						Body:  username + ": " + truncateText(req.Text, 80),
 						Tag:   "mention-" + ch.Name,
-						URL:   "/",
+						URL:   fmt.Sprintf("/?channel=%d", ch.ID),
 					})
 				}
 			}
@@ -673,7 +681,7 @@ func (a *ClientAPI) uploadToChannel(w http.ResponseWriter, r *http.Request) {
 			"channel_name": ch.Name,
 			"sender_name":  username,
 		})
-		a.broadcastChannel(s, ch.ID, orgID, "channel_message", payload)
+		a.broadcastChannel(s, ch.ID, orgID, "channel_message", payload, userID)
 	}
 
 	json.NewEncoder(w).Encode(msg)

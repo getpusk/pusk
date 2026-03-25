@@ -5,7 +5,7 @@ import {addMsg,scrollDown,showList,renderPinBar,setMsgHandlers} from './views.js
 
 // ── Send message ──
 $('msg-send').onclick=sendMsg;
-$('msg-in').onkeydown=e=>{const isMobile='ontouchstart' in window||navigator.maxTouchPoints>0;if(e.key==='Enter'&&!e.shiftKey&&!isMobile){e.preventDefault();sendMsg()}};
+$('msg-in').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){const isMobile='ontouchstart' in window&&navigator.maxTouchPoints>0;if(!isMobile){e.preventDefault();sendMsg()}}};
 
 // ── File upload ──
 $('file-input').onchange=async function(){if(!this.files.length)return;const file=this.files[0];if(!S.curChan){toast(S.lang==="ru"?"Только в каналах":"Only in channels");this.value="";return}const fd=new FormData();fd.append("file",file);fd.append("caption",file.name);toast(S.lang==="ru"?"Загрузка...":"Uploading...");const opts={method:"POST",headers:{},body:fd};if(S.token)opts.headers.Authorization=S.token;try{const r=await fetch(`/api/channels/${S.curChan}/upload`,opts);const msg=await r.json();if(msg&&msg.message_id){toast(S.lang==="ru"?"Отправлено":"Sent");addMsg(msg);scrollDown()}}catch(e){toast("Error: "+e.message)}this.value=""};
