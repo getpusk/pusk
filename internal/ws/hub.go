@@ -20,15 +20,17 @@ type Event struct {
 // Hub manages WebSocket connections per user.
 // Keys are "orgID:userID" strings to ensure multi-tenant isolation.
 type Hub struct {
-	mu     sync.RWMutex
-	conns  map[string][]*Conn // "orgID:userID" -> connections
-	status map[string]string  // key -> "online" | "away"
+	mu            sync.RWMutex
+	conns         map[string][]*Conn // "orgID:userID" -> connections
+	status        map[string]string  // key -> "online" | "away"
+	activeChannel map[string]int64   // key -> currently viewed channel ID (0 = none)
 }
 
 func NewHub() *Hub {
 	return &Hub{
-		conns:  make(map[string][]*Conn),
-		status: make(map[string]string),
+		conns:         make(map[string][]*Conn),
+		status:        make(map[string]string),
+		activeChannel: make(map[string]int64),
 	}
 }
 
@@ -55,6 +57,7 @@ func (h *Hub) Unregister(key string, c *Conn) {
 	if len(h.conns[key]) == 0 {
 		delete(h.conns, key)
 		delete(h.status, key)
+		delete(h.activeChannel, key)
 	}
 }
 
@@ -73,6 +76,18 @@ func (h *Hub) GetStatus(key string) string {
 		return s
 	}
 	return "offline"
+}
+
+func (h *Hub) SetActiveChannel(key string, channelID int64) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.activeChannel[key] = channelID
+}
+
+func (h *Hub) GetActiveChannel(key string) int64 {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.activeChannel[key]
 }
 
 func (h *Hub) SendToUser(key string, evt Event) {
