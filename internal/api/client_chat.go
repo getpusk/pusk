@@ -235,6 +235,8 @@ func (a *ClientAPI) websocket(w http.ResponseWriter, r *http.Request) {
 			if msg.Status == "online" || msg.Status == "away" {
 				a.hub.SetStatus(key, msg.Status)
 			}
+		case "viewing":
+			a.hub.SetActiveChannel(key, msg.ChannelID)
 		case "typing":
 			if msg.ChannelID > 0 {
 				s := a.db(r)
