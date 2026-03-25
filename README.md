@@ -13,7 +13,7 @@
 > Alerts, coordination, inline keyboards. One binary, zero config.
 > 13 of 80+ Telegram Bot API methods implemented — enough for alerting bots and simple interactions.
 
-**22 MB** binary | **12 MB** RAM | **1s** startup | **SQLite** storage
+**22 MB** binary | **~2 MB** idle RAM | **1s** startup | **SQLite** storage
 
 ## Features
 
