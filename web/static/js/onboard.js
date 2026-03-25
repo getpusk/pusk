@@ -108,13 +108,11 @@ function showStep() {
 }
 
 // Skip button
-document.addEventListener('DOMContentLoaded', () => {
-  const skipBtn = $('onboard-skip');
-  if (skipBtn) {
-    skipBtn.onclick = () => {
-      const orgSlug = get('org') || 'default';
-      set('onboarded_' + orgSlug, '1');
-      $('onboard-bg').classList.remove('open');
-    };
-  }
-});
+const skipBtn = $('onboard-skip');
+if (skipBtn) {
+  skipBtn.onclick = () => {
+    const orgSlug = get('org') || 'default';
+    set('onboarded_' + orgSlug, '1');
+    $('onboard-bg').classList.remove('open');
+  };
+}
