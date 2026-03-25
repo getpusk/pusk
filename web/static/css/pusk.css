@@ -82,7 +82,7 @@ header h2{font-size:14px;font-weight:600;flex:1}
 .ch-row:hover{border-color:var(--primary)}
 .ch-hash{font-size:18px;color:var(--text2);flex-shrink:0}
 .ch-body{flex:1;min-width:0}
-.ch-name{font-weight:600;font-size:14px}
+.ch-name{font-weight:600;font-size:14px;display:flex;align-items:center;gap:6px}
 .ch-badge{display:inline-block;width:8px;height:8px;border-radius:50%;background:#3db887;margin-left:6px;vertical-align:middle}
 .ch-desc{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sub-btn{padding:4px 12px;border-radius:8px;border:1px solid var(--primary);background:transparent;color:var(--accent);cursor:pointer;font-size:13px;line-height:20px;white-space:nowrap;min-width:80px;text-align:center;flex-shrink:0}
@@ -204,7 +204,7 @@ header h2{font-size:14px;font-weight:600;flex:1}
 .pin-close{background:none;border:none;color:var(--text2);cursor:pointer;font-size:14px}
 
 /* views.js: channel unread badge */
-.ch-unread{display:inline-block;min-width:16px;text-align:center;font-size:11px;color:#fff;background:#3db887;border-radius:8px;padding:1px 5px;margin-left:6px;vertical-align:middle}
+.ch-unread{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;font-size:11px;color:#fff;background:#3db887;border-radius:8px;padding:0 5px}
 
 /* views.js: bot token */
 .bot-token{font-size:11px;color:var(--text2);margin-top:2px;word-break:break-all;cursor:pointer}
