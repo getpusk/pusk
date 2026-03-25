@@ -41,6 +41,9 @@ func pushProvider(endpoint string) string {
 	if strings.Contains(endpoint, "mozilla.com") || strings.Contains(endpoint, "push.services.mozilla") {
 		return "mozilla"
 	}
+	if strings.Contains(endpoint, "push.yandex.ru") {
+		return "yandex"
+	}
 	return "other"
 }
 
@@ -73,6 +76,7 @@ func (p *PushService) SendToUser(s *store.Store, userID int64, payload PushPaylo
 			VAPIDPublicKey:  p.vapidPub,
 			VAPIDPrivateKey: p.vapidPriv,
 			TTL:             86400,
+			Urgency:         webpush.UrgencyHigh,
 		})
 		if err != nil {
 			failed++
@@ -81,7 +85,7 @@ func (p *PushService) SendToUser(s *store.Store, userID int64, payload PushPaylo
 				"provider", pushProvider(sub.Endpoint),
 				"error", err,
 			)
-			if resp != nil && (resp.StatusCode == 410 || resp.StatusCode == 404) {
+			if resp != nil && (resp.StatusCode == 410 || resp.StatusCode == 404 || resp.StatusCode == 403) {
 				stale++
 				s.DeletePushSubscription(sub.Endpoint)
 			}
@@ -89,7 +93,11 @@ func (p *PushService) SendToUser(s *store.Store, userID int64, payload PushPaylo
 		}
 		resp.Body.Close()
 
-		if resp.StatusCode == 410 || resp.StatusCode == 404 {
+		if resp.StatusCode >= 300 {
+			slog.Warn("push non-2xx", "status", resp.StatusCode, "endpoint", pushProvider(sub.Endpoint))
+		}
+
+		if resp.StatusCode == 410 || resp.StatusCode == 404 || resp.StatusCode == 403 {
 			stale++
 			s.DeletePushSubscription(sub.Endpoint)
 			slog.Info("push stale removed",

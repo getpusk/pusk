@@ -67,7 +67,7 @@ func (a *ClientAPI) db(r *http.Request) *store.Store {
 }
 
 func (a *ClientAPI) Route(mux *http.ServeMux) {
-	authRL := NewRateLimiter(20, time.Minute)
+	authRL := NewRateLimiter(10, time.Minute) // 10 auth/min per IP
 	regRL := NewRateLimiter(10, time.Minute)
 	sendRL := NewRateLimiter(30, time.Minute)   // 30 msgs/min per IP
 	uploadRL := NewRateLimiter(10, time.Minute) // 10 uploads/min per IP

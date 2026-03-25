@@ -1,5 +1,5 @@
 // Pusk Service Worker — App Shell cache + Push notifications
-const CACHE = 'pusk-v13';
+const CACHE = 'pusk-v14';
 const SHELL = [
   '/',
   '/css/pusk.css',
@@ -92,12 +92,16 @@ self.addEventListener('push', e => {
 // 5. Notification click → open/focus app
 self.addEventListener('notificationclick', e => {
   e.notification.close();
+  const target = e.notification.data?.url || '/';
   e.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
       for (const c of list) {
-        if (c.url.includes(self.location.origin) && 'focus' in c) return c.focus();
+        if (c.url.includes(self.location.origin) && 'focus' in c) {
+          if ('navigate' in c) c.navigate(target);
+          return c.focus();
+        }
       }
-      return clients.openWindow(e.notification.data.url || '/');
+      return clients.openWindow(target);
     })
   );
 });
