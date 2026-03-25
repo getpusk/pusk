@@ -4,7 +4,8 @@
 [![SQLite](https://img.shields.io/badge/SQLite-per_tenant-003B57?logo=sqlite)](https://www.sqlite.org)
 [![Go Report Card](https://goreportcard.com/badge/github.com/getpusk/pusk)](https://goreportcard.com/report/github.com/getpusk/pusk)
 
-🌐 [English](README.en.md)
+🌐 [Русский](README.md)
+
 
 <img src=".github/assets/landing.png" alt="Pusk — интерфейс" width="960" />
 
