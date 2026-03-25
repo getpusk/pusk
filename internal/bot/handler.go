@@ -163,9 +163,14 @@ func (h *Handler) authBot(r *http.Request) (*store.Bot, error) {
 	s := h.storeForRequest(r)
 	token := r.Header.Get("X-Bot-Token")
 	if token == "" {
+		trackBotAuthFail(r)
 		return nil, fmt.Errorf("missing token")
 	}
-	return s.BotByToken(token)
+	bot, err := s.BotByToken(token)
+	if err != nil {
+		trackBotAuthFail(r)
+	}
+	return bot, err
 }
 
 // db returns the store for the current request (set by storeForRequest)
@@ -212,6 +217,33 @@ func formToMap(r *http.Request) map[string]interface{} {
 	return m
 }
 
+// unwrapMarkup normalises reply_markup from a Telegram Bot API request.
+// PTB (python-telegram-bot) may send reply_markup as a JSON-encoded string
+// instead of a JSON object. This helper detects and unwraps that case.
+func unwrapMarkup(raw json.RawMessage) string {
+	if raw == nil {
+		return ""
+	}
+	s := string(raw)
+	if len(s) > 1 && s[0] == '"' {
+		var unquoted string
+		if json.Unmarshal(raw, &unquoted) == nil {
+			return unquoted
+		}
+	}
+	return s
+}
+
+// isHex reports whether s contains only hexadecimal characters.
+func isHex(s string) bool {
+	for _, c := range s {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+			return false
+		}
+	}
+	return len(s) > 0
+}
+
 func randID() string {
 	b := make([]byte, 16)
 	rand.Read(b)
@@ -244,18 +276,7 @@ func (h *Handler) sendMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	markup := ""
-	if req.ReplyMarkup != nil {
-		raw := string(req.ReplyMarkup)
-		// PTB may send reply_markup as JSON string; unwrap if quoted
-		if len(raw) > 1 && raw[0] == '"' {
-			var unquoted string
-			if json.Unmarshal(req.ReplyMarkup, &unquoted) == nil {
-				raw = unquoted
-			}
-		}
-		markup = raw
-	}
+	markup := unwrapMarkup(req.ReplyMarkup)
 
 	s := h.db(r)
 
@@ -323,17 +344,7 @@ func (h *Handler) editMessageText(w http.ResponseWriter, r *http.Request) {
 
 	// BUG-5: handle channel messages (negative chat_id)
 	if req.ChatID < 0 {
-		markup := ""
-		if req.ReplyMarkup != nil {
-			raw := string(req.ReplyMarkup)
-			if len(raw) > 1 && raw[0] == '"' {
-				var unquoted string
-				if json.Unmarshal(req.ReplyMarkup, &unquoted) == nil {
-					raw = unquoted
-				}
-			}
-			markup = raw
-		}
+		markup := unwrapMarkup(req.ReplyMarkup)
 		if err := h.db(r).UpdateChannelMessageText(req.MessageID, req.Text, markup); err != nil {
 			jsonResp(w, 500, APIResponse{OK: false, Error: err.Error()})
 			return
@@ -349,17 +360,7 @@ func (h *Handler) editMessageText(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	markup := ""
-	if req.ReplyMarkup != nil {
-		raw := string(req.ReplyMarkup)
-		if len(raw) > 1 && raw[0] == '"' {
-			var unquoted string
-			if json.Unmarshal(req.ReplyMarkup, &unquoted) == nil {
-				raw = unquoted
-			}
-		}
-		markup = raw
-	}
+	markup := unwrapMarkup(req.ReplyMarkup)
 
 	if err := h.db(r).UpdateMessageText(req.MessageID, req.Text, markup); err != nil {
 		jsonResp(w, 500, APIResponse{OK: false, Error: err.Error()})
@@ -561,27 +562,29 @@ func (h *Handler) serveFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Try as file-token (opaque 32-hex-char token)
-	if h.orgs != nil {
-		for _, o := range h.orgs.List() {
-			if os, err := h.orgs.Get(o.Slug); err == nil {
-				if _, err := os.ValidateFileToken(tokenStr); err == nil {
-					f, err := os.GetFile(fileID)
-					if err == nil {
-						http.ServeFile(w, r, f.Path)
-						return
-					}
+	// Try as file-token: validate format first to reject garbage early (DoS prevention).
+	// File tokens are 32-hex-char opaque strings -- skip iteration for anything else.
+	if len(tokenStr) == 32 && isHex(tokenStr) {
+		// Try default store first (most common case)
+		if h.store != nil {
+			if _, err := h.store.ValidateFileToken(tokenStr); err == nil {
+				if f, err := h.store.GetFile(fileID); err == nil {
+					http.ServeFile(w, r, f.Path)
+					return
 				}
 			}
 		}
-	}
-	// Fallback: try default store file-token
-	if h.store != nil {
-		if _, err := h.store.ValidateFileToken(tokenStr); err == nil {
-			f, err := h.store.GetFile(fileID)
-			if err == nil {
-				http.ServeFile(w, r, f.Path)
-				return
+		// Multi-org: check each loaded org store
+		if h.orgs != nil {
+			for _, o := range h.orgs.List() {
+				if os, err := h.orgs.Get(o.Slug); err == nil {
+					if _, err := os.ValidateFileToken(tokenStr); err == nil {
+						if f, err := os.GetFile(fileID); err == nil {
+							http.ServeFile(w, r, f.Path)
+							return
+						}
+					}
+				}
 			}
 		}
 	}
@@ -639,12 +642,14 @@ func (h *Handler) pushChannelMessage(s *store.Store, ch *store.Channel, bot *sto
 	for _, userID := range subs {
 		key := s.OrgID + ":" + fmt.Sprintf("%d", userID)
 		h.hub.SendToUser(key, ws.Event{Type: "channel_message", ChatID: ch.ID, Payload: payload})
-		h.push.SendToUser(s, userID, notify.PushPayload{
-			Title: "#" + ch.Name,
-			Body:  truncate(msg.Text, 100),
-			Tag:   "channel-" + ch.Name,
-			URL:   "/",
-		})
+		if !h.hub.IsConnected(key) {
+			h.push.SendToUser(s, userID, notify.PushPayload{
+				Title: "#" + ch.Name,
+				Body:  truncate(msg.Text, 100),
+				Tag:   fmt.Sprintf("ch-%d-%d", ch.ID, msg.ID),
+				URL:   "/",
+			})
+		}
 	}
 }
 
@@ -709,17 +714,7 @@ func (h *Handler) sendChannel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	markup := ""
-	if req.ReplyMarkup != nil {
-		raw := string(req.ReplyMarkup)
-		if len(raw) > 1 && raw[0] == '"' {
-			var unquoted string
-			if json.Unmarshal(req.ReplyMarkup, &unquoted) == nil {
-				raw = unquoted
-			}
-		}
-		markup = raw
-	}
+	markup := unwrapMarkup(req.ReplyMarkup)
 
 	msg, err := h.db(r).SaveChannelMessage(ch.ID, req.Text, markup, "", "")
 	if err != nil {
