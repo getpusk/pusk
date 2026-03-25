@@ -48,7 +48,10 @@ func (a *ClientAPI) auth(w http.ResponseWriter, r *http.Request) {
 		Pin      string `json:"pin"`
 		Org      string `json:"org"`
 	}
-	json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonErr(w, "invalid request body", 400)
+		return
+	}
 
 	orgSlug := req.Org
 	if orgSlug == "" {
@@ -112,7 +115,10 @@ func (a *ClientAPI) register(w http.ResponseWriter, r *http.Request) {
 		DisplayName string `json:"display_name"`
 		Org         string `json:"org"`
 	}
-	json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonErr(w, "invalid request body", 400)
+		return
+	}
 
 	orgSlug := req.Org
 	if orgSlug == "" {
@@ -201,7 +207,10 @@ func (a *ClientAPI) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		Pin         string `json:"pin"`
 		DisplayName string `json:"display_name"`
 	}
-	json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonErr(w, "invalid request body", 400)
+		return
+	}
 
 	if req.Code == "" || req.Username == "" || req.Pin == "" {
 		jsonErr(w, "code, username and pin required", 400)
@@ -268,7 +277,10 @@ func (a *ClientAPI) changePassword(w http.ResponseWriter, r *http.Request) {
 		OldPin string `json:"old_pin"`
 		NewPin string `json:"new_pin"`
 	}
-	json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonErr(w, "invalid request body", 400)
+		return
+	}
 	if req.OldPin == "" || req.NewPin == "" {
 		jsonErr(w, "old_pin and new_pin required", 400)
 		return
