@@ -172,9 +172,9 @@ header h2{font-size:14px;font-weight:600;flex:1}
 /* Component classes — extracted from inline styles */
 .land-btns-flush{margin-top:0}
 .land-btn-gh{flex:1;font-size:13px;color:var(--text2)}
-.input-eye-wrap{position:relative;margin-bottom:10px}
-.input-eye{padding-right:40px;margin-bottom:0}
-.eye-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text2);display:flex;align-items:center;padding:0;margin:0}
+.input-eye-wrap{position:relative;margin-bottom:10px;display:flex;align-items:center}
+.input-eye{padding-right:40px !important;margin-bottom:0 !important;flex:1}
+.eye-toggle{position:absolute;right:12px;top:0;bottom:0;background:none;border:none;cursor:pointer;color:var(--text2);display:flex;align-items:center;padding:0;margin:0}
 .auth-org{font-size:13px;padding:10px 16px}
 .hdr-online{font-size:11px;color:#3db887;margin-left:-4px}
 #typing-bar{display:none;padding:2px 16px;font-size:12px;color:var(--text2);font-style:italic}
