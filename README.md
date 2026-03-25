@@ -4,6 +4,7 @@
 [![Bot API](https://img.shields.io/badge/Telegram_Bot_API-13_methods-2CA5E0?logo=telegram)](https://core.telegram.org/bots/api)
 [![SQLite](https://img.shields.io/badge/SQLite-per_tenant-003B57?logo=sqlite)](https://www.sqlite.org)
 [![Docker](https://img.shields.io/badge/Docker-22_MB-2496ED?logo=docker&logoColor=white)](https://github.com/getpusk/pusk/pkgs/container/pusk)
+[![Go Report Card](https://goreportcard.com/badge/github.com/getpusk/pusk)](https://goreportcard.com/report/github.com/getpusk/pusk)
 
 <img src=".github/assets/landing.png" alt="Pusk Landing" width="960" />
 
