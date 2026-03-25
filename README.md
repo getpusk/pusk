@@ -1,5 +1,9 @@
 [![License: BSL-1.1](https://img.shields.io/badge/License-BSL--1.1-blue.svg)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go&logoColor=white)](https://go.dev)
+[![Tests](https://img.shields.io/badge/tests-98_pass-brightgreen?logo=github-actions)](https://github.com/getpusk/pusk)
+[![Bot API](https://img.shields.io/badge/Telegram_Bot_API-13_methods-2CA5E0?logo=telegram)](https://core.telegram.org/bots/api)
+[![SQLite](https://img.shields.io/badge/SQLite-per_tenant-003B57?logo=sqlite)](https://www.sqlite.org)
+[![Docker](https://img.shields.io/badge/Docker-22_MB-2496ED?logo=docker&logoColor=white)](https://github.com/getpusk/pusk/pkgs/container/pusk)
 
 <img src=".github/assets/landing.png" alt="Pusk Landing" width="960" />
 
