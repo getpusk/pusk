@@ -204,7 +204,7 @@ header h2{font-size:14px;font-weight:600;flex:1}
 .pin-close{background:none;border:none;color:var(--text2);cursor:pointer;font-size:14px}
 
 /* views.js: channel unread badge */
-.ch-unread{display:inline-block;min-width:16px;text-align:center;font-size:11px;color:#fff;background:#3db887;border-radius:8px;padding:1px 5px;margin-left:6px}
+.ch-unread{display:inline-block;min-width:16px;text-align:center;font-size:11px;color:#fff;background:#3db887;border-radius:8px;padding:1px 5px;margin-left:6px;vertical-align:middle}
 
 /* views.js: bot token */
 .bot-token{font-size:11px;color:var(--text2);margin-top:2px;word-break:break-all;cursor:pointer}
