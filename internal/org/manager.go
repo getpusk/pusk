@@ -240,7 +240,7 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 	m.orgs = append(m.orgs, Org{
 		Slug:    slug,
 		Name:    name,
-		Created: fmt.Sprintf("%v", os.Getenv("_")), // will be overwritten
+		Created: store.Now(),
 	})
 
 	// Use proper timestamp
