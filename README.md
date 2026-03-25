@@ -5,9 +5,10 @@
 
 <img src=".github/assets/alerts.png" alt="Pusk Alerts Channel" width="960" />
 
-> **Drop-in Telegram Bot API replacement. Your bots keep working — on your server.**
+> **Self-hosted alert and messaging platform with Telegram Bot API compatibility.**
 >
 > Alerts, coordination, inline keyboards. One binary, zero config.
+> 13 of 80+ Telegram Bot API methods implemented — enough for alerting bots and simple interactions.
 
 **15 MB** binary | **12 MB** RAM | **1s** startup | **SQLite** storage
 
@@ -219,6 +220,8 @@ Navigate to `http://localhost:8443` — register, pick a bot, chat.
 
 ## Bot API Compatibility
 
+Pusk implements **13 of 80+ Telegram Bot API methods** — the core subset used by alerting bots, notification pipelines, and simple interactive bots. Methods like `sendMessage`, `sendPhoto`, inline keyboards, and webhooks work identically to Telegram. Advanced features (groups, stickers, payments, games, etc.) are not implemented.
+
 | Telegram Method | Pusk | Notes |
 |----------------|------|-------|
 | sendMessage | Yes | + InlineKeyboardMarkup |
@@ -234,6 +237,8 @@ Navigate to `http://localhost:8443` — register, pick a bot, chat.
 | getWebhookInfo | Yes | |
 | getUpdates | Yes | long polling |
 | getMe | Yes | |
+
+**Not implemented:** sendAnimation, sendSticker, sendLocation, sendContact, sendPoll, forwardMessage, copyMessage, banChatMember, group management, payments, games, passport, and other advanced Telegram methods.
 
 ## Configuration
 
@@ -264,9 +269,9 @@ pusk (15 MB binary)
 +-- SQLite (data/orgs/*/pusk.db)            <- zero-config storage
 ```
 
-## Migrating from Telegram
+## Using with Telegram Bot Libraries
 
-Replace the base URL in your bot. The JSON format for sendMessage, InlineKeyboardMarkup, CallbackQuery is identical.
+If your bot only uses the 13 methods listed above, you can point it at Pusk by changing the base URL. The JSON format for sendMessage, InlineKeyboardMarkup, CallbackQuery is identical to Telegram. Bots that rely on unsupported methods will need adaptation.
 
 ### Python (aiogram)
 ```diff
