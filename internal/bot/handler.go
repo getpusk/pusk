@@ -644,12 +644,14 @@ func (h *Handler) pushChannelMessage(s *store.Store, ch *store.Channel, bot *sto
 	for _, userID := range subs {
 		key := s.OrgID + ":" + fmt.Sprintf("%d", userID)
 		h.hub.SendToUser(key, ws.Event{Type: "channel_message", ChatID: ch.ID, Payload: payload})
-		h.push.SendToUser(s, userID, notify.PushPayload{
-			Title: "#" + ch.Name,
-			Body:  truncate(msg.Text, 100),
-			Tag:   fmt.Sprintf("ch-%d-%d", ch.ID, msg.ID),
-			URL:   "/",
-		})
+		if !h.hub.IsConnected(key) {
+			h.push.SendToUser(s, userID, notify.PushPayload{
+				Title: "#" + ch.Name,
+				Body:  truncate(msg.Text, 100),
+				Tag:   fmt.Sprintf("ch-%d-%d", ch.ID, msg.ID),
+				URL:   "/",
+			})
+		}
 	}
 }
 
