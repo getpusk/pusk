@@ -12,10 +12,18 @@ type PushSubscription struct {
 }
 
 func (s *Store) SavePushSubscription(userID int64, endpoint, p256dh, auth string) error {
+	// Upsert by endpoint — each device/browser has a unique endpoint.
+	// Max 5 subscriptions per user; remove oldest if exceeded.
 	_, err := s.db.Exec(`INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?)
 		ON CONFLICT(endpoint) DO UPDATE SET user_id=?, p256dh=?, auth=?`,
 		userID, endpoint, p256dh, auth, userID, p256dh, auth)
-	return err
+	if err != nil {
+		return err
+	}
+	// Trim to max 5 per user
+	s.db.Exec(`DELETE FROM push_subscriptions WHERE user_id=? AND id NOT IN
+		(SELECT id FROM push_subscriptions WHERE user_id=? ORDER BY id DESC LIMIT 5)`, userID, userID)
+	return nil
 }
 
 func (s *Store) UserPushSubscriptions(userID int64) ([]PushSubscription, error) {
