@@ -3,9 +3,98 @@
 package bot
 
 import (
+	"log/slog"
+	"net"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 )
+
+// botAuthFail tracks IPs that fail bot auth repeatedly.
+// After 50 failures in 60s, the IP+token is blocked for 60s.
+var botAuthFail = struct {
+	mu    sync.Mutex
+	fails map[string]*authFail
+}{fails: make(map[string]*authFail)}
+
+type authFail struct {
+	count   int
+	firstAt time.Time
+	blocked time.Time
+}
+
+func init() {
+	// Cleanup stale entries every 5 min
+	go func() {
+		for range time.Tick(5 * time.Minute) {
+			botAuthFail.mu.Lock()
+			cutoff := time.Now().Add(-5 * time.Minute)
+			for k, v := range botAuthFail.fails {
+				if v.firstAt.Before(cutoff) {
+					delete(botAuthFail.fails, k)
+				}
+			}
+			botAuthFail.mu.Unlock()
+		}
+	}()
+}
+
+func botIPFromRequest(r *http.Request) string {
+	host, _, _ := net.SplitHostPort(r.RemoteAddr)
+	ip := net.ParseIP(host)
+	if ip != nil && (ip.IsLoopback() || ip.IsPrivate()) {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			parts := strings.Split(xff, ",")
+			return strings.TrimSpace(parts[0])
+		}
+	}
+	return host
+}
+
+// checkBotAuthRL returns true if this IP+token combo is rate-limited.
+func checkBotAuthRL(r *http.Request, token string) bool {
+	key := botIPFromRequest(r) + ":" + token
+	botAuthFail.mu.Lock()
+	defer botAuthFail.mu.Unlock()
+	f, ok := botAuthFail.fails[key]
+	if !ok {
+		return false
+	}
+	if !f.blocked.IsZero() && time.Since(f.blocked) < 60*time.Second {
+		return true
+	}
+	if time.Since(f.firstAt) > 60*time.Second {
+		delete(botAuthFail.fails, key)
+	}
+	return false
+}
+
+// trackBotAuthFail records a bot auth failure for IP+token.
+func trackBotAuthFail(r *http.Request) {
+	token := r.Header.Get("X-Bot-Token")
+	key := botIPFromRequest(r) + ":" + token
+	botAuthFail.mu.Lock()
+	defer botAuthFail.mu.Unlock()
+	f, ok := botAuthFail.fails[key]
+	now := time.Now()
+	if !ok {
+		botAuthFail.fails[key] = &authFail{count: 1, firstAt: now}
+		return
+	}
+	if now.Sub(f.firstAt) > 60*time.Second {
+		f.count = 1
+		f.firstAt = now
+		f.blocked = time.Time{}
+		return
+	}
+	f.count++
+	if f.count >= 50 {
+		f.blocked = now
+		slog.Warn("bot auth rate limit triggered",
+			"ip", botIPFromRequest(r), "token", token, "failures", f.count)
+	}
+}
 
 // Route registers Bot API endpoints with token extraction middleware
 // TelegramCompat rewrites /bot{token}/method → /bot/{token}/method for Telegram-native clients
@@ -55,6 +144,11 @@ func (h *Handler) dispatchGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.Header.Set("X-Bot-Token", token)
+	if checkBotAuthRL(r, token) {
+		w.Header().Set("Retry-After", "60")
+		jsonResp(w, 429, APIResponse{OK: false, Error: "too many failed auth attempts, retry in 60s"})
+		return
+	}
 	switch method {
 	case "relay":
 		h.relayWebSocket(w, r)
@@ -91,6 +185,11 @@ func (h *Handler) dispatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.Header.Set("X-Bot-Token", token)
+	if checkBotAuthRL(r, token) {
+		w.Header().Set("Retry-After", "60")
+		jsonResp(w, 429, APIResponse{OK: false, Error: "too many failed auth attempts, retry in 60s"})
+		return
+	}
 
 	switch method {
 	case "sendMessage":

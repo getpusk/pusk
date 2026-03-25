@@ -5,6 +5,7 @@ package notify
 import (
 	"encoding/json"
 	"log/slog"
+	"strings"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
 	"github.com/pusk-platform/pusk/internal/store"
@@ -32,6 +33,17 @@ type PushPayload struct {
 	URL   string `json:"url,omitempty"`
 }
 
+// pushProvider extracts "fcm" or "mozilla" or "unknown" from endpoint URL.
+func pushProvider(endpoint string) string {
+	if strings.Contains(endpoint, "fcm.googleapis.com") {
+		return "fcm"
+	}
+	if strings.Contains(endpoint, "mozilla.com") || strings.Contains(endpoint, "push.services.mozilla") {
+		return "mozilla"
+	}
+	return "other"
+}
+
 // SendToUser sends push notifications using the provided org store
 // to look up subscriptions (not a hardcoded default store).
 func (p *PushService) SendToUser(s *store.Store, userID int64, payload PushPayload) {
@@ -46,6 +58,7 @@ func (p *PushService) SendToUser(s *store.Store, userID int64, payload PushPaylo
 
 	data, _ := json.Marshal(payload)
 
+	sent, failed, stale := 0, 0, 0
 	for _, sub := range subs {
 		wps := &webpush.Subscription{
 			Endpoint: sub.Endpoint,
@@ -59,16 +72,42 @@ func (p *PushService) SendToUser(s *store.Store, userID int64, payload PushPaylo
 			Subscriber:      p.vapidEmail,
 			VAPIDPublicKey:  p.vapidPub,
 			VAPIDPrivateKey: p.vapidPriv,
-			TTL:             3600,
+			TTL:             86400,
 		})
 		if err != nil {
-			slog.Error("push send failed", "user_id", userID, "error", err)
+			failed++
+			slog.Error("push send failed",
+				"user_id", userID,
+				"provider", pushProvider(sub.Endpoint),
+				"error", err,
+			)
 			if resp != nil && (resp.StatusCode == 410 || resp.StatusCode == 404) {
+				stale++
 				s.DeletePushSubscription(sub.Endpoint)
-				slog.Info("push stale subscription removed", "user_id", userID)
 			}
 			continue
 		}
 		resp.Body.Close()
+
+		if resp.StatusCode == 410 || resp.StatusCode == 404 {
+			stale++
+			s.DeletePushSubscription(sub.Endpoint)
+			slog.Info("push stale removed",
+				"user_id", userID,
+				"provider", pushProvider(sub.Endpoint),
+				"status", resp.StatusCode,
+			)
+		} else {
+			sent++
+		}
 	}
+
+	slog.Info("push delivered",
+		"user_id", userID,
+		"title", payload.Title,
+		"sent", sent,
+		"failed", failed,
+		"stale", stale,
+		"total_subs", len(subs),
+	)
 }

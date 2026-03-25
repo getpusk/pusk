@@ -25,7 +25,7 @@ func New(path string) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
-	db.SetMaxOpenConns(1)                           // SQLite: serialize writes to prevent "database is locked"
+	db.SetMaxOpenConns(4)                           // WAL mode allows concurrent reads; single writer enforced by WAL
 	db.Exec("PRAGMA journal_size_limit = 67108864") // 64MB
 	db.Exec("PRAGMA synchronous = NORMAL")
 	s := &Store{db: db}
@@ -161,27 +161,42 @@ func (s *Store) migrate() error {
 		if err != nil {
 			return err
 		}
-		s.db.Exec("PRAGMA user_version = 1")
+		if _, err := s.db.Exec("PRAGMA user_version = 1"); err != nil {
+			return fmt.Errorf("set version 1: %w", err)
+		}
 	}
 
 	if version < 2 {
-		s.db.Exec("ALTER TABLE channel_messages ADD COLUMN sender TEXT DEFAULT 'bot'")
-		s.db.Exec("CREATE TABLE IF NOT EXISTS channel_reads (channel_id INTEGER, user_id INTEGER, last_read_id INTEGER DEFAULT 0, PRIMARY KEY(channel_id, user_id))")
-		s.db.Exec("ALTER TABLE channel_messages ADD COLUMN sender_name TEXT DEFAULT ''")
-		s.db.Exec("ALTER TABLE channel_messages ADD COLUMN reply_to INTEGER DEFAULT 0")
-		s.db.Exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'member'")
-		s.db.Exec("ALTER TABLE channel_messages ADD COLUMN edited_at TEXT DEFAULT ''")
-		s.db.Exec("ALTER TABLE channels ADD COLUMN pinned_message_id INTEGER DEFAULT 0")
-		s.db.Exec("PRAGMA user_version = 2")
+		stmts := []string{
+			"ALTER TABLE channel_messages ADD COLUMN sender TEXT DEFAULT 'bot'",
+			"CREATE TABLE IF NOT EXISTS channel_reads (channel_id INTEGER, user_id INTEGER, last_read_id INTEGER DEFAULT 0, PRIMARY KEY(channel_id, user_id))",
+			"ALTER TABLE channel_messages ADD COLUMN sender_name TEXT DEFAULT ''",
+			"ALTER TABLE channel_messages ADD COLUMN reply_to INTEGER DEFAULT 0",
+			"ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'member'",
+			"ALTER TABLE channel_messages ADD COLUMN edited_at TEXT DEFAULT ''",
+			"ALTER TABLE channels ADD COLUMN pinned_message_id INTEGER DEFAULT 0",
+		}
+		for _, stmt := range stmts {
+			if _, err := s.db.Exec(stmt); err != nil {
+				return fmt.Errorf("migrate v2: %w", err)
+			}
+		}
+		if _, err := s.db.Exec("PRAGMA user_version = 2"); err != nil {
+			return fmt.Errorf("set version 2: %w", err)
+		}
 	}
 
 	if version < 3 {
-		s.db.Exec(`CREATE TABLE IF NOT EXISTS file_tokens (
+		if _, err := s.db.Exec(`CREATE TABLE IF NOT EXISTS file_tokens (
 			token TEXT PRIMARY KEY,
 			user_id INTEGER NOT NULL,
 			expires_at DATETIME NOT NULL
-		)`)
-		s.db.Exec("PRAGMA user_version = 3")
+		)`); err != nil {
+			return fmt.Errorf("migrate v3 create file_tokens: %w", err)
+		}
+		if _, err := s.db.Exec("PRAGMA user_version = 3"); err != nil {
+			return fmt.Errorf("set version 3: %w", err)
+		}
 	}
 
 	return nil
