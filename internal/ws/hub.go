@@ -93,6 +93,14 @@ func (h *Hub) Online() int {
 	return len(h.conns)
 }
 
+// IsConnected checks if a specific key has active WebSocket connections.
+func (h *Hub) IsConnected(key string) bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	conns, ok := h.conns[key]
+	return ok && len(conns) > 0
+}
+
 // OnlineKeys returns all connected keys ("orgID:userID" format).
 func (h *Hub) OnlineKeys() []string {
 	h.mu.RLock()

@@ -222,12 +222,16 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 		})
 		a.broadcastChannel(s, ch.ID, orgID, "channel_message", payload)
 
-		// Push notification to all channel subscribers (except sender)
+		// Push notification to offline channel subscribers (skip sender + online users)
 		subs, _ := s.ChannelSubscribers(ch.ID)
 		for _, uid := range subs {
 			if uid == userID {
 				continue
-			} // dont push to sender
+			}
+			wsKey := orgID + ":" + fmt.Sprintf("%d", uid)
+			if a.hub.IsConnected(wsKey) {
+				continue
+			} // skip online users — they get WS event
 			a.push.SendToUser(s, uid, notify.PushPayload{
 				Title: "#" + ch.Name,
 				Body:  claims.Username + ": " + req.Text[:min(len(req.Text), 100)],
