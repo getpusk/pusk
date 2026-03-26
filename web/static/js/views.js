@@ -105,12 +105,12 @@ export function setMsgHandlers(handlers){
 }
 
 // ── Auth ──
-export function auth(r){S.token=r.token;set('token',S.token);set('uid',r.user_id);set('uname',r.username||'');if(r.display_name)set('display_name',r.display_name);if(r.role)set('role',r.role);if(r.org){set('org',r.org);const orgs=getJSON('orgs')||{};orgs[r.org]={token:r.token,user:r.username,name:r.org,role:r.role||'member'};setJSON('orgs',orgs)}showApp()}
+export function auth(r){S.token=r.token;set('token',S.token);set('uid',r.user_id);set('uname',r.username||'');if(r.display_name)set('display_name',r.display_name);if(r.role)set('role',r.role);if(r.org){set('org',r.org);const orgs=getJSON('orgs')||{};orgs[r.org]={user:r.username,name:r.org,role:r.role||'member'};setJSON('orgs',orgs)}showApp()}
 
 export function logout(){S.token=null;S.curChat=null;S.curChan=null;remove('token');remove('uid');remove('uname');remove('display_name');remove('view');remove('role');remove('org');disconnectWS();$('landing').style.display='flex';$('auth').style.display='none';$('app').style.display='none';$('fab').style.display='none';$('settings').style.display='none';$('settings-bg').style.display='none';window.initLandingChat()}
 
 // ── App views ──
-export async function showApp(){$('auth').style.display='none';$('app').style.display='flex';const u=get('display_name')||get('uname')||'?';$('hdr-ava').textContent=u[0].toUpperCase();$('hdr-ava').style.background=nameColor(u);$('hdr-name').textContent=u;connectWS();registerPush();api("GET","/api/my/orgs").then(r=>{if(r&&Array.isArray(r)&&r.length){const orgs=getJSON("orgs")||{};r.forEach(o=>{if(!orgs[o.slug])orgs[o.slug]={name:o.name,role:o.role};else{orgs[o.slug].name=o.name;orgs[o.slug].role=o.role}});setJSON("orgs",orgs)}});await showList();const v=get('view');if(v){try{const o=JSON.parse(v);if(o.t==='chat')openChat(o.id,o.n);else if(o.t==='ch')openChan(o.id,o.n)}catch{}}
+export async function showApp(){$('auth').style.display='none';$('app').style.display='flex';const u=S.isDemo?'Demo':(get('display_name')||get('uname')||'?');$('hdr-ava').textContent=u[0].toUpperCase();$('hdr-ava').style.background=nameColor(u);$('hdr-name').textContent=u;if(S.isDemo){$('hdr-ava').onclick=null;$('hdr-name').onclick=null}connectWS();if(!S.isDemo)registerPush();await showList();const v=get('view');if(v){try{const o=JSON.parse(v);if(o.t==='chat')openChat(o.id,o.n);else if(o.t==='ch')openChan(o.id,o.n)}catch{}}
 // Handle push notification navigation params
 const params=new URLSearchParams(location.search);
 const pushCh=params.get('channel');const pushChat=params.get('chat');
@@ -118,11 +118,20 @@ if(pushCh){openChan(+pushCh,'');history.replaceState(null,'',location.pathname)}
 else if(pushChat){openChat(+pushChat,'');history.replaceState(null,'',location.pathname)}
 import('./onboard.js').then(m=>m.startOnboarding())}
 
-export async function showList(){try{S.curChat=null;S.curChan=null;if(S.ws&&S.ws.readyState===1)S.ws.send(JSON.stringify({type:'viewing',channel_id:0}));S.replyToId=0;$('reply-bar').style.display='none';$('pinned-bar').innerHTML='';$('typing-bar').style.display='none';remove('view');$('main-list').style.display='block';$('chat-view').style.display='none';$('input-bar').style.display='none';$('hdr-back').style.display='none';$('hdr-title').textContent=t('main');$('hdr-online').textContent='';const isGuest=get('uname')==='guest';$('fab').style.display=isGuest?'none':'flex';
+export async function showList(){try{S.curChat=null;S.curChan=null;if(S.ws&&S.ws.readyState===1)S.ws.send(JSON.stringify({type:'viewing',channel_id:0}));S.replyToId=0;$('reply-bar').style.display='none';$('pinned-bar').innerHTML='';$('typing-bar').style.display='none';remove('view');$('main-list').style.display='block';$('chat-view').style.display='none';$('input-bar').style.display='none';$('hdr-back').style.display='none';$('hdr-title').textContent=t('main');$('hdr-online').textContent='';const isGuest=S.isDemo||get('uname')==='guest';$('fab').style.display=isGuest?'none':'flex';
   const el=$('main-list');
   showLoading(el);
   const[bots,chs,health]=await Promise.all([api('GET','/api/bots'),api('GET','/api/channels'),api('GET','/api/health')]);
   el.innerHTML='';S.channels=chs||[];
+  if(S.isDemo){
+    const demoBanner=document.createElement('div');
+    demoBanner.className='demo-banner';
+    demoBanner.innerHTML='<span>'+(S.lang==='ru'?'Демо':'Demo')+'</span><button class="demo-btn" id="demo-create">'+(S.lang==='ru'?'Начать \u2192':'Start \u2192')+'</button><a class="demo-link" id="demo-login">'+(S.lang==='ru'?'У меня есть аккаунт':'I have an account')+'</a><button class="demo-close">\u25BE</button>';
+    el.appendChild(demoBanner);
+    demoBanner.querySelector('#demo-create').onclick=()=>{$("org-modal-bg").classList.add('open')};
+    demoBanner.querySelector('#demo-login').onclick=()=>{S.isDemo=false;S.token=null;$("app").style.display="none";$("auth").style.display="flex"};
+    demoBanner.querySelector('.demo-close').onclick=()=>{demoBanner.innerHTML='<span>'+(S.lang==='ru'?'Демо':'Demo')+'</span><button class="demo-btn" id="demo-create2">'+(S.lang==='ru'?'Начать \u2192':'Start \u2192')+'</button>';demoBanner.querySelector('#demo-create2').onclick=()=>{$("org-modal-bg").classList.add('open')}};
+  }
   // Hint cards for new users (dismissable)
   const orgSlug = get('org') || 'default';
   if (!get('hints_dismissed_' + orgSlug)) {
