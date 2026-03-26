@@ -53,6 +53,13 @@ if ('serviceWorker' in navigator) {
       const p = new URLSearchParams(e.data.url.replace(/^.*\?/, ''));
       const ch = p.get('channel');
       const chat = p.get('chat');
+      const pushOrg = p.get('org');
+      // If push is from a different org, ignore (user must switch manually)
+      const curOrg = localStorage.getItem('org') || 'default';
+      if (pushOrg && pushOrg !== curOrg) {
+        import('./util.js').then(u => u.toast(u.S.lang==='ru' ? 'Переключитесь в орг '+pushOrg : 'Switch to org '+pushOrg));
+        return;
+      }
       if (ch) import('./views.js').then(v => v.openChan(+ch, ''));
       else if (chat) import('./views.js').then(v => v.openChat(+chat, ''));
     }
