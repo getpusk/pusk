@@ -5,7 +5,7 @@ import {showApp,showList,logout} from './views.js';
 import {registerPush,disconnectWS} from './ws.js';
 
 // ── Settings panel ──
-$('hdr-ava').onclick=$('hdr-name').onclick=()=>{const v=$('settings').style.display==='block';$('settings').style.display=v?'none':'flex';$('settings-bg').style.display=v?'none':'block';if(!v){history.pushState(null,'',location.href);renderOrgSwitch();renderSettings();renderUsers()}};
+$('hdr-ava').onclick=$('hdr-name').onclick=()=>{const ob=$('onboard-bg');if(ob)ob.classList.remove('open');const v=$('settings').style.display==='block';$('settings').style.display=v?'none':'flex';$('settings-bg').style.display=v?'none':'block';if(!v){history.pushState(null,'',location.href);renderOrgSwitch();renderSettings();renderUsers()}};
 
 async function renderSettings(){const u=get('uname')||'?';const o=get('org')||'default';$('s-profile').textContent=u+' @ '+o;const h=await api('GET','/api/health');$('s-about').innerHTML='Pusk '+(h.version||'?')+' <a href="https://github.com/getpusk/pusk" target="_blank" class="s-about-link">GitHub</a> <a href="https://github.com/getpusk/pusk#readme" target="_blank" class="s-about-link">Docs</a>';if((get('org')||'default')==='default'){$('s-push-btn').textContent=S.lang==='ru'?'Создайте организацию':'Create org';$('s-push-btn').style.opacity='0.5';
   if(!$('s-demo-banner')){const b=document.createElement('div');b.id='s-demo-banner';b.style.cssText='background:var(--bg2);border:1px solid var(--accent);border-radius:8px;padding:12px;margin:8px 0;text-align:center';b.innerHTML=(S.lang==='ru'?'<div style="font-size:13px;color:var(--text2);margin-bottom:8px">Демо-режим. Push, смена пароля и приглашения доступны только в организации.</div>':'<div style="font-size:13px;color:var(--text2);margin-bottom:8px">Demo mode. Push, password change and invites are only available in organizations.</div>');const rb=document.createElement('button');rb.className='s-btn s-full-btn';rb.style.cssText='background:var(--accent);color:#fff;margin-top:4px';rb.textContent=S.lang==='ru'?'Зарегистрироваться и создать организацию':'Register & create organization';rb.onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none';logout()};b.appendChild(rb);$('s-org-switch').before(b)}
@@ -100,7 +100,7 @@ $('s-users').addEventListener('click',e=>{
 
 function setRole(uid,role){api('POST',`/api/users/${uid}/role`,{role}).then(()=>renderUsers())}
 async function delUser(uid,name){if(!await confirmDialog((S.lang==='ru'?'\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044f ':'Delete user ')+name+'?'))return;await api('DELETE',`/api/users/${uid}`);renderUsers()}
-function switchOrg(slug){const orgs=getJSON('orgs')||{};const o=orgs[slug];if(!o)return;
+function switchOrg(slug){const orgs=getJSON('orgs')||{};const o=orgs[slug]||{};
 disconnectWS();S.token=null;remove('token');
 $('settings').style.display='none';$('settings-bg').style.display='none';$('app').style.display='none';
 $('auth').style.display='flex';$('a-org').value=slug;$('a-user').value=o.user||'';$('a-pin').value='';$('a-pin').focus();
