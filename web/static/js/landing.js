@@ -1,7 +1,7 @@
 import S from './state.js';
 import {get} from './storage.js';
 import {$,esc,md,nameColor,fmtTime,t,te,api} from './util.js';
-import {auth} from './views.js';
+import {auth,showApp} from './views.js';
 
 // ── Landing live chat ──
 async function landApi(method,path,body){
@@ -58,12 +58,12 @@ async function landSend(){const inp=$('land-input');const txt=inp.value.trim();i
 async function landCb(data){if(!S.landChat)return;await landApi('POST',`/api/chats/${S.landChat}/callback`,{data,message_id:0});setTimeout(async()=>{const msgs=await landApi('GET',`/api/chats/${S.landChat}/messages?limit=1`);if(msgs&&msgs.length){const m=msgs[0];if(m.sender==='bot')landAddMsg('DemoBot',m.text,fmtTime(m.date),m.reply_markup)}},1500)}
 export function hideLanding(){$('landing').style.display='none'}
 $('land-login').onclick=()=>{hideLanding();$('auth').style.display='flex';const savedOrg=get('org');if(savedOrg)$('a-org').value=savedOrg}
-$('land-demo').onclick=async()=>{let r=await api('POST','/api/auth',{username:'guest',pin:'guest'});if(!r.token)r=await api('POST','/api/register',{username:'guest',pin:'guest',display_name:'Guest'});if(!r.token)return;hideLanding();auth(r)};
+$('land-demo').onclick=async()=>{let r=await api('POST','/api/auth',{username:'guest',pin:'guest'});if(!r.token)r=await api('POST','/api/register',{username:'guest',pin:'guest',display_name:'Guest'});if(!r.token)return;S.token=r.token;S.isDemo=true;hideLanding();showApp()};
 
 // ── Auth buttons ──
 $('btn-login').onclick=async()=>{const u=$('a-user').value.trim(),p=$('a-pin').value.trim(),o=$('a-org').value.trim()||undefined;if(!u||!p){$('a-err').textContent=t('err_empty');return}$('btn-login').textContent='...';$('btn-login').disabled=true;const r=await api('POST','/api/auth',{username:u,pin:p,org:o});$('btn-login').textContent=t('login');$('btn-login').disabled=false;if(r.error||!r.token){$('a-err').textContent=(r.error&&r.error.includes('specify org'))?te(r.error):t('err_wrong');return}auth(r)};
 $('btn-reg').onclick=async()=>{const u=$('a-user').value.trim(),p=$('a-pin').value.trim(),o=$('a-org').value.trim()||undefined;if(!u||!p){$('a-err').textContent=t('err_empty');return}let r;if(S.invite){r=await api('POST','/api/invite/accept'+(o?'?org='+o:''),{code:S.invite,username:u,pin:p,display_name:u})}else{r=await api('POST','/api/register',{username:u,pin:p,display_name:u,org:o})}if(r.error){$('a-err').textContent=r.error.includes('UNIQUE')?u+' '+t('err_taken'):te(r.error);return}auth(r)};
-$('btn-demo').onclick=async()=>{let r=await api('POST','/api/auth',{username:'guest',pin:'guest'});if(!r.token)r=await api('POST','/api/register',{username:'guest',pin:'guest',display_name:'Guest'});if(!r.token){$('a-err').textContent=t('err_demo');return}auth(r)};
+$('btn-demo').onclick=async()=>{let r=await api('POST','/api/auth',{username:'guest',pin:'guest'});if(!r.token)r=await api('POST','/api/register',{username:'guest',pin:'guest',display_name:'Guest'});if(!r.token){$('a-err').textContent=t('err_demo');return}S.token=r.token;S.isDemo=true;hideLanding();$('auth').style.display='none';showApp()};
 
 // ── Org creation ──
 $('land-create-org').onclick=()=>{$('org-modal-bg').classList.add('open');$('org-slug').focus()};
