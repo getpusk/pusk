@@ -35,7 +35,7 @@ if(S.invite&&!S.token){
   const _invOrg=_p.get('org');if(_invOrg)$('a-org').value=_invOrg;
   $('btn-login').style.display='none';$('btn-demo').style.display='none';
   $('btn-reg').className='abtn abtn-p';$('btn-reg').textContent=t('register_btn');
-  $('a-err').style.color='var(--accent)';$('a-err').textContent=t('invite_hint');
+  $('a-err').style.color='var(--accent)';$('a-err').textContent=t('invite_hint');$('a-err').style.fontSize='15px';$('a-err').style.marginBottom='12px';
 } else if(_p.get('demo')==='1'&&!S.token){
   hideLanding();$('auth').style.display='flex';$('btn-demo').click();
 } else if(S.token){
@@ -45,6 +45,19 @@ if(S.invite&&!S.token){
 }
 
 }catch(e){console.error("[pusk] init error:",e)}
+
+// ── Push notification navigation (from SW postMessage) ──
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data && e.data.type === 'push-navigate') {
+      const p = new URLSearchParams(e.data.url.replace(/^.*\?/, ''));
+      const ch = p.get('channel');
+      const chat = p.get('chat');
+      if (ch) import('./views.js').then(v => v.openChan(+ch, ''));
+      else if (chat) import('./views.js').then(v => v.openChat(+chat, ''));
+    }
+  });
+}
 // ── Offline indicator ──
 const offBar = $('offline-bar');
 if (offBar) {
