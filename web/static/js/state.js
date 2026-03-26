@@ -21,6 +21,7 @@ const S = {
   landChat: null,
   audioCtx: null,
   loading: false,
+  isDemo: false,
   wsReconnectTimer: null,
   elapsedTimer: null,
 };

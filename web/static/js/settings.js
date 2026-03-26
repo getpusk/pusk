@@ -101,8 +101,10 @@ $('s-users').addEventListener('click',e=>{
 function setRole(uid,role){api('POST',`/api/users/${uid}/role`,{role}).then(()=>renderUsers())}
 async function delUser(uid,name){if(!await confirmDialog((S.lang==='ru'?'\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044f ':'Delete user ')+name+'?'))return;await api('DELETE',`/api/users/${uid}`);renderUsers()}
 function switchOrg(slug){const orgs=getJSON('orgs')||{};const o=orgs[slug];if(!o)return;
-if(o.token){S.token=o.token;set('token',o.token);set('uname',o.user);set('org',slug);if(o.role)set('role',o.role);$('settings').style.display='none';$('settings-bg').style.display='none';disconnectWS();showApp()}
-else{$('settings').style.display='none';$('settings-bg').style.display='none';$('app').style.display='none';$('auth').style.display='flex';$('a-org').value=slug;$('a-user').value=o.user||'';$('a-pin').value='';$('a-err').textContent=S.lang==='ru'?'Войдите в '+slug:'Login to '+slug;$('a-err').style.color='var(--accent)'}}
+disconnectWS();S.token=null;remove('token');
+$('settings').style.display='none';$('settings-bg').style.display='none';$('app').style.display='none';
+$('auth').style.display='flex';$('a-org').value=slug;$('a-user').value=o.user||'';$('a-pin').value='';$('a-pin').focus();
+$('a-err').textContent=S.lang==='ru'?'Войдите в '+slug:'Login to '+slug;$('a-err').style.color='var(--accent)'}
 
 $('settings-bg').onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none'};
 $('s-lang-btn').onclick=()=>{S.lang=S.lang==='ru'?'en':'ru';set('lang',S.lang);setLang();renderSettings();if($('app').style.display==='flex')showList()};
