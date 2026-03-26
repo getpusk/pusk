@@ -131,33 +131,14 @@ export async function showList(){try{S.curChat=null;S.curChan=null;if(S.ws&&S.ws
     const generalCh = chs ? chs.find(c => c.name === 'general') : null;
     const isHintAdmin = get('role') === 'admin';
     const lang = S.lang;
-    hints.innerHTML = `
-        <div class="hints-header">
-            <b>${lang === 'ru' ? 'Добро пожаловать в Pusk!' : 'Welcome to Pusk!'}</b>
-            <button class="hints-close" aria-label="Close">&times;</button>
-        </div>
-        <p class="hints-sub">${lang === 'ru' ? 'Мессенджер для команды и алертов' : 'Messaging for teams and alerts'}</p>
-        ${generalCh ? `<div class="hint-card" data-action="general" data-id="${generalCh.id}">
-            <span class="hint-icon">💬</span>
-            <div><b>${lang === 'ru' ? 'Написать в #general' : 'Write in #general'}</b>
-            <p>${lang === 'ru' ? 'Общий канал команды' : 'Team chat channel'}</p></div>
-        </div>` : ''}
-        ${isHintAdmin ? `<div class="hint-card" data-action="create">
-            <span class="hint-icon">➕</span>
-            <div><b>${lang === 'ru' ? 'Создать канал' : 'Create channel'}</b>
-            <p>${lang === 'ru' ? 'Для проекта или темы' : 'For a project or topic'}</p></div>
-        </div>` : ''}
-        ${isHintAdmin ? `<div class="hint-card" data-action="invite">
-            <span class="hint-icon">👥</span>
-            <div><b>${lang === 'ru' ? 'Пригласить коллегу' : 'Invite teammate'}</b>
-            <p>${lang === 'ru' ? 'Поделитесь ссылкой' : 'Share invite link'}</p></div>
-        </div>` : ''}
-        <div class="hint-card" data-action="push">
-            <span class="hint-icon">🔔</span>
-            <div><b>${lang === 'ru' ? 'Включить уведомления' : 'Enable notifications'}</b>
-            <p>${lang === 'ru' ? 'Не пропустите сообщения' : 'Don\\'t miss messages'}</p></div>
-        </div>
-    `;
+    const ru=lang==='ru';
+    let hintsHtml='<div class="hints-header"><b>'+(ru?'Добро пожаловать в Pusk!':'Welcome to Pusk!')+'</b><button class="hints-close" aria-label="Close">&times;</button></div>';
+    hintsHtml+='<p class="hints-sub">'+(ru?'Мессенджер для команды и алертов':'Messaging for teams and alerts')+'</p>';
+    if(generalCh)hintsHtml+='<div class="hint-card" data-action="general" data-id="'+generalCh.id+'"><span class="hint-icon">💬</span><div><b>'+(ru?'Написать в #general':'Write in #general')+'</b><p>'+(ru?'Общий канал команды':'Team chat channel')+'</p></div></div>';
+    if(isHintAdmin)hintsHtml+='<div class="hint-card" data-action="create"><span class="hint-icon">➕</span><div><b>'+(ru?'Создать канал':'Create channel')+'</b><p>'+(ru?'Для проекта или темы':'For a project or topic')+'</p></div></div>';
+    if(isHintAdmin)hintsHtml+='<div class="hint-card" data-action="invite"><span class="hint-icon">👥</span><div><b>'+(ru?'Пригласить коллегу':'Invite teammate')+'</b><p>'+(ru?'Поделитесь ссылкой':'Share invite link')+'</p></div></div>';
+    hintsHtml+='<div class="hint-card" data-action="push"><span class="hint-icon">🔔</span><div><b>'+(ru?'Включить уведомления':'Enable notifications')+'</b><p>'+(ru?'Не пропустите сообщения':'Don\'t miss messages')+'</p></div></div>';
+    hints.innerHTML=hintsHtml;
     el.appendChild(hints);
     hints.querySelector('.hints-close').onclick = () => {
         set('hints_dismissed_' + orgSlug, '1');

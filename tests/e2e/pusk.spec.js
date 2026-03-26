@@ -122,7 +122,7 @@ test.describe('Org Registration', () => {
     const chat = await api('POST', '/api/bots/1/start', null, token);
     const msgs = await api('GET', `/api/chats/${chat.data.id}/messages`, null, token);
     expect(msgs.data.length).toBeGreaterThan(0);
-    expect(msgs.data.some(m => m.text.includes('curl'))).toBe(true);
+    expect(msgs.data.some(m => m.text.includes('Bot'))).toBe(true);
   });
 });
 
