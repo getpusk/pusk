@@ -112,3 +112,14 @@ func (s *Store) ResetPassword(username, newPin string) error {
 	}
 	return nil
 }
+
+// GetUserByID returns a user by ID.
+func (s *Store) GetUserByID(userID int64) (*User, error) {
+	u := &User{}
+	err := s.db.QueryRow("SELECT id, username, COALESCE(display_name,''), COALESCE(role,'member') FROM users WHERE id=?",
+		userID).Scan(&u.ID, &u.Username, &u.DisplayName, &u.Role)
+	if err != nil {
+		return nil, err
+	}
+	return u, nil
+}

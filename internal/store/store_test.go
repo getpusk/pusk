@@ -766,3 +766,221 @@ func TestPing(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// ── GetUserByID: display_name in messages ──
+
+func TestGetUserByID_DisplayName(t *testing.T) {
+	s := newTestStore(t)
+	user, err := s.CreateUser("testuser", "pin123", "Test Display Name")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.GetUserByID(user.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.DisplayName != "Test Display Name" {
+		t.Errorf("DisplayName: got %q, want %q", got.DisplayName, "Test Display Name")
+	}
+	if got.Username != "testuser" {
+		t.Errorf("Username: got %q, want %q", got.Username, "testuser")
+	}
+	if got.Role != "member" {
+		t.Errorf("Role: got %q, want %q", got.Role, "member")
+	}
+}
+
+func TestGetUserByID_EmptyDisplayName(t *testing.T) {
+	s := newTestStore(t)
+	user, _ := s.CreateUser("nodisplay", "pin123", "")
+	got, err := s.GetUserByID(user.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.DisplayName != "" {
+		t.Errorf("DisplayName: got %q, want empty", got.DisplayName)
+	}
+}
+
+func TestGetUserByID_NotFound(t *testing.T) {
+	s := newTestStore(t)
+	_, err := s.GetUserByID(99999)
+	if err == nil {
+		t.Error("expected error for nonexistent user ID")
+	}
+}
+
+func TestGetUserByID_AfterRoleChange(t *testing.T) {
+	s := newTestStore(t)
+	user, _ := s.CreateUser("rolecheck", "pin123", "Role User")
+	s.SetUserRole(user.ID, "admin")
+	got, err := s.GetUserByID(user.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Role != "admin" {
+		t.Errorf("Role: got %q, want %q", got.Role, "admin")
+	}
+	if got.DisplayName != "Role User" {
+		t.Errorf("DisplayName: got %q, want %q", got.DisplayName, "Role User")
+	}
+}
+
+// ── Push subscription: DeleteAllPushSubscriptions ──
+
+func TestDeleteAllPushSubscriptions(t *testing.T) {
+	s := newTestStore(t)
+	user, _ := s.CreateUser("pushall", "pin123", "Push User")
+	s.SavePushSubscription(user.ID, "https://endpoint1.example.com", "key1", "auth1")
+	s.SavePushSubscription(user.ID, "https://endpoint2.example.com", "key2", "auth2")
+
+	subs, _ := s.UserPushSubscriptions(user.ID)
+	if len(subs) != 2 {
+		t.Fatalf("expected 2 subs, got %d", len(subs))
+	}
+
+	if err := s.DeleteAllPushSubscriptions(user.ID); err != nil {
+		t.Fatalf("DeleteAllPushSubscriptions: %v", err)
+	}
+
+	subs, _ = s.UserPushSubscriptions(user.ID)
+	if len(subs) != 0 {
+		t.Fatalf("expected 0 subs after delete, got %d", len(subs))
+	}
+}
+
+func TestDeleteAllPushSubscriptions_NoSubs(t *testing.T) {
+	s := newTestStore(t)
+	user, _ := s.CreateUser("nopush", "pin123", "No Push")
+
+	// Should not error even if user has no subscriptions
+	if err := s.DeleteAllPushSubscriptions(user.ID); err != nil {
+		t.Fatalf("DeleteAllPushSubscriptions on empty: %v", err)
+	}
+}
+
+func TestDeleteAllPushSubscriptions_IsolateUsers(t *testing.T) {
+	s := newTestStore(t)
+	u1, _ := s.CreateUser("pu1", "p", "")
+	u2, _ := s.CreateUser("pu2", "p", "")
+
+	s.SavePushSubscription(u1.ID, "https://ep-u1-a.example.com", "k", "a")
+	s.SavePushSubscription(u1.ID, "https://ep-u1-b.example.com", "k", "a")
+	s.SavePushSubscription(u2.ID, "https://ep-u2-a.example.com", "k", "a")
+
+	// Delete all for u1 only
+	s.DeleteAllPushSubscriptions(u1.ID)
+
+	subs1, _ := s.UserPushSubscriptions(u1.ID)
+	subs2, _ := s.UserPushSubscriptions(u2.ID)
+	if len(subs1) != 0 {
+		t.Errorf("u1 should have 0 subs, got %d", len(subs1))
+	}
+	if len(subs2) != 1 {
+		t.Errorf("u2 should still have 1 sub, got %d", len(subs2))
+	}
+}
+
+// ── ListChannelsForUser ──
+
+func TestListChannelsForUser(t *testing.T) {
+	s := newTestStore(t)
+	bot, _ := s.CreateBot("lcfub", "LCFUBot")
+	u, _ := s.CreateUser("lcuser", "p", "")
+	ch1, _ := s.CreateChannel(bot.ID, "alpha", "Alpha channel")
+	_, _ = s.CreateChannel(bot.ID, "beta", "Beta channel")
+
+	s.Subscribe(ch1.ID, u.ID)
+	// ch2 not subscribed
+
+	chs, err := s.ListChannelsForUser(u.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(chs) != 2 {
+		t.Fatalf("expected 2 channels, got %d", len(chs))
+	}
+
+	// Verify subscription state
+	var alpha, beta *ChannelInfo
+	for i := range chs {
+		if chs[i].Name == "alpha" {
+			alpha = &chs[i]
+		}
+		if chs[i].Name == "beta" {
+			beta = &chs[i]
+		}
+	}
+	if alpha == nil || !alpha.Subscribed {
+		t.Error("alpha should be subscribed")
+	}
+	if beta == nil || beta.Subscribed {
+		t.Error("beta should not be subscribed")
+	}
+}
+
+// ── ChannelReadersJoin ──
+
+func TestChannelReadersJoin(t *testing.T) {
+	s := newTestStore(t)
+	bot, _ := s.CreateBot("crjb", "CRJBot")
+	u1, _ := s.CreateUser("reader1", "p", "")
+	u2, _ := s.CreateUser("reader2", "p", "")
+	ch, _ := s.CreateChannel(bot.ID, "readjoin", "")
+
+	s.Subscribe(ch.ID, u1.ID)
+	s.Subscribe(ch.ID, u2.ID)
+
+	msg, _ := s.SaveChannelMessage(ch.ID, "hello", "", "", "")
+	s.MarkChannelRead(ch.ID, u1.ID, msg.ID)
+
+	readers, err := s.ChannelReadersJoin(ch.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(readers) != 1 {
+		t.Fatalf("expected 1 reader (u1), got %d", len(readers))
+	}
+	if readers[0].Username != "reader1" {
+		t.Errorf("expected reader1, got %s", readers[0].Username)
+	}
+}
+
+// ── UpdateChannelMessageText ──
+
+func TestUpdateChannelMessageText(t *testing.T) {
+	s := newTestStore(t)
+	bot, _ := s.CreateBot("ucmb", "UCMBot")
+	ch, _ := s.CreateChannel(bot.ID, "editchan", "")
+	msg, _ := s.SaveChannelMessage(ch.ID, "original", "", "", "")
+
+	if err := s.UpdateChannelMessageText(msg.ID, "edited", ""); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := s.GetChannelMessage(msg.ID)
+	if got.Text != "edited" {
+		t.Errorf("text: got %q, want %q", got.Text, "edited")
+	}
+	if got.EditedAt == "" {
+		t.Error("edited_at should be set after update")
+	}
+}
+
+// ── DeleteChannelMessage clears pin ──
+
+func TestDeleteChannelMessage_ClearsPin(t *testing.T) {
+	s := newTestStore(t)
+	bot, _ := s.CreateBot("dcmb", "DCMBot")
+	ch, _ := s.CreateChannel(bot.ID, "delpin", "")
+	msg, _ := s.SaveChannelMessage(ch.ID, "pinned msg", "", "", "")
+
+	s.PinMessage(ch.ID, msg.ID)
+	if pid := s.GetPinnedMessage(ch.ID); pid != msg.ID {
+		t.Fatalf("pin not set: got %d", pid)
+	}
+
+	s.DeleteChannelMessage(msg.ID)
+	if pid := s.GetPinnedMessage(ch.ID); pid != 0 {
+		t.Errorf("pin should be cleared after message delete, got %d", pid)
+	}
+}

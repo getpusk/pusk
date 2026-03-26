@@ -105,12 +105,12 @@ export function setMsgHandlers(handlers){
 }
 
 // ── Auth ──
-export function auth(r){S.token=r.token;set('token',S.token);set('uid',r.user_id);set('uname',r.username||'');if(r.role)set('role',r.role);if(r.org){set('org',r.org);const orgs=getJSON('orgs')||{};orgs[r.org]={token:r.token,user:r.username,name:r.org,role:r.role||'member'};setJSON('orgs',orgs)}showApp()}
+export function auth(r){S.token=r.token;set('token',S.token);set('uid',r.user_id);set('uname',r.username||'');if(r.display_name)set('display_name',r.display_name);if(r.role)set('role',r.role);if(r.org){set('org',r.org);const orgs=getJSON('orgs')||{};orgs[r.org]={token:r.token,user:r.username,name:r.org,role:r.role||'member'};setJSON('orgs',orgs)}showApp()}
 
-export function logout(){S.token=null;S.curChat=null;S.curChan=null;remove('token');remove('uid');remove('uname');remove('view');remove('role');remove('org');disconnectWS();$('landing').style.display='flex';$('auth').style.display='none';$('app').style.display='none';$('fab').style.display='none';$('settings').style.display='none';$('settings-bg').style.display='none';window.initLandingChat()}
+export function logout(){S.token=null;S.curChat=null;S.curChan=null;remove('token');remove('uid');remove('uname');remove('display_name');remove('view');remove('role');remove('org');disconnectWS();$('landing').style.display='flex';$('auth').style.display='none';$('app').style.display='none';$('fab').style.display='none';$('settings').style.display='none';$('settings-bg').style.display='none';window.initLandingChat()}
 
 // ── App views ──
-export async function showApp(){$('auth').style.display='none';$('app').style.display='flex';const u=get('uname')||'?';$('hdr-ava').textContent=u[0].toUpperCase();$('hdr-ava').style.background=nameColor(u);$('hdr-name').textContent=u;connectWS();registerPush();await showList();const v=get('view');if(v){try{const o=JSON.parse(v);if(o.t==='chat')openChat(o.id,o.n);else if(o.t==='ch')openChan(o.id,o.n)}catch{}}
+export async function showApp(){$('auth').style.display='none';$('app').style.display='flex';const u=get('display_name')||get('uname')||'?';$('hdr-ava').textContent=u[0].toUpperCase();$('hdr-ava').style.background=nameColor(u);$('hdr-name').textContent=u;connectWS();registerPush();api("GET","/api/my/orgs").then(r=>{if(r&&Array.isArray(r)&&r.length){const orgs=getJSON("orgs")||{};r.forEach(o=>{if(!orgs[o.slug])orgs[o.slug]={name:o.name,role:o.role};else{orgs[o.slug].name=o.name;orgs[o.slug].role=o.role}});setJSON("orgs",orgs)}});await showList();const v=get('view');if(v){try{const o=JSON.parse(v);if(o.t==='chat')openChat(o.id,o.n);else if(o.t==='ch')openChan(o.id,o.n)}catch{}}
 // Handle push notification navigation params
 const params=new URLSearchParams(location.search);
 const pushCh=params.get('channel');const pushChat=params.get('chat');
@@ -131,33 +131,14 @@ export async function showList(){try{S.curChat=null;S.curChan=null;if(S.ws&&S.ws
     const generalCh = chs ? chs.find(c => c.name === 'general') : null;
     const isHintAdmin = get('role') === 'admin';
     const lang = S.lang;
-    hints.innerHTML = `
-        <div class="hints-header">
-            <b>${lang === 'ru' ? 'Добро пожаловать в Pusk!' : 'Welcome to Pusk!'}</b>
-            <button class="hints-close" aria-label="Close">&times;</button>
-        </div>
-        <p class="hints-sub">${lang === 'ru' ? 'Мессенджер для команды и алертов' : 'Messaging for teams and alerts'}</p>
-        ${generalCh ? `<div class="hint-card" data-action="general" data-id="${generalCh.id}">
-            <span class="hint-icon">💬</span>
-            <div><b>${lang === 'ru' ? 'Написать в #general' : 'Write in #general'}</b>
-            <p>${lang === 'ru' ? 'Общий канал команды' : 'Team chat channel'}</p></div>
-        </div>` : ''}
-        ${isHintAdmin ? `<div class="hint-card" data-action="create">
-            <span class="hint-icon">➕</span>
-            <div><b>${lang === 'ru' ? 'Создать канал' : 'Create channel'}</b>
-            <p>${lang === 'ru' ? 'Для проекта или темы' : 'For a project or topic'}</p></div>
-        </div>` : ''}
-        ${isHintAdmin ? `<div class="hint-card" data-action="invite">
-            <span class="hint-icon">👥</span>
-            <div><b>${lang === 'ru' ? 'Пригласить коллегу' : 'Invite teammate'}</b>
-            <p>${lang === 'ru' ? 'Поделитесь ссылкой' : 'Share invite link'}</p></div>
-        </div>` : ''}
-        <div class="hint-card" data-action="push">
-            <span class="hint-icon">🔔</span>
-            <div><b>${lang === 'ru' ? 'Включить уведомления' : 'Enable notifications'}</b>
-            <p>${lang === 'ru' ? 'Не пропустите сообщения' : 'Don\\'t miss messages'}</p></div>
-        </div>
-    `;
+    const ru=lang==='ru';
+    let hintsHtml='<div class="hints-header"><b>'+(ru?'Добро пожаловать в Pusk!':'Welcome to Pusk!')+'</b><button class="hints-close" aria-label="Close">&times;</button></div>';
+    hintsHtml+='<p class="hints-sub">'+(ru?'Мессенджер для команды и алертов':'Messaging for teams and alerts')+'</p>';
+    if(generalCh)hintsHtml+='<div class="hint-card" data-action="general" data-id="'+generalCh.id+'"><span class="hint-icon">💬</span><div><b>'+(ru?'Написать в #general':'Write in #general')+'</b><p>'+(ru?'Общий канал команды':'Team chat channel')+'</p></div></div>';
+    if(isHintAdmin)hintsHtml+='<div class="hint-card" data-action="create"><span class="hint-icon">➕</span><div><b>'+(ru?'Создать канал':'Create channel')+'</b><p>'+(ru?'Для проекта или темы':'For a project or topic')+'</p></div></div>';
+    if(isHintAdmin)hintsHtml+='<div class="hint-card" data-action="invite"><span class="hint-icon">👥</span><div><b>'+(ru?'Пригласить коллегу':'Invite teammate')+'</b><p>'+(ru?'Поделитесь ссылкой':'Share invite link')+'</p></div></div>';
+    hintsHtml+='<div class="hint-card" data-action="push"><span class="hint-icon">🔔</span><div><b>'+(ru?'Включить уведомления':'Enable notifications')+'</b><p>'+(ru?'Не пропустите сообщения':'Don\'t miss messages')+'</p></div></div>';
+    hints.innerHTML=hintsHtml;
     el.appendChild(hints);
     hints.querySelector('.hints-close').onclick = () => {
         set('hints_dismissed_' + orgSlug, '1');
@@ -201,7 +182,7 @@ export async function showList(){try{S.curChat=null;S.curChan=null;if(S.ws&&S.ws
     }
   }
   const isAdmin=get("role")==="admin";
-  if(bots&&bots.length){
+  if(isAdmin&&bots&&bots.length){
     const secTitle=document.createElement('div');secTitle.className='sec-title';secTitle.textContent=t('bots');el.appendChild(secTitle);
     for(const b of bots){
       const row=document.createElement('div');row.className='bot-row';row.dataset.botId=b.id;row.dataset.botName=b.name;
@@ -243,7 +224,7 @@ export async function toggleSub(ev,chId){ev.stopPropagation();const btn=ev.targe
 
 export async function openChat(botId,name){try{S.lastMsgDate='';setJSON('view',{t:'chat',id:botId,n:name});history.pushState(null,'',location.href);$('fab').style.display='none';$('pinned-bar').innerHTML='';if(S.ws&&S.ws.readyState===1)S.ws.send(JSON.stringify({type:'viewing',channel_id:0}));S.replyToId=0;$('reply-bar').style.display='none';$('typing-bar').style.display='none';$('main-list').style.display='none';$('chat-view').style.display='flex';$('input-bar').style.display='flex';$('hdr-back').style.display='inline';$('hdr-title').textContent=name;$('msg-in').placeholder=t('msg');api('GET','/api/online').then(r=>{if(!r)return;let s='';if(r.online>0)s=r.online+' online';const away=(r.total_connected||0)-r.online;if(away>0)s+=(s?', ':'')+away+' away';$('hdr-online').textContent=s});const chat=await api('POST',`/api/bots/${botId}/start`);S.curChat=chat.id;const msgs=await api('GET',`/api/chats/${chat.id}/messages`);$('msgs').innerHTML='';if(msgs&&msgs.length)msgs.reverse().forEach(m=>addMsg(m));else $('msgs').innerHTML=`<div class="m-empty" id="msgs-empty">${t('no_msg')}</div>`;scrollDown();$('msg-in').focus()}catch(e){console.error('[pusk] openChat error:',e);$('msgs').innerHTML='<div class="m-empty">Error loading chat. <span style="cursor:pointer;color:var(--accent)" onclick="location.reload()">Reload</span></div>'}}
 
-export async function openChan(chId,name){try{S.lastMsgDate='';setJSON('view',{t:'ch',id:chId,n:name});history.pushState(null,'',location.href);$('fab').style.display='none';S.curChan=chId;if(S.ws&&S.ws.readyState===1)S.ws.send(JSON.stringify({type:'viewing',channel_id:chId}));S.curChat=null;S.replyToId=0;$('reply-bar').style.display='none';$('typing-bar').style.display='none';$('main-list').style.display='none';$('chat-view').style.display='flex';$('input-bar').style.display='flex';$('hdr-back').style.display='inline';$('hdr-title').textContent='# '+name;$('msg-in').placeholder='\u041d\u0430\u043f\u0438\u0441\u0430\u0442\u044c \u0432 #'+name+'...';api('GET','/api/online').then(r=>{if(!r)return;let s='';if(r.online>0)s=r.online+' online';const away=(r.total_connected||0)-r.online;if(away>0)s+=(s?', ':'')+away+' away';$('hdr-online').textContent=s});api('GET','/api/users').then(r=>{if(r&&Array.isArray(r))S.mentionUsers=r});const msgs=await api('GET',`/api/channels/${chId}/messages`);$('msgs').innerHTML='';const chInfo=S.channels.find(c=>c.id===chId);const pinnedId=chInfo?chInfo.pinned_message_id:0;$('pinned-bar').innerHTML='';if(msgs&&msgs.length){msgs.reverse().forEach(m=>{if(!m.sender)m.sender='bot';addMsg(m)});if(pinnedId>0){const pinMsg=msgs.find(m=>m.message_id===pinnedId);if(pinMsg){renderPinBar(pinnedId,pinMsg.text||'')}}}else $('msgs').innerHTML=`<div class="m-empty" id="msgs-empty">${t('no_msg')}</div>`;
+export async function openChan(chId,name){try{if(!name&&S.channels){const ch=S.channels.find(c=>c.id===chId);if(ch)name=ch.name}S.lastMsgDate='';setJSON('view',{t:'ch',id:chId,n:name});history.pushState(null,'',location.href);$('fab').style.display='none';S.curChan=chId;if(S.ws&&S.ws.readyState===1)S.ws.send(JSON.stringify({type:'viewing',channel_id:chId}));S.curChat=null;S.replyToId=0;$('reply-bar').style.display='none';$('typing-bar').style.display='none';$('main-list').style.display='none';$('chat-view').style.display='flex';$('input-bar').style.display='flex';$('hdr-back').style.display='inline';$('hdr-title').textContent='# '+name;$('msg-in').placeholder='\u041d\u0430\u043f\u0438\u0441\u0430\u0442\u044c \u0432 #'+name+'...';api('GET','/api/online').then(r=>{if(!r)return;let s='';if(r.online>0)s=r.online+' online';const away=(r.total_connected||0)-r.online;if(away>0)s+=(s?', ':'')+away+' away';$('hdr-online').textContent=s});api('GET','/api/users').then(r=>{if(r&&Array.isArray(r))S.mentionUsers=r});const msgs=await api('GET',`/api/channels/${chId}/messages`);$('msgs').innerHTML='';const chInfo=S.channels.find(c=>c.id===chId);const pinnedId=chInfo?chInfo.pinned_message_id:0;$('pinned-bar').innerHTML='';if(msgs&&msgs.length){msgs.reverse().forEach(m=>{if(!m.sender)m.sender='bot';addMsg(m)});if(pinnedId>0){const pinMsg=msgs.find(m=>m.message_id===pinnedId);if(pinMsg){renderPinBar(pinnedId,pinMsg.text||'')}}}else $('msgs').innerHTML=`<div class="m-empty" id="msgs-empty">${t('no_msg')}</div>`;
   // Load more button for channels with 50+ messages
   if(msgs&&msgs.length>=50){const loadMore=document.createElement('div');loadMore.className='m-load-more';loadMore.style.cursor='pointer';loadMore.textContent=S.lang==='ru'?'\u2191 \u0417\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u0435\u0449\u0451':'\u2191 Load more';loadMore.onclick=async()=>{loadMore.textContent='...';const oldMsgs=await api('GET',`/api/channels/${chId}/messages?limit=200`);if(oldMsgs&&oldMsgs.length>msgs.length){S.lastMsgDate='';$('msgs').innerHTML='';oldMsgs.reverse().forEach(m=>{if(!m.sender)m.sender='bot';addMsg(m)})}else{loadMore.textContent=S.lang==='ru'?'\u041d\u0435\u0442 \u0431\u043e\u043b\u0435\u0435 \u0441\u0442\u0430\u0440\u044b\u0445':'No older messages'}};$('msgs').insertBefore(loadMore,$('msgs').firstChild)}
   // Alert filter bar
