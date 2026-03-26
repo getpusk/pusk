@@ -6,10 +6,17 @@ let step = 0;
 let botToken = '';
 
 export async function startOnboarding() {
-  // Only show for admin, only once per org
-  if (get('role') !== 'admin') return;
+  const isAdmin = get('role') === 'admin';
   const orgSlug = get('org') || 'default';
+
+  // Check if already completed
   if (get('onboarded_' + orgSlug)) return;
+
+  if (!isAdmin) {
+    // Member welcome wizard
+    showMemberWizard(orgSlug);
+    return;
+  }
 
   // Check if org already has alerts channel
   const chs = await api('GET', '/api/channels');
@@ -105,6 +112,50 @@ function showStep() {
       import('./views.js').then(v => v.showList());
     };
   }
+}
+
+function showMemberWizard(orgSlug) {
+    const lang = S.lang || 'ru';
+    const bg = $('onboard-bg');
+    if (!bg) return;
+    bg.classList.add('open');
+
+    let step = 0;
+    const steps = [
+        {
+            title: lang === 'ru' ? 'Добро пожаловать!' : 'Welcome!',
+            body: lang === 'ru'
+                ? '<p style="line-height:1.6">Pusk — мессенджер вашей команды.<br><br>Слева — <b>каналы</b> для общения.<br>Заходите в любой и пишите!</p>'
+                : '<p style="line-height:1.6">Pusk is your team messenger.<br><br>On the left — <b>channels</b> for communication.<br>Join any and start writing!</p>',
+            btn: lang === 'ru' ? 'Далее' : 'Next'
+        },
+        {
+            title: lang === 'ru' ? 'Подсказки' : 'Tips',
+            body: lang === 'ru'
+                ? '<div style="line-height:1.8"><b>@имя</b> — упомянуть (push-уведомление)<br><b>📎</b> — отправить файл или фото<br><b>↩ свайп</b> — ответить на сообщение<br><b>🔔</b> — включите push в настройках</div>'
+                : '<div style="line-height:1.8"><b>@name</b> — mention (push notification)<br><b>📎</b> — send file or photo<br><b>↩ swipe</b> — reply to message<br><b>🔔</b> — enable push in settings</div>',
+            btn: lang === 'ru' ? 'Готово' : 'Done'
+        }
+    ];
+
+    function render() {
+        const s = steps[step];
+        $('onboard-title').textContent = s.title;
+        $('onboard-body').innerHTML = s.body;
+        $('onboard-next').textContent = s.btn;
+    }
+
+    render();
+
+    $('onboard-next').onclick = () => {
+        if (step < steps.length - 1) {
+            step++;
+            render();
+        } else {
+            set('onboarded_' + orgSlug, '1');
+            bg.classList.remove('open');
+        }
+    };
 }
 
 // Skip button
