@@ -303,3 +303,14 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 
 /* @mention keyboard selection highlight */
 .ac-sel{background:var(--accent)!important;color:#fff!important}
+
+/* Demo mode banner */
+.demo-banner{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--accent);border-radius:8px;margin:8px 12px}
+.demo-banner span{color:#fff;font-size:13px;font-weight:600;flex:1}
+.demo-btn{background:rgba(255,255,255,0.2);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer}
+.demo-btn:hover{background:rgba(255,255,255,0.3)}
+.demo-btn-s{background:transparent;border:1px solid rgba(255,255,255,0.4)}
+.demo-close{background:none;border:none;color:rgba(255,255,255,0.6);font-size:18px;cursor:pointer;padding:0 4px}
+
+.demo-link{color:rgba(255,255,255,0.7);font-size:11px;cursor:pointer;text-decoration:underline}
+.demo-link:hover{color:#fff}
