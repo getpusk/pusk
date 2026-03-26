@@ -110,7 +110,7 @@ export function auth(r){S.token=r.token;set('token',S.token);set('uid',r.user_id
 export function logout(){S.token=null;S.curChat=null;S.curChan=null;remove('token');remove('uid');remove('uname');remove('display_name');remove('view');remove('role');remove('org');disconnectWS();$('landing').style.display='flex';$('auth').style.display='none';$('app').style.display='none';$('fab').style.display='none';$('settings').style.display='none';$('settings-bg').style.display='none';window.initLandingChat()}
 
 // ── App views ──
-export async function showApp(){$('auth').style.display='none';$('app').style.display='flex';const u=S.isDemo?'Demo':(get('display_name')||get('uname')||'?');$('hdr-ava').textContent=u[0].toUpperCase();$('hdr-ava').style.background=nameColor(u);$('hdr-name').textContent=u;if(S.isDemo){$('hdr-ava').onclick=null;$('hdr-name').onclick=null}connectWS();if(!S.isDemo)registerPush();(S.isDemo?Promise.resolve([]):api("GET","/api/my/orgs")).then(r=>{if(r&&Array.isArray(r)&&r.length){const orgs=getJSON("orgs")||{};r.forEach(o=>{if(!orgs[o.slug])orgs[o.slug]={name:o.name,role:o.role,user:get("uname")};else{orgs[o.slug].name=o.name;orgs[o.slug].role=o.role}});setJSON("orgs",orgs)}});await showList();const v=get('view');if(v){try{const o=JSON.parse(v);if(o.t==='chat')openChat(o.id,o.n);else if(o.t==='ch')openChan(o.id,o.n)}catch{}}
+export async function showApp(){$('auth').style.display='none';$('app').style.display='flex';const u=S.isDemo?'Demo':(get('display_name')||get('uname')||'?');$('hdr-ava').textContent=u[0].toUpperCase();$('hdr-ava').style.background=nameColor(u);$('hdr-name').textContent=u;if(S.isDemo){$('hdr-ava').onclick=null;$('hdr-name').onclick=null}connectWS();if(!S.isDemo)registerPush();await showList();const v=get('view');if(v){try{const o=JSON.parse(v);if(o.t==='chat')openChat(o.id,o.n);else if(o.t==='ch')openChan(o.id,o.n)}catch{}}
 // Handle push notification navigation params
 const params=new URLSearchParams(location.search);
 const pushCh=params.get('channel');const pushChat=params.get('chat');
@@ -123,6 +123,15 @@ export async function showList(){try{S.curChat=null;S.curChan=null;if(S.ws&&S.ws
   showLoading(el);
   const[bots,chs,health]=await Promise.all([api('GET','/api/bots'),api('GET','/api/channels'),api('GET','/api/health')]);
   el.innerHTML='';S.channels=chs||[];
+  if(S.isDemo){
+    const demoBanner=document.createElement('div');
+    demoBanner.className='demo-banner';
+    demoBanner.innerHTML='<span>'+(S.lang==='ru'?'Демо-режим':'Demo mode')+'</span><button class="demo-btn" id="demo-create">'+(S.lang==='ru'?'Создать организацию':'Create organization')+'</button><button class="demo-btn demo-btn-s" id="demo-login">'+(S.lang==='ru'?'Войти':'Login')+'</button><button class="demo-close">&times;</button>';
+    el.appendChild(demoBanner);
+    demoBanner.querySelector('#demo-create').onclick=()=>{$("org-modal-bg").classList.add('open')};
+    demoBanner.querySelector('#demo-login').onclick=()=>{S.isDemo=false;S.token=null;$("app").style.display="none";$("auth").style.display="flex"};
+    demoBanner.querySelector('.demo-close').onclick=()=>demoBanner.remove();
+  }
   // Hint cards for new users (dismissable)
   const orgSlug = get('org') || 'default';
   if (!get('hints_dismissed_' + orgSlug)) {
