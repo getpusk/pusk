@@ -317,6 +317,10 @@ func (a *ClientAPI) myOrgs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	username := claims.Username
+	if username == "guest" {
+		json.NewEncoder(w).Encode([]interface{}{})
+		return
+	}
 	if a.orgs == nil {
 		json.NewEncoder(w).Encode([]interface{}{})
 		return
