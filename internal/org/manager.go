@@ -209,18 +209,16 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 		if ch != nil {
 			s.Subscribe(ch.ID, 1) // admin user_id = 1
 			welcome := fmt.Sprintf("Welcome to **%s**! / Добро пожаловать в **%s**!\n\n"+
-				"This is #general — your team's chat channel.\nЭто #general — канал для общения команды.\n\n"+
-				"Send a webhook / Отправьте webhook:\n"+
-				"```bash\ncurl -X POST https://your-server/hook/%s \\\n"+
-				"  -H 'Content-Type: application/json' \\\n"+
-				"  -d '{\"text\": \"Hello from curl!\"}'\n```\n\n"+
-				"Alertmanager:\n"+
-				"```bash\ncurl -X POST 'https://your-server/hook/%s?format=alertmanager' \\\n"+
-				"  -H 'Content-Type: application/json' \\\n"+
-				"  -d '{\"status\":\"firing\",\"alerts\":[{\"status\":\"firing\","+
-				"\"labels\":{\"alertname\":\"Test\"},"+
-				"\"annotations\":{\"summary\":\"Test alert\"}}]}'\n```",
-				name, name, botToken, botToken)
+				"This is #general — your team's chat channel.\n"+
+				"Это #general — канал для общения команды.\n\n"+
+				"What you can do / Что можно делать:\n"+
+				"• Send messages and reply / Писать и отвечать на сообщения\n"+
+				"• @mention teammates — they get push / @упомянуть — придёт push\n"+
+				"• Upload files and photos (📎) / Загрузить файлы и фото (📎)\n"+
+				"• Create more channels / Создать ещё каналы\n\n"+
+				"Connect monitoring → Settings ⚙️ → Webhook URL\n"+
+				"Подключить мониторинг → Настройки ⚙️ → Webhook URL",
+				name, name)
 			s.SaveChannelMessage(ch.ID, welcome, "", "", "")
 		}
 
@@ -229,7 +227,13 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 		if admin != nil {
 			chat, _ := s.GetOrCreateChat(admin.ID, sysBot.ID)
 			if chat != nil {
-				welcome := fmt.Sprintf("Добро пожаловать в **%s**!\n\nВаш бот-шлюз готов к работе. Отправьте первое сообщение через API:\n\n```\ncurl -X POST https://your-server/bot/%s/sendMessage \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"chat_id\": %d, \"text\": \"Hello!\"}'\n```\n\nBot token: `%s`", name, botToken, chat.ID, botToken)
+				welcome := fmt.Sprintf("Hi! I'm **%s Bot** — your system gateway.\n"+
+					"Привет! Я **%s Bot** — системный бот.\n\n"+
+					"Your bot token / Ваш bot token: `%s`\n\n"+
+					"API: POST /bot/%s/sendMessage\n"+
+					"Webhook: /hook/%s?format=alertmanager\n\n"+
+					"Full docs / Документация: https://getpusk.ru",
+					name, name, botToken, botToken, botToken)
 				s.SaveMessage(chat.ID, "bot", welcome, "", "", "")
 			}
 		}
