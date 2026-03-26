@@ -249,10 +249,12 @@ func (s *Store) ListChannelsForUser(userID int64) ([]ChannelInfo, error) {
 		SELECT c.id, c.bot_id, c.name, COALESCE(c.description,''),
 		       COALESCE(c.pinned_message_id, 0),
 		       CASE WHEN cs.user_id IS NOT NULL THEN 1 ELSE 0 END AS subscribed,
-		       (SELECT COUNT(*) FROM channel_messages cm
-		        WHERE cm.channel_id = c.id
-		        AND cm.id > COALESCE((SELECT last_read_id FROM channel_reads cr
-		            WHERE cr.channel_id = c.id AND cr.user_id = ?), 0)) AS unread
+		       CASE WHEN cs.user_id IS NOT NULL THEN
+		         (SELECT COUNT(*) FROM channel_messages cm
+		          WHERE cm.channel_id = c.id
+		          AND cm.id > COALESCE((SELECT last_read_id FROM channel_reads cr
+		              WHERE cr.channel_id = c.id AND cr.user_id = ?), 0))
+		       ELSE 0 END AS unread
 		FROM channels c
 		LEFT JOIN channel_subscribers cs ON c.id = cs.channel_id AND cs.user_id = ?
 		ORDER BY c.name`, userID, userID)

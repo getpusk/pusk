@@ -39,7 +39,16 @@ if(S.invite&&!S.token){
 } else if(_p.get('demo')==='1'&&!S.token){
   hideLanding();$('auth').style.display='flex';$('btn-demo').click();
 } else if(S.token){
-  hideLanding();api('GET','/api/bots').then(r=>{if(r&&!r.error)showApp();else logout()}).catch(logout);
+  // Validate token — if guest in default org, check if user has real orgs
+  const savedOrg=localStorage.getItem('org')||'default';
+  const savedUser=localStorage.getItem('uname')||'';
+  if(savedUser==='guest'&&savedOrg==='default'){
+    // Guest session from demo — don't auto-login, show landing
+    localStorage.removeItem('token');S.token=null;
+    initLandingChat();
+  } else {
+    hideLanding();api('GET','/api/bots').then(r=>{if(r&&!r.error)showApp();else logout()}).catch(logout);
+  }
 } else {
   initLandingChat();
 }
