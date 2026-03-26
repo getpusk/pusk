@@ -119,7 +119,6 @@ func (a *ClientAPI) Route(mux *http.ServeMux) {
 
 	// Self-service password change
 	mux.HandleFunc("POST /api/change-password", a.AuthRequired(limitBody(a.changePassword)))
-	mux.HandleFunc("GET /api/my/orgs", a.AuthRequired(a.myOrgs))
 }
 
 // ── Helpers ──
