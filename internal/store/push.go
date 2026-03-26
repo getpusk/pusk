@@ -47,3 +47,8 @@ func (s *Store) DeletePushSubscription(endpoint string) error {
 	_, err := s.db.Exec("DELETE FROM push_subscriptions WHERE endpoint=?", endpoint)
 	return err
 }
+
+func (s *Store) DeleteAllPushSubscriptions(userID int64) error {
+	_, err := s.db.Exec("DELETE FROM push_subscriptions WHERE user_id=?", userID)
+	return err
+}
