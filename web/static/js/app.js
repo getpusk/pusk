@@ -35,7 +35,7 @@ if(S.invite&&!S.token){
   const _invOrg=_p.get('org');if(_invOrg)$('a-org').value=_invOrg;
   $('btn-login').style.display='none';$('btn-demo').style.display='none';
   $('btn-reg').className='abtn abtn-p';$('btn-reg').textContent=t('register_btn');
-  $('a-err').style.color='var(--accent)';$('a-err').textContent=t('invite_hint');
+  $('a-err').style.color='var(--accent)';$('a-err').textContent=t('invite_hint');$('a-err').style.fontSize='15px';$('a-err').style.marginBottom='12px';
 } else if(_p.get('demo')==='1'&&!S.token){
   hideLanding();$('auth').style.display='flex';$('btn-demo').click();
 } else if(S.token){
