@@ -250,24 +250,25 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 				Title: "#" + ch.Name,
 				Body:  senderName + ": " + req.Text[:min(len(req.Text), 100)],
 				Tag:   fmt.Sprintf("ch-%d-%d", ch.ID, msg.ID),
-				URL:   fmt.Sprintf("/?channel=%d", ch.ID),
+				URL:   fmt.Sprintf("/?channel=%d&org=%s", ch.ID, orgID),
 			})
 			sentPush[uid] = true
 		}
 
-		// Reply push: notify the original message author
+		// Reply push: notify the original message author (skip if already got channel push)
 		if req.ReplyTo > 0 {
 			origMsg, rerr := s.GetChannelMessage(req.ReplyTo)
 			if rerr == nil && origMsg.Sender == "user" && origMsg.SenderName != "" {
 				users, _ := s.ListUsers()
 				for _, u := range users {
-					if u.Username == origMsg.SenderName && u.ID != userID {
+					if u.Username == origMsg.SenderName && u.ID != userID && !sentPush[u.ID] {
 						a.push.SendToUser(s, u.ID, notify.PushPayload{
 							Title: "#" + ch.Name + " \u2014 reply",
 							Body:  senderName + ": " + req.Text[:min(len(req.Text), 100)],
 							Tag:   fmt.Sprintf("reply-%d-%d", ch.ID, msg.ID),
-							URL:   fmt.Sprintf("/?channel=%d", ch.ID),
+							URL:   fmt.Sprintf("/?channel=%d&org=%s", ch.ID, orgID),
 						})
+						sentPush[u.ID] = true
 						break
 					}
 				}
@@ -291,7 +292,7 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 						Title: "#" + ch.Name + " — @" + u.Username,
 						Body:  senderName + ": " + truncateText(req.Text, 80),
 						Tag:   "mention-" + ch.Name,
-						URL:   fmt.Sprintf("/?channel=%d", ch.ID),
+						URL:   fmt.Sprintf("/?channel=%d&org=%s", ch.ID, orgID),
 					})
 				}
 			}
