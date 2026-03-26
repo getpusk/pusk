@@ -9,7 +9,7 @@ const S = {
   replyToText: '',
   channels: [],
   mentionUsers: [],
-  lang: get('lang') || 'ru',
+  lang: get('lang') || (navigator.language && navigator.language.startsWith('ru') ? 'ru' : 'en'),
   lastMsgDate: '',
   editMsgId: 0,
   editChanId: 0,
