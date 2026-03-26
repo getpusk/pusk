@@ -300,3 +300,6 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .land-faq summary:hover{background:var(--hover)}
 .land-faq details[open] summary{border-radius:8px 8px 0 0}
 .land-faq details p{padding:6px 12px 10px;font-size:13px;color:var(--text2);background:var(--surface);margin:0;line-height:1.5;border-radius:0 0 8px 8px}
+
+/* @mention keyboard selection highlight */
+.ac-sel{background:var(--accent)!important;color:#fff!important}
