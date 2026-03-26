@@ -278,3 +278,16 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 /* Settings inner scroll + sticky logout */
 #settings-inner{padding:16px;overflow-y:auto;flex:1}
 #settings .s-out{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);margin:0;border-radius:0 0 var(--radius) var(--radius);padding:12px 16px;width:100%}
+
+/* Onboarding hint cards */
+.onboard-hints{padding:12px 16px;border-bottom:1px solid var(--border)}
+.hints-header{display:flex;justify-content:space-between;align-items:center}
+.hints-header b{font-size:16px}
+.hints-close{background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;padding:0 4px;line-height:1}
+.hints-sub{color:var(--text2);font-size:13px;margin:2px 0 10px}
+.hint-card{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;cursor:pointer;transition:background .15s}
+.hint-card:hover{background:var(--hover)}
+.hint-card:active{background:var(--active)}
+.hint-icon{font-size:24px;width:36px;text-align:center;flex-shrink:0}
+.hint-card b{display:block;font-size:14px}
+.hint-card p{color:var(--text2);font-size:12px;margin:2px 0 0}
