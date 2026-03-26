@@ -306,3 +306,48 @@ func (a *ClientAPI) changePassword(w http.ResponseWriter, r *http.Request) {
 	RevokeUser(claims.OrgID, claims.UserID)
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
+
+// myOrgs returns all organizations where the current user has an account.
+func (a *ClientAPI) myOrgs(w http.ResponseWriter, r *http.Request) {
+	claims := ClaimsFromCtx(r.Context())
+	if claims == nil {
+		jsonErr(w, "unauthorized", 401)
+		return
+	}
+	username := claims.Username
+	if a.orgs == nil {
+		json.NewEncoder(w).Encode([]interface{}{})
+		return
+	}
+
+	type orgInfo struct {
+		Slug string `json:"slug"`
+		Name string `json:"name"`
+		Role string `json:"role"`
+	}
+	var result []orgInfo
+	for _, o := range a.orgs.List() {
+		if o.Slug == "default" {
+			continue
+		}
+		s, err := a.orgs.Get(o.Slug)
+		if err != nil {
+			continue
+		}
+		users, _ := s.ListUsers()
+		for _, u := range users {
+			if u.Username == username {
+				role := "member"
+				if s.IsAdmin(u.ID) {
+					role = "admin"
+				}
+				result = append(result, orgInfo{Slug: o.Slug, Name: o.Name, Role: role})
+				break
+			}
+		}
+	}
+	if result == nil {
+		result = []orgInfo{}
+	}
+	json.NewEncoder(w).Encode(result)
+}
