@@ -199,7 +199,13 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 		username = claims.Username
 	}
 
-	msg, err := s.SaveChannelMessageFrom(channelID, "user", username, req.Text, "", "", "")
+	// Use display_name as sender_name if available
+	senderName := username
+	if user, uerr := s.GetUserByID(userID); uerr == nil && user != nil && user.DisplayName != "" {
+		senderName = user.DisplayName
+	}
+
+	msg, err := s.SaveChannelMessageFrom(channelID, "user", senderName, req.Text, "", "", "")
 	if msg != nil && req.ReplyTo > 0 {
 		s.SetChannelMessageReplyTo(msg.ID, req.ReplyTo)
 		msg.ReplyTo = req.ReplyTo
@@ -221,7 +227,7 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 		payload, _ := json.Marshal(map[string]interface{}{
 			"message":      msg,
 			"channel_name": ch.Name,
-			"sender_name":  username,
+			"sender_name":  senderName,
 		})
 		a.broadcastChannel(s, ch.ID, orgID, "channel_message", payload, userID)
 
@@ -242,7 +248,7 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 			}
 			a.push.SendToUser(s, uid, notify.PushPayload{
 				Title: "#" + ch.Name,
-				Body:  claims.Username + ": " + req.Text[:min(len(req.Text), 100)],
+				Body:  senderName + ": " + req.Text[:min(len(req.Text), 100)],
 				Tag:   fmt.Sprintf("ch-%d-%d", ch.ID, msg.ID),
 				URL:   fmt.Sprintf("/?channel=%d", ch.ID),
 			})
@@ -258,7 +264,7 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 					if u.Username == origMsg.SenderName && u.ID != userID {
 						a.push.SendToUser(s, u.ID, notify.PushPayload{
 							Title: "#" + ch.Name + " \u2014 reply",
-							Body:  username + ": " + req.Text[:min(len(req.Text), 100)],
+							Body:  senderName + ": " + req.Text[:min(len(req.Text), 100)],
 							Tag:   fmt.Sprintf("reply-%d-%d", ch.ID, msg.ID),
 							URL:   fmt.Sprintf("/?channel=%d", ch.ID),
 						})
@@ -276,14 +282,14 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 					mentionPayload, _ := json.Marshal(map[string]interface{}{
 						"type":    "mention",
 						"channel": ch.Name,
-						"from":    username,
+						"from":    senderName,
 						"text":    req.Text,
 					})
 					key := orgID + ":" + fmt.Sprintf("%d", u.ID)
 					a.hub.SendToUser(key, ws.Event{Type: "mention", ChatID: ch.ID, Payload: mentionPayload})
 					a.push.SendToUser(s, u.ID, notify.PushPayload{
 						Title: "#" + ch.Name + " — @" + u.Username,
-						Body:  username + ": " + truncateText(req.Text, 80),
+						Body:  senderName + ": " + truncateText(req.Text, 80),
 						Tag:   "mention-" + ch.Name,
 						URL:   fmt.Sprintf("/?channel=%d", ch.ID),
 					})
@@ -293,6 +299,21 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(msg)
+}
+
+func (a *ClientAPI) pushUnsubscribe(w http.ResponseWriter, r *http.Request) {
+	userID := UserIDFromCtx(r.Context())
+	var req struct {
+		Endpoint string `json:"endpoint"`
+	}
+	json.NewDecoder(r.Body).Decode(&req)
+	if req.Endpoint == "" {
+		// Delete all push subscriptions for this user
+		a.db(r).DeleteAllPushSubscriptions(userID)
+	} else {
+		a.db(r).DeletePushSubscription(req.Endpoint)
+	}
+	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
 func (a *ClientAPI) pushSubscribe(w http.ResponseWriter, r *http.Request) {
@@ -652,11 +673,15 @@ func (a *ClientAPI) uploadToChannel(w http.ResponseWriter, r *http.Request) {
 	// Save file record
 	s.SaveFile(fileID, 0, header.Filename, ct, size, localPath)
 
-	// Get username
+	// Get username and display_name
 	claims := ClaimsFromCtx(r.Context())
 	username := ""
 	if claims != nil {
 		username = claims.Username
+	}
+	uploadSenderName := username
+	if upUser, uerr := s.GetUserByID(userID); uerr == nil && upUser != nil && upUser.DisplayName != "" {
+		uploadSenderName = upUser.DisplayName
 	}
 
 	caption := r.FormValue("caption")
@@ -665,7 +690,7 @@ func (a *ClientAPI) uploadToChannel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Save channel message with file
-	msg, _ := s.SaveChannelMessageFrom(channelID, "user", username, caption, "", fileID, fileType)
+	msg, _ := s.SaveChannelMessageFrom(channelID, "user", uploadSenderName, caption, "", fileID, fileType)
 
 	if msg != nil {
 		s.MarkChannelRead(channelID, userID, msg.ID)
@@ -681,7 +706,7 @@ func (a *ClientAPI) uploadToChannel(w http.ResponseWriter, r *http.Request) {
 		payload, _ := json.Marshal(map[string]interface{}{
 			"message":      msg,
 			"channel_name": ch.Name,
-			"sender_name":  username,
+			"sender_name":  uploadSenderName,
 		})
 		a.broadcastChannel(s, ch.ID, orgID, "channel_message", payload, userID)
 	}

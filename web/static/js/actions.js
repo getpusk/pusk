@@ -3,9 +3,22 @@ import {get} from './storage.js';
 import {$,esc,escJs,md,t,te,toast,api,confirmDialog} from './util.js';
 import {addMsg,scrollDown,showList,renderPinBar,setMsgHandlers} from './views.js';
 
+// ── @mention keyboard nav state ──
+let _mentionIdx=-1;
+
 // ── Send message ──
 $('msg-send').onclick=sendMsg;
-$('msg-in').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){const isMobile='ontouchstart' in window&&navigator.maxTouchPoints>0;if(!isMobile){e.preventDefault();sendMsg()}}};
+$('msg-in').onkeydown=e=>{
+  const ml=$('mention-list');
+  if(ml.style.display==='block'){
+    const items=ml.querySelectorAll('.ac-item-user,.ac-item');
+    if(e.key==='ArrowDown'){e.preventDefault();_mentionIdx=Math.min(_mentionIdx+1,items.length-1);items.forEach((it,i)=>it.classList.toggle('ac-sel',i===_mentionIdx));return}
+    if(e.key==='ArrowUp'){e.preventDefault();_mentionIdx=Math.max(_mentionIdx-1,0);items.forEach((it,i)=>it.classList.toggle('ac-sel',i===_mentionIdx));return}
+    if(e.key==='Enter'){e.preventDefault();if(_mentionIdx>=0&&_mentionIdx<items.length){const it=items[_mentionIdx];if(it.dataset.mention)insertMention(it.dataset.mention);else if(it.dataset.slash){$('msg-in').value=it.dataset.slash;ml.style.display='none';$('msg-in').focus()}_mentionIdx=-1}return}
+    if(e.key==='Escape'){e.preventDefault();ml.style.display='none';_mentionIdx=-1;return}
+  }
+  if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){const isMobile='ontouchstart' in window&&navigator.maxTouchPoints>0;if(!isMobile){e.preventDefault();sendMsg()}}
+};
 
 // ── File upload ──
 $('file-input').onchange=function(){if(!this.files.length)return;const file=this.files[0];if(!S.curChan){toast(S.lang==='ru'?'Только в каналах':'Only in channels');this.value='';return}
@@ -26,8 +39,8 @@ $('file-caption').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();$('file-s
 // ── @mention & slash autocomplete ──
 const _slashCmds=['/start','/help','/status'];
 $('msg-in').addEventListener('input',function(){const v=this.value;const cursor=this.selectionStart;const before=v.substring(0,cursor);
-  if(S.curChat){const slashMatch=before.match(/^\/(\w*)$/);if(slashMatch){const q=slashMatch[1].toLowerCase();const matches=_slashCmds.filter(c=>c.substring(1).startsWith(q));if(matches.length>0){const ml=$('mention-list');ml.innerHTML='';matches.forEach(c=>{const item=document.createElement('div');item.className='ac-item';item.dataset.slash=c;item.textContent=c;ml.appendChild(item)});ml.style.display='block';return}}}
-  if(S.curChan){const atMatch=before.match(/@(\w*)$/);if(atMatch){const query=atMatch[1].toLowerCase();const me=get('uname')||'';const matches=S.mentionUsers.filter(u=>u.username.toLowerCase().startsWith(query)&&u.username!==me);if(matches.length>0){const ml=$('mention-list');ml.innerHTML='';matches.slice(0,8).forEach(u=>{const item=document.createElement('div');item.className='ac-item-user';item.dataset.mention=u.username;item.textContent=u.username;ml.appendChild(item)});ml.style.display='block';return}}}$('mention-list').style.display='none';
+  if(S.curChat){const slashMatch=before.match(/^\/(\w*)$/);if(slashMatch){const q=slashMatch[1].toLowerCase();const matches=_slashCmds.filter(c=>c.substring(1).startsWith(q));if(matches.length>0){const ml=$('mention-list');ml.innerHTML='';matches.forEach(c=>{const item=document.createElement('div');item.className='ac-item';item.dataset.slash=c;item.textContent=c;ml.appendChild(item)});ml.style.display='block';_mentionIdx=-1;return}}}
+  if(S.curChan){const atMatch=before.match(/@(\w*)$/);if(atMatch){const query=atMatch[1].toLowerCase();const me=get('uname')||'';const matches=S.mentionUsers.filter(u=>u.username.toLowerCase().startsWith(query)&&u.username!==me);if(matches.length>0){const ml=$('mention-list');ml.innerHTML='';matches.slice(0,8).forEach(u=>{const item=document.createElement('div');item.className='ac-item-user';item.dataset.mention=u.username;item.textContent=u.username;ml.appendChild(item)});ml.style.display='block';_mentionIdx=-1;return}}}$('mention-list').style.display='none';
   if(S.curChan&&S.ws&&S.ws.readyState===WebSocket.OPEN){
     if(!S.typingTimer){S.ws.send(JSON.stringify({type:'typing',channel_id:S.curChan}))}
     clearTimeout(S.typingTimer);

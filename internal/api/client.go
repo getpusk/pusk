@@ -110,6 +110,7 @@ func (a *ClientAPI) Route(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/ws", a.AuthRequired(a.websocket))
 	mux.HandleFunc("GET /api/online", a.AuthRequired(a.onlineUsers))
 	mux.HandleFunc("POST /api/push/subscribe", a.AuthRequired(limitBody(a.pushSubscribe)))
+	mux.HandleFunc("DELETE /api/push/subscribe", a.AuthRequired(limitBody(a.pushUnsubscribe)))
 	mux.HandleFunc("POST /api/push/test", a.AuthRequired(a.testPush))
 
 	// Auth-required routes: Invites
