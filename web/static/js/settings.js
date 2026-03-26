@@ -103,7 +103,7 @@ async function delUser(uid,name){if(!await confirmDialog((S.lang==='ru'?'\u0423\
 function switchOrg(slug){const orgs=getJSON('orgs')||{};const o=orgs[slug];if(!o)return;S.token=o.token;set('token',o.token);set('uname',o.user);set('org',slug);if(o.role)set('role',o.role);$('settings').style.display='none';$('settings-bg').style.display='none';disconnectWS();showApp()}
 
 $('settings-bg').onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none'};
-$('s-lang-btn').onclick=()=>{S.lang=S.lang==='ru'?'en':'ru';set('lang',S.lang);setLang();if($('app').style.display==='flex')showList()};
+$('s-lang-btn').onclick=()=>{S.lang=S.lang==='ru'?'en':'ru';set('lang',S.lang);setLang();renderSettings();if($('app').style.display==='flex')showList()};
 $('s-invite').onclick=async()=>{if(S.inviteUrl){navigator.clipboard.writeText(S.inviteUrl);$('s-invite').textContent=t('invited');setTimeout(()=>{$('s-invite').textContent=t('invite')},2000);return}const r=await api('POST','/api/invite');if(r.code){const o=get('org')||'default';S.inviteUrl=location.origin+r.url+'?org='+o;$('s-invite-result').textContent=S.inviteUrl;navigator.clipboard.writeText(S.inviteUrl);$('s-invite').textContent=t('invited');setTimeout(()=>{$('s-invite').textContent=t('invite')},2000)}};
 $('s-out').onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none';logout()};
 
