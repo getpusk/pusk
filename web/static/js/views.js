@@ -126,11 +126,11 @@ export async function showList(){try{S.curChat=null;S.curChan=null;if(S.ws&&S.ws
   if(S.isDemo){
     const demoBanner=document.createElement('div');
     demoBanner.className='demo-banner';
-    demoBanner.innerHTML='<span>'+(S.lang==='ru'?'Демо-режим':'Demo mode')+'</span><button class="demo-btn" id="demo-create">'+(S.lang==='ru'?'Создать организацию':'Create organization')+'</button><button class="demo-btn demo-btn-s" id="demo-login">'+(S.lang==='ru'?'Войти':'Login')+'</button><button class="demo-close">&times;</button>';
+    demoBanner.innerHTML='<span>'+(S.lang==='ru'?'Демо':'Demo')+'</span><button class="demo-btn" id="demo-create">'+(S.lang==='ru'?'Начать \u2192':'Start \u2192')+'</button><a class="demo-link" id="demo-login">'+(S.lang==='ru'?'У меня есть аккаунт':'I have an account')+'</a><button class="demo-close">\u25BE</button>';
     el.appendChild(demoBanner);
     demoBanner.querySelector('#demo-create').onclick=()=>{$("org-modal-bg").classList.add('open')};
     demoBanner.querySelector('#demo-login').onclick=()=>{S.isDemo=false;S.token=null;$("app").style.display="none";$("auth").style.display="flex"};
-    demoBanner.querySelector('.demo-close').onclick=()=>demoBanner.remove();
+    demoBanner.querySelector('.demo-close').onclick=()=>{demoBanner.innerHTML='<span>'+(S.lang==='ru'?'Демо':'Demo')+'</span><button class="demo-btn" id="demo-create2">'+(S.lang==='ru'?'Начать \u2192':'Start \u2192')+'</button>';demoBanner.querySelector('#demo-create2').onclick=()=>{$("org-modal-bg").classList.add('open')}};
   }
   // Hint cards for new users (dismissable)
   const orgSlug = get('org') || 'default';
