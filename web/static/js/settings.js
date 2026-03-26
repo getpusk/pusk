@@ -110,3 +110,6 @@ $('s-out').onclick=()=>{$('settings').style.display='none';$('settings-bg').styl
 // ── Push/test buttons: use onclick on existing DOM elements ──
 $('s-push-btn').onclick=togglePush;
 $('s-test-push').onclick=testPush;
+
+// ── Expose renderSettings for setLang() ──
+window._renderSettings=renderSettings;

@@ -5,7 +5,7 @@ export function $(id){return document.getElementById(id)}
 export function escJs(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/</g,'\\x3c').replace(/>/g,'\\x3e').replace(/\n/g,'\\n')}
 export function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML}
 export function nameColor(n){let h=0;for(let i=0;i<n.length;i++)h=n.charCodeAt(i)+((h<<5)-h);return['#5865F2','#57F287','#FEE75C','#EB459E','#ED4245','#3BA55D','#FAA61A','#4082bc'][Math.abs(h)%8]}
-export function fmtTime(d){if(!d)return'';const dt=new Date(d),now=new Date(),h=dt.getHours().toString().padStart(2,'0'),m=dt.getMinutes().toString().padStart(2,'0'),s=dt.getSeconds().toString().padStart(2,'0');const tm=h+':'+m+':'+s;if(dt.toDateString()===now.toDateString())return tm;const y=new Date(now);y.setDate(y.getDate()-1);if(dt.toDateString()===y.toDateString())return t('yest')+' '+tm;return dt.toLocaleDateString('ru',{day:'numeric',month:'short'})+' '+tm}
+export function fmtTime(d){if(!d)return'';const dt=new Date(d),now=new Date(),h=dt.getHours().toString().padStart(2,'0'),m=dt.getMinutes().toString().padStart(2,'0'),s=dt.getSeconds().toString().padStart(2,'0');const tm=h+':'+m+':'+s;if(dt.toDateString()===now.toDateString())return tm;const y=new Date(now);y.setDate(y.getDate()-1);if(dt.toDateString()===y.toDateString())return t('yest')+' '+tm;return dt.toLocaleDateString(S.lang==='ru'?'ru':'en',{day:'numeric',month:'short'})+' '+tm}
 export function md(s){if(!s)return'';let h=s;const bl=[];h=h.replace(/```([\s\S]*?)```/g,(_,c)=>{bl.push('<pre class="md-pre">'+esc(c)+'</pre>');return'\x00'+bl.length+'\x00'});h=h.replace(/`([^`]+)`/g,(_,c)=>{bl.push('<code class="md-code">'+esc(c)+'</code>');return'\x00'+bl.length+'\x00'});h=esc(h);h=h.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');h=h.replace(/\*(.+?)\*/g,'<b>$1</b>');h=h.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener" class="md-link">$1</a>');h=h.replace(/(^|[^"\/])(https?:\/\/[^\s<]+)/g,'$1<a href="$2" target="_blank" rel="noopener" class="md-link">$2</a>');h=h.replace(/(^|\s)(\/\w+)/gm,'$1<span class="md-cmd" data-cmd="$2">$2</span>');h=h.replace(/@(\w+)/g,'<span class="md-mention">@$1</span>');h=h.replace(/\n/g,'<br>');h=h.replace(/\x00(\d+)\x00/g,(_,i)=>bl[i-1]);return h}
 export function toast(msg){const el=$('toast');el.textContent=msg;el.style.display='block';setTimeout(()=>el.style.display='none',2000)}
 
@@ -69,6 +69,8 @@ export function setLang(){
   const sel=$('m-type');if(sel){sel.options[0].text=t('ch_lbl');sel.options[1].text=t('bot_lbl')}
   $('m-cancel').textContent=t('cancel');$('m-ok').textContent=t('create');
   if($('s-invite'))$('s-invite').textContent=t('invite');
+  if(typeof translateLanding==='function')translateLanding();
+  if($('settings').style.display==='block'||$('settings').style.display==='flex'){if(typeof window._renderSettings==='function')window._renderSettings()}
 }
 
 
