@@ -45,6 +45,19 @@ if(S.invite&&!S.token){
 }
 
 }catch(e){console.error("[pusk] init error:",e)}
+
+// ── Push notification navigation (from SW postMessage) ──
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data && e.data.type === 'push-navigate') {
+      const p = new URLSearchParams(e.data.url.replace(/^.*\?/, ''));
+      const ch = p.get('channel');
+      const chat = p.get('chat');
+      if (ch) import('./views.js').then(v => v.openChan(+ch, ''));
+      else if (chat) import('./views.js').then(v => v.openChat(+chat, ''));
+    }
+  });
+}
 // ── Offline indicator ──
 const offBar = $('offline-bar');
 if (offBar) {
