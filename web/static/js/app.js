@@ -96,10 +96,13 @@ if ('serviceWorker' in navigator) {
   document.addEventListener('visibilitychange', () => {
       if (!document.hidden) reg.update().catch(() => {});
     });
+    // Only show update bar if SW was already controlling (not first install)
+    const hadController = !!navigator.serviceWorker.controller;
     reg.addEventListener('updatefound', () => {
+      if (!hadController) return;
       const newSW = reg.installing;
       newSW.addEventListener('statechange', () => {
-        if (newSW.state === 'activated' && navigator.serviceWorker.controller) {
+        if (newSW.state === 'activated') {
           const bar = $('update-bar');
           if (bar) bar.classList.add('show');
         }
