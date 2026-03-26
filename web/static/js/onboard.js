@@ -167,3 +167,12 @@ if (skipBtn) {
     $('onboard-bg').classList.remove('open');
   };
 }
+
+// Click outside onboard modal to close
+$('onboard-bg').addEventListener('click', e => {
+  if (e.target === $('onboard-bg')) {
+    const orgSlug = get('org') || 'default';
+    set('onboarded_' + orgSlug, '1');
+    $('onboard-bg').classList.remove('open');
+  }
+});
