@@ -226,6 +226,7 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 		a.broadcastChannel(s, ch.ID, orgID, "channel_message", payload, userID)
 
 		// Push notification to offline channel subscribers (skip sender + online users)
+		sentPush := map[int64]bool{}
 		subs, _ := s.ChannelSubscribers(ch.ID)
 		for _, uid := range subs {
 			if uid == userID {
@@ -245,6 +246,7 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 				Tag:   fmt.Sprintf("ch-%d-%d", ch.ID, msg.ID),
 				URL:   fmt.Sprintf("/?channel=%d", ch.ID),
 			})
+			sentPush[uid] = true
 		}
 
 		// Reply push: notify the original message author
@@ -266,11 +268,11 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// @mentions: push notification to mentioned users
+		// @mentions: push notification to mentioned users (skip if already got channel push)
 		if strings.Contains(req.Text, "@") {
 			users, _ := s.ListUsers()
 			for _, u := range users {
-				if strings.Contains(req.Text, "@"+u.Username) && u.ID != userID {
+				if strings.Contains(req.Text, "@"+u.Username) && u.ID != userID && !sentPush[u.ID] {
 					mentionPayload, _ := json.Marshal(map[string]interface{}{
 						"type":    "mention",
 						"channel": ch.Name,
