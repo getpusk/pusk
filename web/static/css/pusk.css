@@ -291,3 +291,12 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .hint-icon{font-size:24px;width:36px;text-align:center;flex-shrink:0}
 .hint-card b{display:block;font-size:14px}
 .hint-card p{color:var(--text2);font-size:12px;margin:2px 0 0}
+
+/* FAQ on landing */
+.land-faq{margin:16px 0 12px}
+.land-faq h3{font-size:15px;margin-bottom:8px;color:var(--text2)}
+.land-faq details{margin-bottom:4px;border-radius:8px;overflow:hidden}
+.land-faq summary{cursor:pointer;padding:8px 12px;font-size:13px;font-weight:600;color:var(--text);background:var(--surface);border-radius:8px}
+.land-faq summary:hover{background:var(--hover)}
+.land-faq details[open] summary{border-radius:8px 8px 0 0}
+.land-faq details p{padding:6px 12px 10px;font-size:13px;color:var(--text2);background:var(--surface);margin:0;line-height:1.5;border-radius:0 0 8px 8px}
