@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
@@ -103,6 +104,7 @@ func (a *ClientAPI) auth(w http.ResponseWriter, r *http.Request) {
 	if s.IsAdmin(user.ID) {
 		role = "admin"
 	}
+	slog.Info("auth success", "username", user.Username, "org", orgSlug, "role", role, "user_id", user.ID)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"token": token, "user_id": user.ID, "username": user.Username, "org": orgSlug, "role": role, "display_name": user.DisplayName,
 	})
