@@ -8,7 +8,20 @@ $('msg-send').onclick=sendMsg;
 $('msg-in').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){const isMobile='ontouchstart' in window&&navigator.maxTouchPoints>0;if(!isMobile){e.preventDefault();sendMsg()}}};
 
 // ── File upload ──
-$('file-input').onchange=async function(){if(!this.files.length)return;const file=this.files[0];if(!S.curChan){toast(S.lang==="ru"?"Только в каналах":"Only in channels");this.value="";return}const fd=new FormData();fd.append("file",file);fd.append("caption",file.name);toast(S.lang==="ru"?"Загрузка...":"Uploading...");const opts={method:"POST",headers:{},body:fd};if(S.token)opts.headers.Authorization=S.token;try{const r=await fetch(`/api/channels/${S.curChan}/upload`,opts);const msg=await r.json();if(msg&&msg.message_id){toast(S.lang==="ru"?"Отправлено":"Sent");addMsg(msg);scrollDown()}}catch(e){toast("Error: "+e.message)}this.value=""};
+$('file-input').onchange=function(){if(!this.files.length)return;const file=this.files[0];if(!S.curChan){toast(S.lang==='ru'?'Только в каналах':'Only in channels');this.value='';return}
+const ru=S.lang==='ru';const bg=$('file-preview-bg');const isImg=file.type.startsWith('image/');
+$('file-preview-title').textContent=ru?'Отправить файл':'Send file';
+$('file-caption').placeholder=ru?'Описание (необязательно)':'Caption (optional)';
+$('file-caption').value='';$('file-cancel').textContent=ru?'Отмена':'Cancel';$('file-send').textContent=ru?'Отправить':'Send';
+const imgDiv=$('file-preview-img');imgDiv.innerHTML='';
+if(isImg){const img=document.createElement('img');img.src=URL.createObjectURL(file);img.style.maxWidth='100%';img.style.maxHeight='200px';img.style.borderRadius='8px';imgDiv.appendChild(img)}
+else{imgDiv.innerHTML='<div style="font-size:40px;padding:12px">📄</div><div>'+esc(file.name)+'</div>'}
+bg.classList.add('open');$('file-caption').focus();
+const inp=this;
+$('file-send').onclick=async()=>{bg.classList.remove('open');const cap=$('file-caption').value.trim()||file.name;const fd=new FormData();fd.append('file',file);fd.append('caption',cap);toast(ru?'Загрузка...':'Uploading...');const opts={method:'POST',headers:{},body:fd};if(S.token)opts.headers.Authorization=S.token;try{const r=await fetch('/api/channels/'+S.curChan+'/upload',opts);const msg=await r.json();if(msg&&msg.message_id){toast(ru?'Отправлено':'Sent');addMsg(msg);scrollDown()}}catch(e){toast('Error: '+e.message)}inp.value=''};
+$('file-cancel').onclick=()=>{bg.classList.remove('open');inp.value=''};
+$('file-caption').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();$('file-send').click()}};
+};
 
 // ── @mention & slash autocomplete ──
 const _slashCmds=['/start','/help','/status'];
