@@ -9,8 +9,8 @@ $('hdr-ava').onclick=$('hdr-name').onclick=()=>{const v=$('settings').style.disp
 
 async function renderSettings(){const u=get('uname')||'?';const o=get('org')||'default';$('s-profile').textContent=u+' @ '+o;const h=await api('GET','/api/health');$('s-about').innerHTML='Pusk '+(h.version||'?')+' <a href="https://github.com/getpusk/pusk" target="_blank" class="s-about-link">GitHub</a> <a href="https://github.com/getpusk/pusk#readme" target="_blank" class="s-about-link">Docs</a>';if((get('org')||'default')==='default'){$('s-push-btn').textContent=S.lang==='ru'?'Создайте организацию':'Create org';$('s-push-btn').style.opacity='0.5';
   if(!$('s-demo-banner')){const b=document.createElement('div');b.id='s-demo-banner';b.style.cssText='background:var(--bg2);border:1px solid var(--accent);border-radius:8px;padding:12px;margin:8px 0;text-align:center';b.innerHTML=(S.lang==='ru'?'<div style="font-size:13px;color:var(--text2);margin-bottom:8px">Демо-режим. Push, смена пароля и приглашения доступны только в организации.</div>':'<div style="font-size:13px;color:var(--text2);margin-bottom:8px">Demo mode. Push, password change and invites are only available in organizations.</div>');const rb=document.createElement('button');rb.className='s-btn s-full-btn';rb.style.cssText='background:var(--accent);color:#fff;margin-top:4px';rb.textContent=S.lang==='ru'?'Зарегистрироваться и создать организацию':'Register & create organization';rb.onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none';logout()};b.appendChild(rb);$('s-org-switch').before(b)}
-}else{$('s-push-btn').textContent=Notification.permission==='granted'?(S.lang==='ru'?'Подключён ✓':'Connected ✓'):(Notification.permission==='denied'?(S.lang==='ru'?'Заблокировано ✕':'Blocked ✕'):(S.lang==='ru'?'Подключить':'Connect'));$('s-push-btn').style.opacity='1';const db=$('s-demo-banner');if(db)db.remove()}
-  const ib=$('s-install');const isStandalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone;if(!isStandalone){ib.style.display='block';if(S.deferredPrompt){ib.textContent=S.lang==='ru'?'\u0423\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435':'Install app';ib.onclick=async()=>{if(S.deferredPrompt){S.deferredPrompt.prompt();const r=await S.deferredPrompt.userChoice;if(r.outcome==='accepted'){ib.style.display='none';toast(S.lang==='ru'?'\u0423\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u043e!':'Installed!')}S.deferredPrompt=null}}}else{ib.textContent=S.lang==='ru'?'\u0423\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c: \u041c\u0435\u043d\u044e \u0431\u0440\u0430\u0443\u0437\u0435\u0440\u0430 \u2192 \u041d\u0430 \u0433\u043b\u0430\u0432\u043d\u044b\u0439 \u044d\u043a\u0440\u0430\u043d':'Install: Browser menu \u2192 Add to home screen';ib.onclick=null;ib.style.opacity='0.7'}}else{ib.style.display='none'}
+}else{(async()=>{let pushLabel;if(Notification.permission==='denied'){pushLabel=S.lang==='ru'?'Заблокировано ✕':'Blocked ✕'}else if(Notification.permission==='granted'&&'serviceWorker' in navigator){try{const r=await navigator.serviceWorker.ready;const s=await r.pushManager.getSubscription();pushLabel=s?(S.lang==='ru'?'Push: Вкл ✓':'Push: On ✓'):(S.lang==='ru'?'Push: Выкл':'Push: Off')}catch{pushLabel=S.lang==='ru'?'Push: Вкл ✓':'Push: On ✓'}}else{pushLabel=S.lang==='ru'?'Подключить':'Connect'}$('s-push-btn').textContent=pushLabel})();$('s-push-btn').style.opacity='1';const db=$('s-demo-banner');if(db)db.remove()}
+  const ib=$('s-install');const isStandalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone;if(!isStandalone){ib.style.display='block';if(S.deferredPrompt){ib.textContent=S.lang==='ru'?'\u0423\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435':'Install app';ib.onclick=async()=>{if(S.deferredPrompt){S.deferredPrompt.prompt();const r=await S.deferredPrompt.userChoice;if(r.outcome==='accepted'){ib.style.display='none';toast(S.lang==='ru'?'\u0423\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u043e!':'Installed!')}S.deferredPrompt=null}}}else{ib.style.display='none'}}else{ib.style.display='none'}
 
   // Hide invite for non-admin
   if(get("role")!=="admin"||(get("org")||"default")==="default"){$("s-invite").style.display="none"}else{$("s-invite").style.display=""}
@@ -18,15 +18,34 @@ async function renderSettings(){const u=get('uname')||'?';const o=get('org')||'d
   if(!$("s-change-pwd")&&(get("org")||"default")!=="default"){const p=document.createElement("button");p.id="s-change-pwd";p.className="s-btn";p.style.cssText="width:100%;font-size:12px;padding:6px;margin-top:4px;color:var(--text2)";p.textContent=S.lang==="ru"?"Сменить пароль":"Change password";p.onclick=async()=>{const o=prompt(S.lang==="ru"?"Текущий пароль:":"Current password:");if(!o)return;const n=prompt(S.lang==="ru"?"Новый пароль (мин. 6):":"New password (min 6):");if(!n||n.length<6){toast(S.lang==="ru"?"Минимум 6 символов":"Min 6 chars");return}const r=await api("POST","/api/change-password",{old_pin:o,new_pin:n});if(r.ok)toast(S.lang==="ru"?"Пароль изменён":"Password changed");else toast(r.error||"Error")};$("s-out").before(p)}
 }
 
-function togglePush(){if((get('org')||'default')==='default'){toast(S.lang==='ru'?'Push доступен только в организации. Создайте организацию в настройках.':'Push available only in organizations. Create one in settings.');return}
-  if(Notification.permission==='granted'){
-    registerPush();
-    const b=S.lang==='ru'?'Переподписан на push в этом браузере':'Re-subscribed to push in this browser';
-    toast(b);$('s-push-btn').textContent=S.lang==='ru'?'Подключён ✓':'Connected ✓';
-  }else if(Notification.permission==='denied'){
+async function togglePush(){if((get('org')||'default')==='default'){toast(S.lang==='ru'?'Push доступен только в организации. Создайте организацию в настройках.':'Push available only in organizations. Create one in settings.');return}
+  if(Notification.permission==='denied'){
     $('s-push-btn').textContent=S.lang==='ru'?'Заблокировано ✕':'Blocked ✕';
     toast(S.lang==='ru'?'Push заблокирован в браузере. Разрешите в настройках сайта.':'Push blocked by browser. Allow in site settings.');
-  }else{Notification.requestPermission().then(p=>{if(p==='granted'){registerPush();$('s-push-btn').textContent=S.lang==='ru'?'Подключён ✓':'Connected ✓'}else{$('s-push-btn').textContent=S.lang==='ru'?'Заблокировано ✕':'Blocked ✕'}})}}
+    return;
+  }
+  // Check if already subscribed
+  if('serviceWorker' in navigator&&'PushManager' in window){
+    try{
+      const reg=await navigator.serviceWorker.ready;
+      const sub=await reg.pushManager.getSubscription();
+      if(sub){
+        // Currently subscribed -> unsubscribe
+        const ep=sub.endpoint;
+        await sub.unsubscribe();
+        await api('DELETE','/api/push/subscribe',{endpoint:ep});
+        $('s-push-btn').textContent=S.lang==='ru'?'Push: Выкл':'Push: Off';
+        toast(S.lang==='ru'?'Отписан от push уведомлений':'Unsubscribed from push');
+        return;
+      }
+    }catch(e){console.warn('push unsub check error',e)}
+  }
+  // Not subscribed -> subscribe
+  if(Notification.permission==='granted'){
+    registerPush();
+    toast(S.lang==='ru'?'Подписан на push уведомления':'Subscribed to push');
+    $('s-push-btn').textContent=S.lang==='ru'?'Push: Вкл ✓':'Push: On ✓';
+  }else{Notification.requestPermission().then(p=>{if(p==='granted'){registerPush();$('s-push-btn').textContent=S.lang==='ru'?'Push: Вкл ✓':'Push: On ✓'}else{$('s-push-btn').textContent=S.lang==='ru'?'Заблокировано ✕':'Blocked ✕'}})}}
 
 function testPush(){if((get('org')||'default')==='default'){toast(S.lang==='ru'?'Push доступен только в организации. Создайте организацию в настройках.':'Push available only in organizations. Create one in settings.');return}api('POST','/api/push/test').then(r=>{if(r.ok){toast(S.lang==='ru'?'Push отправлен! Если не получили — проверьте: 1) Разрешения Chrome 2) Оптимизация батареи 3) Установите как приложение':'Push sent! Check: 1) Chrome permissions 2) Battery optimization 3) Install as app')}else{toast(r.error||(S.lang==='ru'?'Нет подписки на push. Включите Push в настройках.':'No push subscription. Enable Push first.'))}})}
 
