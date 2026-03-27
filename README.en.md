@@ -59,7 +59,15 @@ docker run -d --name pusk \
   ghcr.io/getpusk/pusk:latest
 ```
 
-Откройте `http://localhost:8443` — зарегистрируйтесь и начните работу.
+Open `http://localhost:8443` — register and get started.
+
+### First Run
+
+1. First user creates an **organization** — becomes admin
+2. Go to Settings → **Invite** — copy the link and share with your team
+3. Teammates follow the link, register — and they are in
+
+> Assign at least 2 admins so you do not depend on a single person.
 
 ### Из исходников
 
