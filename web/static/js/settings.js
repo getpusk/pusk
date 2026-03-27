@@ -53,7 +53,7 @@ async function togglePush(){if((get('org')||'default')==='default'){toast(S.lang
 
 function testPush(){if((get('org')||'default')==='default'){toast(S.lang==='ru'?'Push доступен только в организации. Создайте организацию в настройках.':'Push available only in organizations. Create one in settings.');return}api('POST','/api/push/test').then(r=>{if(r.ok){toast(S.lang==='ru'?'Push отправлен! Если не получили — проверьте: 1) Разрешения Chrome 2) Оптимизация батареи 3) Установите как приложение':'Push sent! Check: 1) Chrome permissions 2) Battery optimization 3) Install as app')}else{toast(r.error||(S.lang==='ru'?'Нет подписки на push. Включите Push в настройках.':'No push subscription. Enable Push first.'))}})}
 
-function renderOrgSwitch(){const el=$('s-org-switch');const orgs=getJSON('orgs')||{};const cur=get('org')||'default';const keys=Object.keys(orgs);
+function renderOrgSwitch(){const el=$('s-org-switch');const orgs=getJSON('orgs')||{};const cur=get('org')||'default';const keys=Object.keys(orgs).filter(k=>k!=='default');
   el.innerHTML='';
   if(keys.length>1){
     const label=document.createElement('div');label.className='s-label';label.textContent=t('orgs_title');el.appendChild(label);
@@ -70,6 +70,7 @@ function renderOrgSwitch(){const el=$('s-org-switch');const orgs=getJSON('orgs')
   loginOtherBtn.onclick=()=>{disconnectWS();S.token=null;remove('token');$('settings').style.display='none';$('settings-bg').style.display='none';$('app').style.display='none';$('auth').style.display='flex';$('a-org').value='';$('a-user').value='';$('a-pin').value='';$('a-org').focus()};
   addBtn.onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none';$('org-modal-bg').classList.add('open');history.pushState(null,'',location.href);$('org-slug').focus()};
   el.appendChild(addBtn);
+  el.appendChild(loginOtherBtn);
   }
 }
 
@@ -106,11 +107,17 @@ $('s-users').addEventListener('click',e=>{
 
 function setRole(uid,role){api('POST',`/api/users/${uid}/role`,{role}).then(()=>renderUsers())}
 async function delUser(uid,name){if(!await confirmDialog((S.lang==='ru'?'\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044f ':'Delete user ')+name+'?'))return;await api('DELETE',`/api/users/${uid}`);renderUsers()}
-function switchOrg(slug){const orgs=getJSON('orgs')||{};const o=orgs[slug]||{};
+async function switchOrg(slug){const orgs=getJSON('orgs')||{};const o=orgs[slug]||{};
+$('settings').style.display='none';$('settings-bg').style.display='none';
+if(o.token){
+  disconnectWS();S.token=o.token;set('token',o.token);set('org',slug);set('uname',o.user||'');set('display_name',o.display_name||o.user||'');set('role',o.role||'member');
+  try{const r=await api('GET','/api/bots');if(r&&!r.error){showApp();return}}catch{}
+  S.token=null;remove('token');
+}
 disconnectWS();S.token=null;remove('token');
-$('settings').style.display='none';$('settings-bg').style.display='none';$('app').style.display='none';
+$('app').style.display='none';
 $('auth').style.display='flex';$('a-org').value=slug;$('a-user').value=o.user||'';$('a-pin').value='';$('a-pin').focus();
-$('a-err').textContent=S.lang==='ru'?'Войдите в '+slug:'Login to '+slug;$('a-err').style.color='var(--accent)'}
+$('a-err').textContent=S.lang==='ru'?'Сессия истекла — войдите в '+slug:'Session expired — login to '+slug;$('a-err').style.color='var(--accent)'}
 
 $('settings-bg').onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none'};
 $('s-lang-btn').onclick=()=>{S.lang=S.lang==='ru'?'en':'ru';set('lang',S.lang);setLang();renderSettings();renderOrgSwitch();renderUsers();if($('app').style.display==='flex')showList()};
