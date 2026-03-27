@@ -21,7 +21,7 @@ export function initEye(btnId,inputId){const b=document.getElementById(btnId);if
 
 // ── i18n ──
 export const L={
-  ru:{sub:'Бот-платформа',login:'Войти',reg:'Регистрация',demo:'Демо',user:'Логин',pin:'Пароль',
+  ru:{sub:'Платформа алертов',login:'Войти',reg:'Регистрация',demo:'Демо',user:'Логин',pin:'Пароль',
     err_empty:'Введите логин и пароль',err_wrong:'Неверный логин или пароль',err_taken:'занят',
     err_demo:'Демо недоступно',main:'Главная',ch:'Каналы',bots:'Боты',sub_on:'Подписан ✓',sub_off:'Подписаться',
     no_msg:'Пока нет сообщений',no_items:'Пока пусто',msg:'Сообщение...',lang:'Язык',out:'Выход',
