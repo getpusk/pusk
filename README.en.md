@@ -6,51 +6,73 @@
 
 🌐 [Русский](README.md)
 
+<img src=".github/assets/landing.png" alt="Pusk — interface" width="960" />
 
-<img src=".github/assets/landing.png" alt="Pusk — интерфейс" width="960" />
+# Pusk — self-hosted alerts for ops teams
 
-# Pusk — свой мессенджер для алертов и команды
+**Pusk** — self-hosted alert platform with team chat. Webhooks from any monitoring, one-click ACK, push to phone. Single binary, zero dependencies.
 
-**Pusk** — это self-hosted платформа для оповещений и командного общения. Один бинарник, встроенный веб-клиент, без внешних зависимостей.
+## Why?
 
-## Зачем это нужно?
+**Problem:** alert fires. Who picked it up? Silence.
+- Alerts drown in Telegram among memes and personal chats
+- No acknowledgment (ACK) — unclear who is handling it
+- No escalation — if on-call is asleep, the alert dies
+- Data on third-party servers — compliance fails
+- Telegram can be throttled or blocked
 
-**Проблема:** ваш мониторинг (Grafana, Zabbix, Uptime Kuma, Alertmanager) шлёт алерты в Telegram. Но:
-- Telegram могут замедлить или заблокировать
-- Алерты тонут среди личных чатов
-- Нет контроля — данные на чужих серверах
-- Нужен бот? Придётся зависеть от Telegram API
+**Solution — Pusk:**
+- Alerts from Grafana, Zabbix, Alertmanager, Uptime Kuma — into dedicated channels
+- One-click ACK — automatic silence in Alertmanager
+- Push notifications to phone even with browser closed
+- Team chat built in — channels, @mentions, file uploads
+- Telegram Bot API compatible — existing bots work with a one-line change
 
-**Решение — Pusk:**
-- Работает на вашем сервере — никаких внешних зависимостей
-- Алерты приходят в отдельные каналы с push-уведомлениями
-- Подтверждение алертов (ACK) одной кнопкой прямо в чате
-- Команда общается здесь же — каналы, @упоминания, загрузка файлов
-- Совместим с Telegram Bot API — существующие боты работают с заменой одной строки
+<img src=".github/assets/alerts.png" alt="Pusk — alert channel" width="960" />
 
-<img src=".github/assets/alerts.png" alt="Pusk — канал алертов" width="960" />
+## Who is it for
 
-## Кому подходит
+- **DevOps/SRE teams** — monitoring alerts + incident coordination
+- **Companies with compliance needs** — data on your server, air-gapped, regulated environments
+- **Anyone who needs control** — no third parties, works when Telegram is blocked
 
-- **DevOps/SRE-команды** — алерты из мониторинга + координация инцидентов
-- **Малые компании** — корпоративный мессенджер без Slack/Teams
-- **Те, кому важен контроль** — данные на своём сервере, никаких третьих сторон
+## Features
 
-## Что умеет
+| Feature | Description |
+|---------|-------------|
+| **Alerts** | Webhooks from Alertmanager, Grafana, Zabbix, Uptime Kuma. Color indicators, ACK, automatic silence |
+| **Push** | Web Push notifications to phone and desktop (even with browser closed) |
+| **Bots** | 13 Telegram Bot API methods. Inline buttons, webhook, long polling |
+| **Channels** | Team channels for communication. @mentions with push notifications |
+| **Files** | Photos, videos, voice messages, documents — upload and view in chat |
+| **Multi-tenant** | Separate organizations with data isolation |
+| **Simple** | Single binary (22 MB), SQLite, ~2 MB RAM, 1-second startup |
 
-| Возможность | Описание |
-|-------------|----------|
-| **Алерты** | Webhook из Alertmanager, Grafana, Zabbix, Uptime Kuma. Цветовые индикаторы, ACK, автоматический silence |
-| **Каналы** | Командные каналы для общения. @упоминания с push-уведомлениями |
-| **Push** | Web Push уведомления на телефон и десктоп (даже при закрытом браузере) |
-| **Боты** | 13 методов Telegram Bot API. Inline-кнопки, webhook, long polling |
-| **Файлы** | Фото, видео, голосовые, документы — загрузка и просмотр в чате |
-| **Мультитенант** | Отдельные организации с изоляцией данных |
-| **Простота** | Один бинарник (22 МБ), SQLite, ~2 МБ RAM, запуск за 1 секунду |
+## FAQ
 
-## Быстрый старт
+<details>
+<summary><b>Is this yet another messenger?</b></summary>
+No. It is an alert platform with team chat. Closer to PagerDuty and Opsgenie than to Slack — but self-hosted and free.
+</details>
 
-### Docker (рекомендуется)
+<details>
+<summary><b>Why not just use Telegram?</b></summary>
+Telegram is a chat app. Pusk is for alerts. ACK, automatic Alertmanager silence, push even when Telegram is blocked. Team chat is a bonus, not the goal.
+</details>
+
+<details>
+<summary><b>Do I need to install an app?</b></summary>
+No. Pusk works in your browser — just open the link. You can add it to your home screen as a PWA icon, but it is optional. Chrome, Firefox, Edge supported.
+</details>
+
+<details>
+<summary><b>How do phone notifications work?</b></summary>
+Via Web Push — a browser standard, like Slack and Discord. Works even when the browser is closed. Great on Android, iOS with Safari 16.4+.
+</details>
+
+## Quick start
+
+### Docker (recommended)
 
 ```bash
 docker run -d --name pusk \
@@ -61,7 +83,7 @@ docker run -d --name pusk \
 
 Open `http://localhost:8443` — register and get started.
 
-### First Run
+### First run
 
 1. First user creates an **organization** — becomes admin
 2. Go to Settings → **Invite** — copy the link and share with your team
@@ -69,7 +91,41 @@ Open `http://localhost:8443` — register and get started.
 
 > Assign at least 2 admins so you do not depend on a single person.
 
-### Из исходников
+### Connect monitoring
+
+#### Alertmanager
+
+```yaml
+receivers:
+  - name: pusk
+    webhook_configs:
+      - url: 'https://your-pusk/hook/BOT-TOKEN?format=alertmanager'
+```
+
+#### Grafana
+
+Alerting → Contact points → New → Type: **Webhook**
+URL: `https://your-pusk/hook/BOT-TOKEN?format=grafana`
+
+#### Zabbix
+
+Administration → Media types → Create: **Webhook**
+URL: `https://your-pusk/hook/BOT-TOKEN?format=zabbix`
+
+#### Uptime Kuma
+
+Notifications → Add → Type: **Webhook**
+URL: `https://your-pusk/hook/BOT-TOKEN?format=raw&channel=alerts`
+
+#### Any system with curl
+
+```bash
+curl -X POST https://your-pusk/hook/BOT-TOKEN?format=raw \
+  -H 'Content-Type: application/json' \
+  -d '{"status":"down","name":"my-service"}'
+```
+
+### From source
 
 ```bash
 git clone https://github.com/getpusk/pusk.git
@@ -94,43 +150,9 @@ services:
     restart: unless-stopped
 ```
 
-## Подключение мониторинга
+## Migrating from Telegram
 
-### Alertmanager
-
-```yaml
-receivers:
-  - name: pusk
-    webhook_configs:
-      - url: 'https://your-pusk/hook/BOT-TOKEN?format=alertmanager'
-```
-
-### Grafana
-
-Alerting → Contact points → New → Type: **Webhook**
-URL: `https://your-pusk/hook/BOT-TOKEN?format=grafana`
-
-### Zabbix
-
-Administration → Media types → Create: **Webhook**
-URL: `https://your-pusk/hook/BOT-TOKEN?format=zabbix`
-
-### Uptime Kuma
-
-Notifications → Add → Type: **Webhook**
-URL: `https://your-pusk/hook/BOT-TOKEN?format=raw&channel=alerts`
-
-### Любая система с curl
-
-```bash
-curl -X POST https://your-pusk/hook/BOT-TOKEN?format=raw \
-  -H 'Content-Type: application/json' \
-  -d '{"status":"down","name":"my-service"}'
-```
-
-## Миграция с Telegram
-
-Если ваш бот использует `sendMessage`, `editMessageText`, inline-кнопки, webhook — достаточно поменять одну строку:
+If your bot uses `sendMessage`, `editMessageText`, inline buttons, webhook — just change one line:
 
 ```python
 # Python (aiogram)
@@ -145,9 +167,9 @@ app = Application.builder().token(TOKEN).base_url("https://your-pusk:8443/bot").
 bot.telegram.options.apiRoot = "https://your-pusk:8443";
 ```
 
-Поддерживается 13 из 80+ методов Telegram Bot API — достаточно для алертов, уведомлений и простых ботов.
+Supports 13 of 80+ Telegram Bot API methods — enough for alerts, notifications and simple bots.
 
-## Установка на VPS
+## VPS installation
 
 ### Systemd
 
@@ -172,7 +194,7 @@ EOF
 sudo systemctl enable --now pusk
 ```
 
-### Обратный прокси (Caddy)
+### Reverse proxy (Caddy)
 
 ```
 pusk.example.com {
@@ -180,7 +202,7 @@ pusk.example.com {
 }
 ```
 
-### Обратный прокси (Nginx)
+### Reverse proxy (Nginx)
 
 ```nginx
 server {
@@ -198,58 +220,58 @@ server {
 }
 ```
 
-## Настройка
+## Configuration
 
-| Переменная | По умолчанию | Описание |
-|-----------|-------------|----------|
-| `PUSK_ADDR` | `:8443` | Адрес сервера |
-| `PUSK_ADMIN_TOKEN` | — | Токен для Admin API |
-| `PUSK_DEMO` | — | `1` — включить демо-режим |
-| `PUSK_MSG_RETENTION_DAYS` | `30` | Автоудаление сообщений старше N дней. `0` — не удалять |
-| `PUSK_FILE_QUOTA_MB` | `1024` | Лимит хранилища файлов на организацию (МБ) |
-| `PUSK_WEBHOOK_DEBOUNCE` | `10s` | Дедупликация одинаковых webhook. `0` — отключить |
-| `PUSK_ALERTMANAGER_URL` | — | URL Alertmanager для авто-silence при ACK |
-| `VAPID_PUBLIC_KEY` | — | VAPID ключ для Web Push |
-| `VAPID_PRIVATE_KEY` | — | Приватный ключ VAPID |
-| `VAPID_EMAIL` | — | Email для push-сервиса |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PUSK_ADDR` | `:8443` | Server address |
+| `PUSK_ADMIN_TOKEN` | — | Admin API token |
+| `PUSK_DEMO` | — | `1` — enable demo mode |
+| `PUSK_MSG_RETENTION_DAYS` | `30` | Auto-delete messages older than N days. `0` — keep all |
+| `PUSK_FILE_QUOTA_MB` | `1024` | File storage limit per organization (MB) |
+| `PUSK_WEBHOOK_DEBOUNCE` | `10s` | Deduplicate identical webhooks. `0` — disable |
+| `PUSK_ALERTMANAGER_URL` | — | Alertmanager URL for auto-silence on ACK |
+| `VAPID_PUBLIC_KEY` | — | VAPID key for Web Push |
+| `VAPID_PRIVATE_KEY` | — | VAPID private key |
+| `VAPID_EMAIL` | — | Email for push service |
 
-## Резервное копирование
+## Backup
 
-Все данные в папке `data/`:
+All data is in the `data/` directory:
 
 ```bash
-# Горячий бэкап
+# Hot backup
 sqlite3 data/orgs/default/pusk.db ".backup backup.db"
 
-# Полный бэкап
+# Full backup
 tar czf pusk-backup-$(date +%Y%m%d).tar.gz data/
 ```
 
-## Архитектура
+## Architecture
 
 ```
-pusk (22 МБ)
-├── Bot API    — /bot/<token>/<method>  (совместим с Telegram)
-├── Client API — /api/*                 (бэкенд PWA)
+pusk (22 MB)
+├── Bot API    — /bot/<token>/<method>  (Telegram compatible)
+├── Client API — /api/*                 (PWA backend)
 ├── WebSocket  — /api/ws                (real-time)
-├── Файлы      — /file/<id>             (медиа)
-├── PWA        — /                      (веб-клиент)
-└── SQLite     — data/orgs/*/pusk.db    (база данных)
+├── Files      — /file/<id>             (media)
+├── PWA        — /                      (web client)
+└── SQLite     — data/orgs/*/pusk.db    (database)
 ```
 
-## Демо
+## Demo
 
-Попробуйте: [getpusk.ru](https://getpusk.ru) — кнопка «Demo», без регистрации.
+Try it: [getpusk.ru](https://getpusk.ru) — click "Demo", no registration.
 
-## Безопасность
+## Security
 
-- CSP-заголовки, bcrypt-хеширование, JWT с 7-дневным TTL
-- Rate limiting на авторизацию, регистрацию, отправку
-- SSRF-защита webhook URL
-- Мультитенант с изоляцией данных (отдельная SQLite на организацию)
+- CSP headers, bcrypt hashing, JWT with 7-day TTL
+- Rate limiting on auth, registration, messaging
+- SSRF protection for webhook URLs
+- Multi-tenant with data isolation (separate SQLite per organization)
 
-## Лицензия
+## License
 
 BSL 1.1 — Copyright (c) 2026 Volkov Pavel | DevITWay
 
-Подробнее в [LICENSE](LICENSE).
+See [LICENSE](LICENSE) for details.
