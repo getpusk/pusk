@@ -66,11 +66,9 @@ function renderOrgSwitch(){const el=$('s-org-switch');const orgs=getJSON('orgs')
   }
   if(true){
   const addBtn=document.createElement('button');addBtn.className='s-btn s-full-btn';addBtn.textContent=S.lang==='ru'?'+ \u041d\u043e\u0432\u0430\u044f \u043e\u0440\u0433\u0430\u043d\u0438\u0437\u0430\u0446\u0438\u044f':'+ New organization';
-  const loginOtherBtn=document.createElement('button');loginOtherBtn.className='s-btn s-full-btn';loginOtherBtn.style.cssText='margin-top:4px;background:transparent;border:1px solid var(--border);color:var(--text)';loginOtherBtn.textContent=S.lang==='ru'?'\u0412\u043e\u0439\u0442\u0438 \u0432 \u0434\u0440\u0443\u0433\u0443\u044e':'Login to another';
-  loginOtherBtn.onclick=()=>{disconnectWS();S.token=null;remove('token');$('settings').style.display='none';$('settings-bg').style.display='none';$('app').style.display='none';$('auth').style.display='flex';$('a-org').value='';$('a-user').value='';$('a-pin').value='';$('a-org').focus()};
   addBtn.onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none';$('org-modal-bg').classList.add('open');history.pushState(null,'',location.href);$('org-slug').focus()};
   el.appendChild(addBtn);
-  el.appendChild(loginOtherBtn);
+  const hint=document.createElement("div");hint.style.cssText="font-size:11px;color:var(--text2);margin-top:6px;text-align:center";hint.textContent=S.lang==="ru"?"Чтобы присоединиться — попросите ссылку-приглашение у админа":"To join an org — ask admin for an invite link";el.appendChild(hint);
   }
 }
 
