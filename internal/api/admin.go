@@ -151,6 +151,11 @@ func (a *AdminAPI) createChannel(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": errMsg})
 		return
 	}
+	// Auto-subscribe all org members to new channel (push ON by default)
+	users, _ := s.ListUsers()
+	for _, u := range users {
+		_ = s.Subscribe(ch.ID, u.ID)
+	}
 	slog.Info("channel created", "channel", ch.Name)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "result": ch})

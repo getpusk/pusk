@@ -50,6 +50,9 @@ func (j *JWTService) Generate(userID int64, orgID, username string) (string, err
 
 func (j *JWTService) Validate(tokenStr string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, ErrInvalidToken
+		}
 		return j.secret, nil
 	})
 	if err != nil {
