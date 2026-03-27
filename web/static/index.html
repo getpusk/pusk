@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#17212b">
 <title>Pusk</title>
-<meta name="description" content="Pusk — self-hosted alert platform for ops teams. Telegram Bot API compatible. Monitoring, alerts, team chat — no external dependencies.">
-<meta property="og:title" content="Pusk — Alert Platform for Ops Teams">
-<meta property="og:description" content="Self-hosted платформа для алертов. Telegram Bot API совместимый. Мониторинг, алерты, командный чат — без внешних зависимостей.">
+<meta name="description" content="Pusk — self-hosted alert platform for ops teams. One-click ACK, push notifications, Alertmanager silence. Single binary, zero dependencies.">
+<meta property="og:title" content="Pusk — Self-Hosted Alerts for Ops Teams">
+<meta property="og:description" content="Self-hosted платформа алертов. ACK одной кнопкой, push на телефон, auto-silence в Alertmanager. Один бинарник, без зависимостей.">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://getpusk.ru/icon-512.png">
 <meta name="twitter:card" content="summary">
@@ -24,8 +24,8 @@
 <div id="landing">
   <div class="land-left">
     <h1 class="land-logo">Pusk</h1>
-    <div class="land-tag">Self-hosted платформа для алертов, совместимая с Telegram Bot API</div>
-    <p class="land-desc">Self-hosted Telegram Bot API. Мониторинг, алерты, командный чат без внешних зависимостей. Работает, когда всё остальное заблокировано.</p>
+    <div class="land-tag">Self-hosted платформа алертов для ops-команд</div>
+    <p class="land-desc">Алерты из Grafana, Zabbix, Alertmanager — в одном месте. ACK одной кнопкой, push на телефон, командный чат. Работает на вашем сервере.</p>
     <p style="color:var(--text2);font-size:13px;margin-bottom:8px">Мигрируйте за одну строку:</p>
     <div class="land-code"><em># Было (Telegram)</em>
 bot = Bot(token="123:ABC",
@@ -43,19 +43,19 @@ bot = Bot(token="my-token",
     <p style="color:var(--text2);font-size:13px;margin-bottom:8px">Запуск за 30 секунд:</p>
     <div class="land-code">docker run -d -p 8443:8443 -v pusk-data:/app/data ghcr.io/getpusk/pusk</div>
     <ul class="land-feat">
-      <li>Telegram Bot API — миграция в одну строку</li>
-      <li>Webhook Relay — localhost боты без ngrok</li>
-      <li>Каналы, inline-кнопки, Web Push</li>
-      <li>PWA клиент из коробки</li>
-      <li>Один бинарник, SQLite, zero config</li>
+      <li>Webhook алерты из любого мониторинга</li>
+      <li>ACK одной кнопкой, auto-silence в Alertmanager</li>
+      <li>Web Push на телефон и десктоп</li>
+      <li>Командный чат — каналы, @упоминания, файлы</li>
+      <li>Telegram Bot API совместимость — миграция в одну строку</li>
     </ul>
     <div class="land-faq">
       <h3>Частые вопросы</h3>
-      <details><summary>Что это и зачем?</summary><p>Pusk — мессенджер для команды на вашем сервере. Каналы для общения, алерты из мониторинга (Grafana, Zabbix, Uptime Kuma), push-уведомления. Данные на своём сервере, работает даже если Telegram заблокируют.</p></details>
+      <details><summary>Что это и зачем?</summary><p>Pusk — платформа алертов для ops-команд. Webhook из мониторинга (Grafana, Zabbix, Alertmanager), ACK одной кнопкой, push-уведомления. Плюс командный чат. Данные на вашем сервере.</p></details>
       <details><summary>Нужно ставить приложение?</summary><p>Нет. Открываете ссылку в браузере — и работаете. Можно добавить на главный экран как иконку, но это необязательно. Работает в Chrome, Firefox, Edge на телефоне и ПК.</p></details>
       <details><summary>Как приходят уведомления на телефон?</summary><p>Через Web Push — стандарт браузера (как у Slack, Discord, Notion). Приходят даже когда браузер закрыт. На Android работает отлично, на iOS с Safari 16.4+.</p></details>
-      <details><summary>Зачем это если есть Telegram?</summary><p>Pusk не заменяет Telegram для болтовни. Это инструмент для ops-команды: алерты с кнопкой ACK, данные на своём сервере, совместимость с Telegram-ботами — переехать можно за 1 строку кода.</p></details>
-      <details><summary>Это ещё один мессенджер?</summary><p>Нет, это замена Telegram для рабочих задач. Один канал для алертов, один для команды. Без стикеров, гифок и спама — только работа.</p></details>
+      <details><summary>Зачем это если есть Telegram?</summary><p>Telegram — чат. Pusk — алерты. ACK, auto-silence в Alertmanager, push даже когда Telegram заблокирован. Совместим с Bot API — переехать можно за 1 строку.</p></details>
+      <details><summary>Это ещё один мессенджер?</summary><p>Нет. Это платформа алертов с командным чатом. Ближе к PagerDuty, чем к Slack — но self-hosted и бесплатно.</p></details>
     </div>
     <div class="land-btns">
       <button class="land-btn-p" id="land-demo">Попробовать демо</button>
