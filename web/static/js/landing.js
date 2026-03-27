@@ -107,14 +107,14 @@ function translateLanding(){
 
   const answers=document.querySelectorAll('.land-faq details p');
   const ansRu=[
-    'Pusk — мессенджер для команды на вашем сервере. Каналы для общения, алерты из мониторинга (Grafana, Zabbix, Uptime Kuma), push-уведомления. Данные на своём сервере, работает даже если Telegram заблокируют.',
+    'Pusk — платформа алертов для ops-команд. Webhook из мониторинга (Grafana, Zabbix, Alertmanager), ACK одной кнопкой, push-уведомления. Плюс командный чат. Данные на вашем сервере.',
     'Нет. Открываете ссылку в браузере — и работаете. Можно добавить на главный экран как иконку, но это необязательно. Работает в Chrome, Firefox, Edge на телефоне и ПК.',
     'Через Web Push — стандарт браузера (как у Slack, Discord, Notion). Приходят даже когда браузер закрыт. На Android работает отлично, на iOS с Safari 16.4+.',
     'Pusk не заменяет Telegram для болтовни. Это инструмент для ops-команды: алерты с кнопкой ACK, данные на своём сервере, совместимость с Telegram-ботами — переехать можно за 1 строку кода.',
     'Нет, это замена Telegram для рабочих задач. Один канал для алертов, один для команды. Без стикеров, гифок и спама — только работа.'
   ];
   const ansEn=[
-    'Pusk is a team messenger on your server. Channels for communication, alerts from monitoring (Grafana, Zabbix, Uptime Kuma), push notifications. Data on your server, works even if Telegram is blocked.',
+    'Pusk is an alert platform for ops teams. Webhooks from monitoring (Grafana, Zabbix, Alertmanager), one-click ACK, push notifications. Plus team chat. Data on your server.',
     'No. Open the link in your browser and start working. You can add it to your home screen as an icon, but it is optional. Works in Chrome, Firefox, Edge on phone and PC.',
     'Via Web Push — a browser standard (like Slack, Discord, Notion). Arrives even when browser is closed. Works great on Android, on iOS with Safari 16.4+.',
     'Pusk doesn\'t replace Telegram for casual chat. It\'s a tool for ops teams: alerts with ACK button, data on your server, Telegram bot compatibility — migrate in one line of code.',
