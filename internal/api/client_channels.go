@@ -143,10 +143,6 @@ func (a *ClientAPI) channelMessages(w http.ResponseWriter, r *http.Request) {
 	userID := UserIDFromCtx(r.Context())
 	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
 	s := a.db(r)
-	if !s.IsSubscribed(channelID, userID) {
-		jsonErr(w, "not subscribed", 403)
-		return
-	}
 	limit := 50
 	if l := r.URL.Query().Get("limit"); l != "" {
 		limit, _ = strconv.Atoi(l)
