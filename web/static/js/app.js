@@ -33,8 +33,9 @@ S.invite=_p.get('invite');
 if(S.invite){
   hideLanding();$('auth').style.display='flex';
   const _invOrg=_p.get('org');if(_invOrg)$('a-org').value=_invOrg;
-  $('btn-login').style.display='none';$('btn-demo').style.display='none';
+  $('btn-demo').style.display='none';
   $('btn-reg').className='abtn abtn-p';$('btn-reg').textContent=t('register_btn');
+  $('btn-login').style.display='';$('btn-login').textContent=S.lang==='ru'?'Уже есть аккаунт? Войти':'Already have account? Login';
   $('auth-sub').textContent=t('invite_hint');$('auth-sub').style.color='var(--accent)';$('auth-sub').style.fontSize='15px';
 } else if(_p.get('demo')==='1'&&!S.token){
   hideLanding();$('auth').style.display='flex';$('btn-demo').click();
