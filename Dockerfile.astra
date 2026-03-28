@@ -1,0 +1,25 @@
+# syntax=docker/dockerfile:1.4
+# Runtime: scratch — compatible with Astra Linux SE (FSTEC certified)
+# Binary is pre-built by CI (go build, CGO_ENABLED=0) and passed via context
+
+FROM alpine:3.23@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659 AS certs
+RUN apk add --no-cache ca-certificates \
+    && addgroup -S -g 10001 pusk && adduser -S -u 10001 -G pusk pusk
+
+FROM scratch
+
+COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=certs /etc/passwd /etc/passwd
+COPY --from=certs /etc/group /etc/group
+COPY pusk /app/pusk
+COPY web/static /app/web/static
+
+ENV PUSK_ADDR=:8443
+EXPOSE 8443
+VOLUME ["/app/data"]
+
+WORKDIR /app
+USER pusk
+
+HEALTHCHECK --interval=30s --timeout=3s CMD ["/app/pusk", "-healthcheck"]
+ENTRYPOINT ["/app/pusk"]
