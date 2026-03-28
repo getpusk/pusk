@@ -518,9 +518,11 @@ func (a *ClientAPI) deleteChannelMessage(w http.ResponseWriter, r *http.Request)
 func (a *ClientAPI) onlineUsers(w http.ResponseWriter, r *http.Request) {
 	claims := ClaimsFromCtx(r.Context())
 	prefix := claims.OrgID + ":"
+	s := a.db(r)
 	type onlineUser struct {
-		UserID int64  `json:"user_id"`
-		Status string `json:"status"`
+		UserID   int64  `json:"user_id"`
+		Username string `json:"username"`
+		Status   string `json:"status"`
 	}
 	var users []onlineUser
 	onlineCount := 0
@@ -530,7 +532,11 @@ func (a *ClientAPI) onlineUsers(w http.ResponseWriter, r *http.Request) {
 			if len(parts) == 2 {
 				if uid, err := strconv.ParseInt(parts[1], 10, 64); err == nil {
 					st := a.hub.GetStatus(key)
-					users = append(users, onlineUser{UserID: uid, Status: st})
+					uname := ""
+					if u, err := s.GetUserByID(uid); err == nil {
+						uname = u.Username
+					}
+					users = append(users, onlineUser{UserID: uid, Username: uname, Status: st})
 					if st == "online" {
 						onlineCount++
 					}
