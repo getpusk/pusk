@@ -47,7 +47,7 @@ if(S.invite&&!S.token){
     localStorage.removeItem('token');S.token=null;
     initLandingChat();
   } else {
-    hideLanding();api('GET','/api/bots').then(r=>{if(r&&!r.error)showApp();else logout()}).catch(logout);
+    hideLanding();api('GET','/api/bots').then(r=>{if(r&&!r.error)showApp();else{const o=localStorage.getItem('org');const u=localStorage.getItem('uname');logout();if(o&&o!=='default'){$('a-org').value=o;if(u)$('a-user').value=u;$('a-err').textContent=S.lang==='ru'?'Сессия истекла — войдите снова':'Session expired — login again';$('a-err').style.color='var(--accent)'}}}).catch(()=>{const o=localStorage.getItem('org');const u=localStorage.getItem('uname');logout();if(o&&o!=='default'){$('a-org').value=o;if(u)$('a-user').value=u;$('a-err').textContent=S.lang==='ru'?'Сессия истекла — войдите снова':'Session expired — login again';$('a-err').style.color='var(--accent)'}});
   }
 } else {
   initLandingChat();
