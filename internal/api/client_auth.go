@@ -342,6 +342,33 @@ func (a *ClientAPI) orgStats(w http.ResponseWriter, r *http.Request) {
 		"file_size": fileSize,
 	})
 }
+
+func (a *ClientAPI) findMyOrgs(w http.ResponseWriter, r *http.Request) {
+	username := r.URL.Query().Get("username")
+	if username == "" {
+		jsonErr(w, "username required", 400)
+		return
+	}
+	type orgInfo struct {
+		Slug string `json:"slug"`
+		Name string `json:"name"`
+	}
+	var result []orgInfo
+	for _, org := range a.orgs.List() {
+		s, err := a.orgs.Get(org.Slug)
+		if err != nil {
+			continue
+		}
+		users, _ := s.ListUsers()
+		for _, u := range users {
+			if u.Username == username {
+				result = append(result, orgInfo{Slug: org.Slug, Name: org.Name})
+				break
+			}
+		}
+	}
+	json.NewEncoder(w).Encode(result)
+}
 func (a *ClientAPI) checkInviteUser(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("code")
 	org := r.URL.Query().Get("org")

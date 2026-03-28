@@ -65,6 +65,9 @@ function renderOrgSwitch(){const el=$('s-org-switch');const orgs=getJSON('orgs')
       el.appendChild(btn);
     });
   }
+  // Fetch all orgs where user is registered (server-side)
+  const uname=get('uname');
+  if(uname){fetch('/api/my-orgs?username='+encodeURIComponent(uname)).then(r=>r.json()).then(serverOrgs=>{if(!serverOrgs||!serverOrgs.length)return;const orgs2=getJSON('orgs')||{};let added=false;serverOrgs.forEach(so=>{if(!orgs2[so.slug]){orgs2[so.slug]={user:uname,name:so.name,display_name:uname};added=true;const btn=document.createElement('button');btn.className='s-btn s-org-btn';btn.dataset.org=so.slug;const b=document.createElement('b');b.textContent=so.slug;btn.appendChild(b);el.appendChild(btn)}});if(added)setJSON('orgs',orgs2)}).catch(()=>{})}
   if(true){
   const addBtn=document.createElement('button');addBtn.className='s-btn s-full-btn';addBtn.textContent=S.lang==='ru'?'+ \u041d\u043e\u0432\u0430\u044f \u043e\u0440\u0433\u0430\u043d\u0438\u0437\u0430\u0446\u0438\u044f':'+ New organization';
   addBtn.onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none';$('org-modal-bg').classList.add('open');history.pushState(null,'',location.href);$('org-slug').focus()};
