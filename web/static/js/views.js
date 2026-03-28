@@ -189,7 +189,6 @@ export async function showList(){try{S.curChat=null;S.curChan=null;S.mentionUser
       el.appendChild(row);
     }
   }
-  const isAdmin=get("role")==="admin";
   if(isAdmin&&bots&&bots.length){
     const secTitle=document.createElement('div');secTitle.className='sec-title';secTitle.textContent=t('bots');el.appendChild(secTitle);
     for(const b of bots){
