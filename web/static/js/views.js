@@ -141,7 +141,7 @@ export async function showList(){try{S.curChat=null;S.curChan=null;S.mentionUser
     const lang = S.lang;
     const ru=lang==='ru';
     let hintsHtml='<div class="hints-header"><b>'+(ru?'Добро пожаловать в Pusk!':'Welcome to Pusk!')+'</b><button class="hints-close" aria-label="Close">&times;</button></div>';
-    hintsHtml+='<p class="hints-sub">'+(ru?'Мессенджер для команды и алертов':'Messaging for teams and alerts')+'</p>';
+    hintsHtml+='<p class="hints-sub">'+(ru?'Платформа алертов для команды':'Alert platform for your team')+'</p>';
     if(generalCh)hintsHtml+='<div class="hint-card" data-action="general" data-id="'+generalCh.id+'"><span class="hint-icon">💬</span><div><b>'+(ru?'Написать в #general':'Write in #general')+'</b><p>'+(ru?'Общий канал команды':'Team chat channel')+'</p></div></div>';
     if(isHintAdmin)hintsHtml+='<div class="hint-card" data-action="create"><span class="hint-icon">➕</span><div><b>'+(ru?'Создать канал':'Create channel')+'</b><p>'+(ru?'Для проекта или темы':'For a project or topic')+'</p></div></div>';
     if(isHintAdmin)hintsHtml+='<div class="hint-card" data-action="invite"><span class="hint-icon">👥</span><div><b>'+(ru?'Пригласить коллегу':'Invite teammate')+'</b><p>'+(ru?'Поделитесь ссылкой':'Share invite link')+'</p></div></div>';
