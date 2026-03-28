@@ -29,6 +29,8 @@
 
 <img src=".github/assets/alerts.png" alt="Pusk — alert channel" width="960" />
 
+<img src=".github/assets/chat.png" alt="Pusk — team chat" width="960" />
+
 ## Who is it for
 
 - **DevOps/SRE teams** — monitoring alerts + incident coordination
