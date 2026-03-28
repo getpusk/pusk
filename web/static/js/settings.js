@@ -1,5 +1,5 @@
 import S from './state.js';
-import {get,set,getJSON,setJSON} from './storage.js';
+import {get,set,remove,getJSON,setJSON} from './storage.js';
 import {$,esc,escJs,t,api,toast,setLang,confirmDialog} from './util.js';
 import {showApp,showList,logout} from './views.js';
 import {registerPush,disconnectWS} from './ws.js';
