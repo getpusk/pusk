@@ -55,7 +55,7 @@ func (s *Store) ChannelByID(id int64) (*Channel, error) {
 }
 
 func (s *Store) ListChannels() ([]Channel, error) {
-	rows, err := s.db.Query("SELECT id, bot_id, name, COALESCE(description,'') FROM channels")
+	rows, err := s.db.Query("SELECT id, bot_id, name, COALESCE(description,'') FROM channels ORDER BY CASE WHEN name='general' THEN 0 ELSE 1 END, name")
 	if err != nil {
 		return nil, err
 	}
@@ -257,7 +257,7 @@ func (s *Store) ListChannelsForUser(userID int64) ([]ChannelInfo, error) {
 		       ELSE 0 END AS unread
 		FROM channels c
 		LEFT JOIN channel_subscribers cs ON c.id = cs.channel_id AND cs.user_id = ?
-		ORDER BY c.name`, userID, userID)
+		ORDER BY CASE WHEN c.name='general' THEN 0 ELSE 1 END, c.name`, userID, userID)
 	if err != nil {
 		return nil, err
 	}
