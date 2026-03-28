@@ -29,6 +29,8 @@
 
 <img src=".github/assets/alerts.png" alt="Pusk — канал алертов" width="960" />
 
+<img src=".github/assets/chat.png" alt="Pusk — командный чат" width="960" />
+
 ## Кому подходит
 
 - **DevOps/SRE-команды** — алерты из мониторинга + координация инцидентов
