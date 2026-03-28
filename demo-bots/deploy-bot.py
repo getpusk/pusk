@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""ARTAIS Deploy demo clone for Pusk — same UI, simulated responses"""
+"""Deploy bot demo for Pusk — same UI, simulated responses"""
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
 PUSK_URL = "https://getpusk.ru/bot"
-TOKEN = "artais-demo-token"
+TOKEN = "deploy-demo-token"
 
 DEMO_PROJECT = {
     "id": "demo-001", "name": "my-portfolio", "subdomain": "portfolio",
-    "stack": "Node.js (Vite)", "status": "running", "url": "https://portfolio.artais.run",
+    "stack": "Node.js (Vite)", "status": "running", "url": "https://portfolio.example.com",
     "cpu": "2.1%", "ram": "48/256 MB", "uptime": "3d 14h",
 }
 
@@ -87,7 +87,7 @@ async def button(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             f"Building... OK\n"
             f"Container started\n"
             f"HTTPS configured\n\n"
-            f"[OK] Live at https://{name}.artais.run\n"
+            f"[OK] Live at https://{name}.example.com\n"
             f"Deploy time: 12 sec",
             reply_markup=project_kb(pid), parse_mode="Markdown"
         )
@@ -178,7 +178,7 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button))
     app.add_error_handler(error_handler)
-    print("ARTAIS Deploy demo polling Pusk...")
+    print("Deploy Deploy demo polling Pusk...")
     app.run_polling()
 
 if __name__ == "__main__":
