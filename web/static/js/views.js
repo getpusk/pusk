@@ -209,7 +209,7 @@ export async function showList(){try{S.curChat=null;S.curChan=null;S.mentionUser
     }
   }
   if((!bots||!bots.length)&&(!chs||!chs.length)){const empty=document.createElement('div');empty.className='m-empty';empty.textContent=t('no_items');el.appendChild(empty)}
-  const v=health||{};const foot=document.createElement('div');foot.className='list-foot';foot.textContent=t('foot')(bots?bots.length:0,chs?chs.length:0,v.online||0);el.appendChild(foot);
+  const v=health||{};const foot=document.createElement('div');foot.className='list-foot';api('GET','/api/online').then(r=>{const n=r&&r.total_connected?r.total_connected:0;foot.textContent=t('foot')(bots?bots.length:0,chs?chs.length:0,n)}).catch(()=>{foot.textContent=t('foot')(bots?bots.length:0,chs?chs.length:0,0)});el.appendChild(foot);
   $('main-list').focus()}catch(e){console.error('[pusk] showList error:',e);$('main-list').innerHTML='<div class="m-empty">Error loading. <span style="cursor:pointer;color:var(--accent)" onclick="location.reload()">Reload</span></div>'}}
 
 // ── Event delegation on #main-list ──
