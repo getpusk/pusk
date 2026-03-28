@@ -77,7 +77,7 @@ func (a *ClientAPI) Route(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/register", RateLimit(regRL, limitBody(a.register)))
 	mux.HandleFunc("GET /api/health", a.health)
 	mux.HandleFunc("GET /api/push/vapid", a.vapidKey)
-	mux.HandleFunc("POST /api/invite/accept", limitBody(a.acceptInvite))
+	mux.HandleFunc("POST /api/invite/accept", RateLimit(regRL, limitBody(a.acceptInvite)))
 
 	// Auth-required routes: Chat
 	mux.HandleFunc("GET /api/bots", a.AuthRequired(a.listBots))
@@ -115,6 +115,8 @@ func (a *ClientAPI) Route(mux *http.ServeMux) {
 
 	// Auth-required routes: Invites
 	mux.HandleFunc("POST /api/invite", a.AuthRequired(limitBody(a.createInvite)))
+	mux.HandleFunc("GET /api/invite/active", a.AuthRequired(a.activeInvite))
+	mux.HandleFunc("DELETE /api/invite", a.AuthRequired(limitBody(a.revokeInvite)))
 	mux.HandleFunc("POST /api/file-token", a.AuthRequired(a.createFileToken))
 
 	// Self-service password change
