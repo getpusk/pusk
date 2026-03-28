@@ -46,6 +46,18 @@ var (
 			Help: "Webhooks deduplicated by debounce",
 		},
 	)
+	OrgsTotal = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "pusk_orgs_total",
+			Help: "Total registered organizations",
+		},
+	)
+	UsersTotal = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "pusk_users_total",
+			Help: "Total registered users across all orgs",
+		},
+	)
 )
 
 func init() {
@@ -56,5 +68,7 @@ func init() {
 		MessagesSent,
 		WebhooksReceived,
 		WebhooksDedupedTotal,
+		OrgsTotal,
+		UsersTotal,
 	)
 }
