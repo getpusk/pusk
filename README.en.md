@@ -10,16 +10,15 @@
 
 # Pusk — self-hosted alerts for ops teams
 
-**Pusk** — self-hosted alert platform with team chat. Webhooks from any monitoring, one-click ACK, push to phone. Single binary, zero dependencies.
+**Pusk** — self-hosted alert platform with team coordination. Webhooks from any monitoring, one-click ACK, push to phone. Single binary, zero dependencies.
 
 ## Why?
 
 **Problem:** alert fires. Who picked it up? Silence.
-- Alerts drown in Telegram among memes and personal chats
+- Alerts get lost in group chats among discussions
 - No acknowledgment (ACK) — unclear who is handling it
 - No escalation — if on-call is asleep, the alert dies
 - Data on third-party servers — compliance fails
-- Telegram can be throttled or blocked
 
 **Solution — Pusk:**
 - Alerts from Grafana, Zabbix, Alertmanager, Uptime Kuma — into dedicated channels
@@ -34,7 +33,7 @@
 
 - **DevOps/SRE teams** — monitoring alerts + incident coordination
 - **Companies with compliance needs** — data on your server, air-gapped, regulated environments
-- **Anyone who needs control** — no third parties, works when Telegram is blocked
+- **Anyone who needs autonomy** — works without external dependencies
 
 ## Features
 
@@ -43,10 +42,11 @@
 | **Alerts** | Webhooks from Alertmanager, Grafana, Zabbix, Uptime Kuma. Color indicators, ACK, automatic silence |
 | **Push** | Web Push notifications to phone and desktop (even with browser closed) |
 | **Bots** | 13 Telegram Bot API methods. Inline buttons, webhook, long polling |
-| **Channels** | Team channels for communication. @mentions with push notifications |
-| **Files** | Photos, videos, voice messages, documents — upload and view in chat |
-| **Multi-tenant** | Separate organizations with data isolation |
-| **Simple** | Single binary (22 MB), SQLite, ~2 MB RAM, 1-second startup |
+| **Channels** | Team channels, @mentions with push, reply, pin, editing |
+| **Files** | Photos, videos, voice messages, documents — upload and view |
+| **Online status** | Real-time online/away usernames, typing indicator |
+| **Multi-tenant** | Isolated organizations (separate SQLite per tenant) |
+| **Simple** | Single binary (23 MB), SQLite, ~2 MB RAM, 1-second startup |
 
 ## FAQ
 
@@ -56,8 +56,8 @@ No. It is an alert platform with team chat. Closer to PagerDuty and Opsgenie tha
 </details>
 
 <details>
-<summary><b>Why not just use Telegram?</b></summary>
-Telegram is a chat app. Pusk is for alerts. ACK, automatic Alertmanager silence, push even when Telegram is blocked. Team chat is a bonus, not the goal.
+<summary><b>How is it different from PagerDuty?</b></summary>
+Self-hosted, free, single binary. No on-call scheduling (yet), but has team chat and Telegram Bot API compatibility.
 </details>
 
 <details>
@@ -88,6 +88,7 @@ Open `http://localhost:8443` — register and get started.
 1. First user creates an **organization** — becomes admin
 2. Go to Settings → **Invite** — copy the link and share with your team
 3. Teammates follow the link, register — and they are in
+4. New members are automatically subscribed to all channels
 
 > Assign at least 2 admins so you do not depend on a single person.
 
@@ -120,7 +121,7 @@ URL: `https://your-pusk/hook/BOT-TOKEN?format=raw&channel=alerts`
 #### Any system with curl
 
 ```bash
-curl -X POST https://your-pusk/hook/BOT-TOKEN?format=raw \
+curl -X POST 'https://your-pusk/hook/BOT-TOKEN?format=raw' \
   -H 'Content-Type: application/json' \
   -d '{"status":"down","name":"my-service"}'
 ```
@@ -150,9 +151,9 @@ services:
     restart: unless-stopped
 ```
 
-## Migrating from Telegram
+## Telegram Bot API compatibility
 
-If your bot uses `sendMessage`, `editMessageText`, inline buttons, webhook — just change one line:
+If you already have a Telegram Bot API bot — it works in Pusk with a one-line change:
 
 ```python
 # Python (aiogram)
@@ -167,7 +168,7 @@ app = Application.builder().token(TOKEN).base_url("https://your-pusk:8443/bot").
 bot.telegram.options.apiRoot = "https://your-pusk:8443";
 ```
 
-Supports 13 of 80+ Telegram Bot API methods — enough for alerts, notifications and simple bots.
+Supports 13 of 80+ methods — enough for alerts, notifications and simple bots.
 
 ## VPS installation
 
@@ -241,7 +242,7 @@ All data is in the `data/` directory:
 
 ```bash
 # Hot backup
-sqlite3 data/orgs/default/pusk.db ".backup backup.db"
+sqlite3 data/orgs/my-org/pusk.db ".backup backup.db"
 
 # Full backup
 tar czf pusk-backup-$(date +%Y%m%d).tar.gz data/
@@ -250,10 +251,10 @@ tar czf pusk-backup-$(date +%Y%m%d).tar.gz data/
 ## Architecture
 
 ```
-pusk (22 MB)
+pusk (23 MB, ~8400 lines Go, 110 tests)
 ├── Bot API    — /bot/<token>/<method>  (Telegram compatible)
 ├── Client API — /api/*                 (PWA backend)
-├── WebSocket  — /api/ws                (real-time)
+├── WebSocket  — /api/ws                (real-time status, typing)
 ├── Files      — /file/<id>             (media)
 ├── PWA        — /                      (web client)
 └── SQLite     — data/orgs/*/pusk.db    (database)
@@ -265,10 +266,12 @@ Try it: [getpusk.ru](https://getpusk.ru) — click "Demo", no registration.
 
 ## Security
 
-- CSP headers, bcrypt hashing, JWT with 7-day TTL
+- JWT with 7-day TTL, bcrypt password hashing
+- Organization owner (first admin) protected from deletion and demotion
+- #general channel protected from deletion and renaming
 - Rate limiting on auth, registration, messaging
 - SSRF protection for webhook URLs
-- Multi-tenant with data isolation (separate SQLite per organization)
+- Multi-tenant with full data isolation (separate SQLite per organization)
 
 ## License
 
