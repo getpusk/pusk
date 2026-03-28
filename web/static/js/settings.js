@@ -62,6 +62,7 @@ function renderOrgSwitch(){const el=$('s-org-switch');const orgs=getJSON('orgs')
       const b=document.createElement('b');b.textContent=k;btn.appendChild(b);
       const span=document.createElement('span');span.className='s-org-user';span.textContent=' ('+(o.user||'?')+')';btn.appendChild(span);
       if(k===cur)btn.appendChild(document.createTextNode(' \u2713'));
+      if(!o.token){const lock=document.createElement('span');lock.style.cssText='font-size:10px;color:var(--text2);margin-left:4px';lock.textContent='\ud83d\udd12';btn.appendChild(lock)}
       el.appendChild(btn);
     });
   }
