@@ -174,6 +174,15 @@ func (a *AdminAPI) deleteChannel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
+	// Protect #general from deletion
+	if chs, err := s.ListChannels(); err == nil {
+		for _, ch := range chs {
+			if ch.ID == channelID && ch.Name == "general" {
+				jsonErr(w, "cannot delete #general", 400)
+				return
+			}
+		}
+	}
 	if err := s.DeleteChannel(channelID); err != nil {
 		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": err.Error()})
 		return
@@ -203,6 +212,15 @@ func (a *AdminAPI) renameChannel(w http.ResponseWriter, r *http.Request) {
 	if len(req.Name) < 1 || len(req.Name) > 64 {
 		jsonErr(w, "name must be 1-64 characters", 400)
 		return
+	}
+	// Protect #general from rename
+	if chs, err := s.ListChannels(); err == nil {
+		for _, ch := range chs {
+			if ch.ID == channelID && ch.Name == "general" {
+				jsonErr(w, "cannot rename #general", 400)
+				return
+			}
+		}
 	}
 	if err := s.RenameChannel(channelID, req.Name); err != nil {
 		jsonErr(w, "rename failed", 500)
