@@ -56,8 +56,8 @@ if(S.invite&&!S.token){
 }catch(e){console.error("[pusk] init error:",e)}
 
 // ── Push notification navigation (from SW postMessage) ──
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.addEventListener('message', e => {
+if ('serviceWorker' in navigator && navigator.serviceWorker) {
+  try { navigator.serviceWorker.addEventListener('message', e => {
     if (e.data && e.data.type === 'push-navigate') {
       const p = new URLSearchParams(e.data.url.replace(/^.*\?/, ''));
       const ch = p.get('channel');
@@ -73,6 +73,7 @@ if ('serviceWorker' in navigator) {
       else if (chat) import('./views.js').then(v => v.openChat(+chat, ''));
     }
   });
+  } catch(e) {}
 }
 // ── Offline indicator ──
 const offBar = $('offline-bar');
@@ -89,8 +90,8 @@ const updDismiss = $('update-dismiss');
 if (updDismiss) updDismiss.onclick = () => $('update-bar').classList.remove('show');
 
 // ── SW update notification ──
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').then(reg => {
+if ('serviceWorker' in navigator && navigator.serviceWorker) {
+  try { navigator.serviceWorker.register('/sw.js').then(reg => {
     // Check for updates when tab becomes visible (covers Android PWA)
     // Mobile keyboard: scroll messages when virtual keyboard opens
   if (window.visualViewport) {
@@ -114,7 +115,8 @@ if ('serviceWorker' in navigator) {
         }
       });
     });
-  });
+  }).catch(() => {});
+  } catch(e) {}
 }
 
 // ── Mobile back button ──
