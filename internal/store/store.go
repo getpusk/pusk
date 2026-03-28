@@ -155,7 +155,9 @@ func (s *Store) migrate() error {
 				code       TEXT PRIMARY KEY,
 				used       BOOLEAN DEFAULT FALSE,
 				expires_at DATETIME NOT NULL,
-				created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+				created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+				uses       INTEGER DEFAULT 0,
+				max_uses   INTEGER DEFAULT 50
 			);
 		`)
 		if err != nil {
