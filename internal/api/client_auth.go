@@ -323,6 +323,25 @@ func (a *ClientAPI) activeInvite(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"code": code, "url": url})
 }
 
+func (a *ClientAPI) orgStats(w http.ResponseWriter, r *http.Request) {
+	userID := UserIDFromCtx(r.Context())
+	s := a.db(r)
+	if !s.IsAdmin(userID) {
+		jsonErr(w, "admin only", 403)
+		return
+	}
+	users, _ := s.ListUsers()
+	channels, _ := s.ListChannels()
+	var msgCount, fileSize int64
+	s.DB().QueryRow("SELECT COUNT(*) FROM channel_messages").Scan(&msgCount)
+	s.DB().QueryRow("SELECT COALESCE(SUM(size),0) FROM files").Scan(&fileSize)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"users":     len(users),
+		"channels":  len(channels),
+		"messages":  msgCount,
+		"file_size": fileSize,
+	})
+}
 func (a *ClientAPI) checkInviteUser(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("code")
 	org := r.URL.Query().Get("org")

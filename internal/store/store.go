@@ -208,3 +208,6 @@ func (s *Store) migrate() error {
 
 	return nil
 }
+
+// DB returns the underlying sql.DB for direct queries.
+func (s *Store) DB() *sql.DB { return s.db }
