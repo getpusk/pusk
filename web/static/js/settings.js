@@ -119,7 +119,7 @@ if(o.token){
 disconnectWS();S.token=null;remove('token');
 $('app').style.display='none';
 $('auth').style.display='flex';$('a-org').value=slug;$('a-user').value=o.user||'';$('a-pin').value='';$('a-pin').focus();
-$('a-err').textContent=S.lang==='ru'?'Сессия истекла — войдите в '+slug:'Session expired — login to '+slug;$('a-err').style.color='var(--accent)'}
+$('a-err').textContent=S.lang==='ru'?'Введите пароль для '+slug:'Enter password for '+slug;$('a-err').style.color='var(--accent)'}
 
 $('settings-bg').onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none'};
 $('s-lang-btn').onclick=()=>{S.lang=S.lang==='ru'?'en':'ru';set('lang',S.lang);setLang();renderSettings();renderOrgSwitch();renderUsers();if($('app').style.display==='flex')showList()};
