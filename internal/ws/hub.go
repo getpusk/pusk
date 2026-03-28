@@ -65,6 +65,10 @@ func (h *Hub) SetStatus(key, status string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if _, ok := h.conns[key]; ok {
+		// Multi-device: "online" wins — only set "away" if no other conn is online
+		if status == "away" && h.status[key] == "online" && len(h.conns[key]) > 1 {
+			return
+		}
 		h.status[key] = status
 	}
 }
@@ -106,6 +110,19 @@ func (h *Hub) Online() int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return len(h.conns)
+}
+
+// OrgOnline returns count of connected users for a specific org.
+func (h *Hub) OrgOnline(orgPrefix string) int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	count := 0
+	for k := range h.conns {
+		if len(k) > len(orgPrefix) && k[:len(orgPrefix)] == orgPrefix {
+			count++
+		}
+	}
+	return count
 }
 
 // IsConnected checks if a specific key has active WebSocket connections.

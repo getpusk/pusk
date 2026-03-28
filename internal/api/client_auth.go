@@ -272,6 +272,15 @@ func (a *ClientAPI) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		s.Subscribe(ch.ID, user.ID)
 	}
 
+	// Post "X joined" in #general
+	for _, ch := range channels {
+		if ch.Name == "general" {
+			joinText := "→ " + req.Username + " joined the team"
+			s.SaveChannelMessage(ch.ID, joinText, "", "", "")
+			break
+		}
+	}
+
 	token, _ := a.jwt.Generate(user.ID, orgSlug, req.Username)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{

@@ -22,7 +22,8 @@ if(ev.type==='channel_message_edit'){const old=document.getElementById('m-'+d.me
 if(ev.type==='channel_message_delete'){const mid=d.message_id;const el=document.getElementById('m-'+mid);if(el)el.remove();document.querySelectorAll('.m[data-reply="'+mid+'"]').forEach(r=>{const q=r.querySelector('.m-quote');if(q)q.innerHTML='<b></b> '+(S.lang==='ru'?'Удалённое сообщение':'Deleted message')})}
 if(ev.type==='typing'&&ev.chat_id===S.curChan){const td=ev.payload;$('typing-bar').textContent=td.username+(S.lang==='ru'?' печатает...' :' is typing...');$('typing-bar').style.display='block';clearTimeout(window._typingHide);window._typingHide=setTimeout(()=>{$('typing-bar').style.display='none'},3000)}
 if(ev.type==='callback_answer'){if(d.show_alert)alert(d.text);else toast(d.text)}
-if(ev.type==='mention'){beep();toast('@'+get('uname')+' in #'+(d.channel||''))}}}
+if(ev.type==='mention'){beep();toast('@'+get('uname')+' in #'+(d.channel||''))}
+if(ev.type==='user_status'){const s=$('hdr-online');if(s&&s.textContent){import('./views.js').then(v=>{if(S.curChan)v.openChan(S.curChan,'');else if(S.curChat)v.openChat(S.curChat,'')}).catch(()=>{})}}}}
 
 export function disconnectWS(){
   clearTimeout(S.wsReconnectTimer);
