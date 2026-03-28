@@ -200,7 +200,7 @@ func (a *ClientAPI) createInvite(w http.ResponseWriter, r *http.Request) {
 	rand.Read(b)
 	code := fmt.Sprintf("%x", b)
 
-	if err := s.CreateInvite(code, 24*time.Hour); err != nil {
+	if err := s.CreateInvite(code, 7*24*time.Hour); err != nil {
 		jsonErr(w, "internal error", 500)
 		return
 	}
@@ -288,6 +288,40 @@ func (a *ClientAPI) acceptInvite(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (a *ClientAPI) revokeInvite(w http.ResponseWriter, r *http.Request) {
+	userID := UserIDFromCtx(r.Context())
+	s := a.db(r)
+	if !s.IsAdmin(userID) {
+		jsonErr(w, "admin only", 403)
+		return
+	}
+	var req struct {
+		Code string `json:"code"`
+	}
+	json.NewDecoder(r.Body).Decode(&req)
+	if req.Code == "" {
+		jsonErr(w, "code required", 400)
+		return
+	}
+	s.RevokeInvite(req.Code)
+	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+}
+
+func (a *ClientAPI) activeInvite(w http.ResponseWriter, r *http.Request) {
+	userID := UserIDFromCtx(r.Context())
+	s := a.db(r)
+	if !s.IsAdmin(userID) {
+		jsonErr(w, "admin only", 403)
+		return
+	}
+	code, _ := s.ActiveInvite()
+	claims := ClaimsFromCtx(r.Context())
+	url := ""
+	if code != "" {
+		url = "/invite/" + code + "?org=" + claims.OrgID
+	}
+	json.NewEncoder(w).Encode(map[string]string{"code": code, "url": url})
+}
 func (a *ClientAPI) changePassword(w http.ResponseWriter, r *http.Request) {
 	s := a.db(r)
 	var req struct {

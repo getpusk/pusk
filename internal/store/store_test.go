@@ -599,12 +599,24 @@ func TestInvite_CreateUseValidate(t *testing.T) {
 	if err := s.ValidateInvite(code); err != nil {
 		t.Fatalf("ValidateInvite: %v", err)
 	}
+	// Multi-use: first 50 uses should succeed
 	if err := s.UseInvite(code); err != nil {
-		t.Fatalf("UseInvite: %v", err)
+		t.Fatalf("UseInvite 1: %v", err)
 	}
-	// Second use should fail
-	if err := s.UseInvite(code); err == nil {
-		t.Error("expected error on double use")
+	// Second use should also succeed (multi-use)
+	if err := s.UseInvite(code); err != nil {
+		t.Fatalf("UseInvite 2: %v", err)
+	}
+	// Validate still works
+	if err := s.ValidateInvite(code); err != nil {
+		t.Fatalf("ValidateInvite after 2 uses: %v", err)
+	}
+	// Revoke
+	if err := s.RevokeInvite(code); err != nil {
+		t.Fatalf("RevokeInvite: %v", err)
+	}
+	if err := s.ValidateInvite(code); err == nil {
+		t.Error("expected error after revoke")
 	}
 }
 
