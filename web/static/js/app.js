@@ -30,7 +30,7 @@ setLang();
 
 const _p=new URLSearchParams(location.search);
 S.invite=_p.get('invite');
-if(S.invite&&!S.token){
+if(S.invite){
   hideLanding();$('auth').style.display='flex';
   const _invOrg=_p.get('org');if(_invOrg)$('a-org').value=_invOrg;
   $('btn-login').style.display='none';$('btn-demo').style.display='none';
