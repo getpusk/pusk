@@ -29,8 +29,8 @@ func TestMigrate_VersionBumps(t *testing.T) {
 	if err := s.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil {
 		t.Fatal(err)
 	}
-	if version != 3 {
-		t.Errorf("expected user_version=3 after full migrate, got %d", version)
+	if version != 4 {
+		t.Errorf("expected user_version=4 after full migrate, got %d", version)
 	}
 }
 

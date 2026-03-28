@@ -155,9 +155,7 @@ func (s *Store) migrate() error {
 				code       TEXT PRIMARY KEY,
 				used       BOOLEAN DEFAULT FALSE,
 				expires_at DATETIME NOT NULL,
-				created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-				uses       INTEGER DEFAULT 0,
-				max_uses   INTEGER DEFAULT 50
+				created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 			);
 		`)
 		if err != nil {
@@ -188,7 +186,14 @@ func (s *Store) migrate() error {
 		}
 	}
 
+	// v3: multi-use invites
 	if version < 3 {
+		s.db.Exec("ALTER TABLE invites ADD COLUMN uses INTEGER DEFAULT 0")
+		s.db.Exec("ALTER TABLE invites ADD COLUMN max_uses INTEGER DEFAULT 50")
+	}
+
+	// v4: file tokens
+	if version < 4 {
 		if _, err := s.db.Exec(`CREATE TABLE IF NOT EXISTS file_tokens (
 			token TEXT PRIMARY KEY,
 			user_id INTEGER NOT NULL,
@@ -196,7 +201,7 @@ func (s *Store) migrate() error {
 		)`); err != nil {
 			return fmt.Errorf("migrate v3 create file_tokens: %w", err)
 		}
-		if _, err := s.db.Exec("PRAGMA user_version = 3"); err != nil {
+		if _, err := s.db.Exec("PRAGMA user_version = 4"); err != nil {
 			return fmt.Errorf("set version 3: %w", err)
 		}
 	}
