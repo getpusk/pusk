@@ -12,8 +12,8 @@ export function connectWS(){
   clearTimeout(S.wsReconnectTimer);
   const p=location.protocol==='https:'?'wss:':'ws:';
   S.ws=new WebSocket(`${p}//${location.host}/api/ws?token=${S.token}`);
-  S.ws.onopen=()=>$('hdr-dot').style.color='#3db887';
-  S.ws.onclose=()=>{$('hdr-dot').style.color='#e05d44';S.wsReconnectTimer=setTimeout(connectWS,3000)};
+  S.ws.onopen=()=>{$('hdr-dot').style.color='#3db887';const ob=$('offline-bar');if(ob)ob.classList.remove('show')};
+  S.ws.onclose=()=>{$('hdr-dot').style.color='#e05d44';const ob=$('offline-bar');if(ob){ob.textContent=S.lang==='ru'?'Переподключение...':'Reconnecting...';ob.classList.add('show')}S.wsReconnectTimer=setTimeout(connectWS,3000)};
   S.ws.onmessage=e=>{const ev=JSON.parse(e.data);const d=ev.payload;
 if(ev.type==='new_message'&&ev.chat_id===S.curChat){addMsg(d.message);scrollDown()}
 if(ev.type==='channel_message'){const myName=get('uname');const msg=d.message||d;const senderName=msg.sender_name||d.sender_name||'';if(ev.chat_id===S.curChan){if(senderName===myName){const els=$('msgs').querySelectorAll('.m[data-mine="1"]');for(let i=0;i<els.length;i++){const fid=parseInt(els[i].id.replace('m-',''));if(fid>1e12){els[i].id='m-'+msg.message_id;break}}}else{if(!msg.sender)msg.sender='bot';beep();addMsg(msg);scrollDown()}}else if(senderName!==myName){beep();const badge=document.querySelector(`.ch-badge-${ev.chat_id}`);if(badge){badge.style.display='inline-block';const n=parseInt(badge.textContent||'0')+1;badge.textContent=n}}}

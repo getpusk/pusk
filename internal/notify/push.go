@@ -85,7 +85,7 @@ func (p *PushService) SendToUser(s *store.Store, userID int64, payload PushPaylo
 				"provider", pushProvider(sub.Endpoint),
 				"error", err,
 			)
-			if resp != nil && (resp.StatusCode == 410 || resp.StatusCode == 404 || resp.StatusCode == 403) {
+			if resp != nil && (resp.StatusCode == 401 || resp.StatusCode == 410 || resp.StatusCode == 404 || resp.StatusCode == 403) {
 				stale++
 				s.DeletePushSubscription(sub.Endpoint)
 			}
@@ -97,7 +97,7 @@ func (p *PushService) SendToUser(s *store.Store, userID int64, payload PushPaylo
 			slog.Warn("push non-2xx", "status", resp.StatusCode, "endpoint", pushProvider(sub.Endpoint))
 		}
 
-		if resp.StatusCode == 410 || resp.StatusCode == 404 || resp.StatusCode == 403 {
+		if resp.StatusCode == 401 || resp.StatusCode == 410 || resp.StatusCode == 404 || resp.StatusCode == 403 {
 			stale++
 			s.DeletePushSubscription(sub.Endpoint)
 			slog.Info("push stale removed",
