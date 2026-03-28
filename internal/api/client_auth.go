@@ -322,6 +322,34 @@ func (a *ClientAPI) activeInvite(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewEncoder(w).Encode(map[string]string{"code": code, "url": url})
 }
+
+func (a *ClientAPI) checkInviteUser(w http.ResponseWriter, r *http.Request) {
+	code := r.URL.Query().Get("code")
+	org := r.URL.Query().Get("org")
+	username := r.URL.Query().Get("username")
+	if code == "" || org == "" || username == "" {
+		jsonErr(w, "code, org and username required", 400)
+		return
+	}
+	s, err := a.orgs.Get(org)
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]bool{"exists": false})
+		return
+	}
+	if err := s.ValidateInvite(code); err != nil {
+		jsonErr(w, "invalid invite", 403)
+		return
+	}
+	users, _ := s.ListUsers()
+	exists := false
+	for _, u := range users {
+		if u.Username == username {
+			exists = true
+			break
+		}
+	}
+	json.NewEncoder(w).Encode(map[string]bool{"exists": exists})
+}
 func (a *ClientAPI) changePassword(w http.ResponseWriter, r *http.Request) {
 	s := a.db(r)
 	var req struct {
