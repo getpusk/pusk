@@ -251,4 +251,6 @@ export function updateAvatarDots(users){if(!users)return;const map={};users.forE
 
 // ── Navigation ──
 $('hdr-back').onclick=showList;
-$('hdr-title').addEventListener('dblclick',async()=>{if(!S.curChan||get('role')!=='admin')return;const ch=S.channels.find(c=>c.id===S.curChan);if(!ch||ch.name==='general')return;const name=prompt(S.lang==='ru'?'Новое имя канала:':'New channel name:',ch.name);if(!name||name===ch.name)return;const r=await api('PUT','/admin/channel/'+S.curChan,{name});if(r&&r.ok){ch.name=name;$('hdr-title').textContent='# '+name;toast(S.lang==='ru'?'Переименовано':'Renamed')}else{toast(r.error||'Error')}});
+async function renameCurrentChan(){if(!S.curChan||get('role')!=='admin')return;const ch=S.channels.find(c=>c.id===S.curChan);if(!ch||ch.name==='general')return;const name=prompt(S.lang==='ru'?'Новое имя канала:':'New channel name:',ch.name);if(!name||name===ch.name)return;const r=await api('PUT','/admin/channel/'+S.curChan,{name});if(r&&r.ok){ch.name=name;$('hdr-title').textContent='# '+name;toast(S.lang==='ru'?'Переименовано':'Renamed')}else{toast(r.error||'Error')}}
+$('hdr-title').addEventListener('dblclick',renameCurrentChan);
+let _hdrLong=null;$('hdr-title').addEventListener('touchstart',()=>{_hdrLong=setTimeout(renameCurrentChan,800)},{passive:true});$('hdr-title').addEventListener('touchend',()=>{if(_hdrLong){clearTimeout(_hdrLong);_hdrLong=null}},{passive:true});$('hdr-title').addEventListener('touchmove',()=>{if(_hdrLong){clearTimeout(_hdrLong);_hdrLong=null}},{passive:true});
