@@ -234,6 +234,17 @@ func (a *ClientAPI) websocket(w http.ResponseWriter, r *http.Request) {
 		case "status":
 			if msg.Status == "online" || msg.Status == "away" {
 				a.hub.SetStatus(key, msg.Status)
+				// Broadcast status change to all org members
+				payload, _ := json.Marshal(map[string]interface{}{
+					"user_id":  claims.UserID,
+					"username": claims.Username,
+					"status":   msg.Status,
+				})
+				for _, k := range a.hub.OnlineKeys() {
+					if len(k) > len(claims.OrgID)+1 && k[:len(claims.OrgID)+1] == claims.OrgID+":" && k != key {
+						a.hub.SendToUser(k, ws.Event{Type: "user_status", Payload: payload})
+					}
+				}
 			}
 		case "viewing":
 			a.hub.SetActiveChannel(key, msg.ChannelID)
