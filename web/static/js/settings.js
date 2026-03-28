@@ -119,7 +119,12 @@ $('a-err').textContent=S.lang==='ru'?'Сессия истекла — войди
 
 $('settings-bg').onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none'};
 $('s-lang-btn').onclick=()=>{S.lang=S.lang==='ru'?'en':'ru';set('lang',S.lang);setLang();renderSettings();renderOrgSwitch();renderUsers();if($('app').style.display==='flex')showList()};
-$('s-invite').onclick=async()=>{if(S.inviteUrl){navigator.clipboard.writeText(S.inviteUrl);$('s-invite').textContent=t('invited');setTimeout(()=>{$('s-invite').textContent=t('invite')},2000);return}const r=await api('POST','/api/invite');if(r.code){const o=get('org')||'default';S.inviteUrl=location.origin+r.url+'?org='+o;$('s-invite-result').textContent=S.inviteUrl;navigator.clipboard.writeText(S.inviteUrl);$('s-invite').textContent=t('invited');setTimeout(()=>{$('s-invite').textContent=t('invite')},2000)}};
+$('s-invite').onclick=async()=>{
+  // Check for active invite first
+  if(!S.inviteUrl){const active=await api('GET','/api/invite/active');if(active&&active.code){S.inviteUrl=location.origin+active.url;S.inviteCode=active.code}}
+  if(S.inviteUrl){navigator.clipboard.writeText(S.inviteUrl);$('s-invite').textContent=t('invited');$('s-invite-result').textContent=S.inviteUrl;setTimeout(()=>{$('s-invite').textContent=t('invite')},2000);showRevokeBtn();return}
+  const r=await api('POST','/api/invite');if(r.code){const o=get('org')||'default';S.inviteUrl=location.origin+r.url+'?org='+o;S.inviteCode=r.code;$('s-invite-result').textContent=S.inviteUrl;navigator.clipboard.writeText(S.inviteUrl);$('s-invite').textContent=t('invited');setTimeout(()=>{$('s-invite').textContent=t('invite')},2000);showRevokeBtn()}};
+function showRevokeBtn(){let rb=$('s-revoke');if(!rb){rb=document.createElement('button');rb.id='s-revoke';rb.className='s-btn';rb.style.cssText='font-size:11px;color:#e05d44;padding:4px 8px;margin-top:4px';$('s-invite').after(rb)}rb.textContent=S.lang==='ru'?'Отозвать ссылку':'Revoke link';rb.onclick=async()=>{if(!S.inviteCode)return;await api('DELETE','/api/invite',{code:S.inviteCode});S.inviteUrl='';S.inviteCode='';$('s-invite-result').textContent='';rb.remove();toast(S.lang==='ru'?'Ссылка отозвана':'Link revoked')}}
 $('s-out').onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none';logout()};
 
 // ── Push/test buttons: use onclick on existing DOM elements ──
