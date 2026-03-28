@@ -57,6 +57,8 @@ $('land-input').onkeydown=e=>{if(e.key==='Enter')landSend()};
 async function landSend(){const inp=$('land-input');const txt=inp.value.trim();if(!txt||!S.landChat)return;inp.value='';landAddMsg('Guest',txt,'');await landApi('POST',`/api/chats/${S.landChat}/send`,{text:txt})}
 async function landCb(data){if(!S.landChat)return;await landApi('POST',`/api/chats/${S.landChat}/callback`,{data,message_id:0});setTimeout(async()=>{const msgs=await landApi('GET',`/api/chats/${S.landChat}/messages?limit=1`);if(msgs&&msgs.length){const m=msgs[0];if(m.sender==='bot')landAddMsg('DemoBot',m.text,fmtTime(m.date),m.reply_markup)}},1500)}
 export function hideLanding(){$('landing').style.display='none'}
+// Show available orgs when username entered on login form
+$('a-user').addEventListener('blur',async function(){const u=this.value.trim();if(!u||$('a-org').value)return;try{const r=await fetch('/api/my-orgs?username='+encodeURIComponent(u));const orgs=await r.json();if(orgs&&orgs.length===1){$('a-org').value=orgs[0].slug}else if(orgs&&orgs.length>1){$('a-org').placeholder=orgs.map(o=>o.slug).join(', ')}}catch{}});
 $('land-login').onclick=()=>{hideLanding();$('auth').style.display='flex';const savedOrg=get('org');if(savedOrg)$('a-org').value=savedOrg}
 $('land-demo').onclick=async()=>{let r=await api('POST','/api/auth',{username:'guest',pin:'guest'});if(!r.token)r=await api('POST','/api/register',{username:'guest',pin:'guest',display_name:'Guest'});if(!r.token)return;S.token=r.token;S.isDemo=true;hideLanding();showApp()};
 
