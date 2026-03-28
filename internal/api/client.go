@@ -119,6 +119,7 @@ func (a *ClientAPI) Route(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/invite/active", a.AuthRequired(a.activeInvite))
 	mux.HandleFunc("DELETE /api/invite", a.AuthRequired(limitBody(a.revokeInvite)))
 	mux.HandleFunc("POST /api/file-token", a.AuthRequired(a.createFileToken))
+	mux.HandleFunc("GET /api/stats", a.AuthRequired(a.orgStats))
 
 	// Self-service password change
 	mux.HandleFunc("POST /api/change-password", a.AuthRequired(limitBody(a.changePassword)))

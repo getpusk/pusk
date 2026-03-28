@@ -268,6 +268,8 @@ func (a *ClientAPI) websocket(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+var startTime = time.Now()
+
 func (a *ClientAPI) health(w http.ResponseWriter, r *http.Request) {
 	s := a.db(r)
 	dbOK := s.Ping() == nil
@@ -282,5 +284,6 @@ func (a *ClientAPI) health(w http.ResponseWriter, r *http.Request) {
 		"online":  a.hub.Online(),
 		"version": Version,
 		"db":      dbOK,
+		"uptime":  time.Since(startTime).Truncate(time.Second).String(),
 	})
 }
