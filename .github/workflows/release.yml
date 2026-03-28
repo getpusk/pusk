@@ -1,49 +1,241 @@
-name: Release Docker
+name: Release
 
 on:
   push:
     tags: ['v*']
 
-permissions:
-  contents: read
-  packages: write
+permissions: read-all
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  docker:
+  build:
+    name: Build & Push
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-      security-events: write
+      id-token: write
+
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
-          registry: ghcr.io
+          go-version: '1.26.x'
+
+      - name: Build static binary
+        run: |
+          CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/pusk-platform/pusk/internal/api.Version=${{ github.ref_name }}" \
+            -o pusk ./cmd/pusk/
+          echo "Binary size: $(du -sh pusk | cut -f1)"
+
+      - name: Run tests
+        run: go test ./... -count=1 -timeout 60s
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: pusk-binary-${{ github.run_id }}
+          path: ./pusk
+          retention-days: 1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
+        with:
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+      # ── Alpine ──────────────────────────────────────────────────────────────
+      - name: Extract metadata (alpine)
+        id: meta-alpine
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6
         with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+
+      - name: Build and push (alpine)
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
+        with:
+          context: .
+          file: Dockerfile
           push: true
           build-args: VERSION=${{ github.ref_name }}
-          tags: |
-            ghcr.io/getpusk/pusk:latest
-            ghcr.io/getpusk/pusk:${{ github.ref_name }}
+          tags: ${{ steps.meta-alpine.outputs.tags }}
+          labels: ${{ steps.meta-alpine.outputs.labels }}
 
-      - name: Trivy — scan Docker image
+      # ── RED OS ──────────────────────────────────────────────────────────────
+      - name: Extract metadata (redos)
+        id: meta-redos
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          flavor: suffix=-redos,onlatest=true
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+
+      - name: Build and push (redos)
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
+        with:
+          context: .
+          file: Dockerfile.redos
+          push: true
+          tags: ${{ steps.meta-redos.outputs.tags }}
+          labels: ${{ steps.meta-redos.outputs.labels }}
+
+      # ── Astra Linux SE ─────────────────────────────────────────────────────
+      - name: Extract metadata (astra)
+        id: meta-astra
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          flavor: suffix=-astra,onlatest=true
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+
+      - name: Build and push (astra)
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
+        with:
+          context: .
+          file: Dockerfile.astra
+          push: true
+          tags: ${{ steps.meta-astra.outputs.tags }}
+          labels: ${{ steps.meta-astra.outputs.labels }}
+
+      # ── Smoke test ──────────────────────────────────────────────────────────
+      - name: Smoke test
+        run: |
+          docker run --rm -d --name pusk-smoke -p 9999:8443 \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          for i in $(seq 1 10); do
+            curl -sf http://localhost:9999/api/health && break || sleep 1
+          done
+          curl -sf http://localhost:9999/api/health
+          docker stop pusk-smoke
+
+  scan:
+    name: Scan (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: alpine
+            suffix: ""
+          - name: redos
+            suffix: "-redos"
+          - name: astra
+            suffix: "-astra"
+
+    steps:
+      - name: Set version tag
+        id: ver
+        run: echo "tag=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Trivy image scan (${{ matrix.name }})
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         with:
-          image-ref: ghcr.io/getpusk/pusk:${{ github.ref_name }}
+          scan-type: image
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.ver.outputs.tag }}${{ matrix.suffix }}
           format: sarif
-          output: trivy-image.sarif
+          output: trivy-image-${{ matrix.name }}.sarif
           severity: HIGH,CRITICAL
           exit-code: 0
 
-      - name: Upload Trivy image results
+      - name: Upload Trivy results
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
-          sarif_file: trivy-image.sarif
-          category: trivy-image
+          sarif_file: trivy-image-${{ matrix.name }}.sarif
+          category: trivy-image-${{ matrix.name }}
+
+  release:
+    name: GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build, scan]
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Download binary artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: pusk-binary-${{ github.run_id }}
+          path: ./artifacts
+
+      - name: Prepare binary
+        run: |
+          cp ./artifacts/pusk ./pusk-linux-amd64
+          chmod +x ./pusk-linux-amd64
+          sha256sum ./pusk-linux-amd64 > pusk-linux-amd64.sha256
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@c56c2d3e59e4281cc41dea2217323ba5694b171e # v3
+
+      - name: Sign binary (keyless Sigstore)
+        run: cosign sign-blob --yes --output-signature pusk-linux-amd64.sig --output-certificate pusk-linux-amd64.pem ./pusk-linux-amd64
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@57aae528053a48a3f6235f2d9461b05fbcb7366d # v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          format: spdx-json
+          output-file: pusk-${{ github.ref_name }}.sbom.spdx.json
+
+      - name: Create Release
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2
+        with:
+          generate_release_notes: true
+          files: |
+            pusk-linux-amd64
+            pusk-linux-amd64.sha256
+            pusk-linux-amd64.sig
+            pusk-linux-amd64.pem
+            pusk-${{ github.ref_name }}.sbom.spdx.json
+          body: |
+            ## Install
+
+            ```bash
+            curl -LO https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/pusk-linux-amd64
+            chmod +x pusk-linux-amd64
+            sudo mv pusk-linux-amd64 /usr/local/bin/pusk
+            ```
+
+            ## Docker
+
+            **Alpine (standard):**
+            ```bash
+            docker pull ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+            ```
+
+            **RED OS (FSTEC):**
+            ```bash
+            docker pull ghcr.io/${{ github.repository }}:${{ github.ref_name }}-redos
+            ```
+
+            **Astra Linux SE (FSTEC):**
+            ```bash
+            docker pull ghcr.io/${{ github.repository }}:${{ github.ref_name }}-astra
+            ```
