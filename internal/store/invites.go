@@ -9,7 +9,7 @@ import (
 
 func (s *Store) CreateInvite(code string, ttl time.Duration) error {
 	expires := time.Now().Add(ttl).UTC().Format(time.RFC3339)
-	_, err := s.db.Exec("INSERT INTO invites (code, expires_at, uses, max_uses) VALUES (?, ?, 0, 50)", code, expires)
+	_, err := s.db.Exec("INSERT INTO invites (code, expires_at) VALUES (?, ?)", code, expires)
 	return err
 }
 
