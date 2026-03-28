@@ -34,6 +34,8 @@ func (a *AdminAPI) Route(mux *http.ServeMux) {
 	mux.HandleFunc("POST /admin/bots", a.registerBot)
 	mux.HandleFunc("POST /admin/channel", a.createChannel)
 	mux.HandleFunc("DELETE /admin/channel/{channelID}", a.deleteChannel)
+	mux.HandleFunc("PUT /admin/channel/{channelID}", a.renameChannel)
+	mux.HandleFunc("PUT /admin/bots/{botID}", a.renameBot)
 
 	mux.HandleFunc("POST /admin/reset-password", a.resetPassword)
 	mux.HandleFunc("POST /admin/set-role", a.adminSetRole)
@@ -177,6 +179,66 @@ func (a *AdminAPI) deleteChannel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slog.Info("channel deleted", "channel_id", channelID)
+	json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
+}
+
+func (a *AdminAPI) renameChannel(w http.ResponseWriter, r *http.Request) {
+	s, ok := a.getOrgStore(r)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if !a.requireAdmin(r, s) {
+		http.Error(w, `{"error":"admin only"}`, http.StatusForbidden)
+		return
+	}
+	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonErr(w, "invalid request", 400)
+		return
+	}
+	if len(req.Name) < 1 || len(req.Name) > 64 {
+		jsonErr(w, "name must be 1-64 characters", 400)
+		return
+	}
+	if err := s.RenameChannel(channelID, req.Name); err != nil {
+		jsonErr(w, "rename failed", 500)
+		return
+	}
+	slog.Info("channel renamed", "channel_id", channelID, "new_name", req.Name)
+	json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
+}
+
+func (a *AdminAPI) renameBot(w http.ResponseWriter, r *http.Request) {
+	s, ok := a.getOrgStore(r)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if !a.requireAdmin(r, s) {
+		http.Error(w, `{"error":"admin only"}`, http.StatusForbidden)
+		return
+	}
+	botID, _ := strconv.ParseInt(r.PathValue("botID"), 10, 64)
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonErr(w, "invalid request", 400)
+		return
+	}
+	if len(req.Name) < 1 || len(req.Name) > 64 {
+		jsonErr(w, "name must be 1-64 characters", 400)
+		return
+	}
+	if err := s.RenameBot(botID, req.Name); err != nil {
+		jsonErr(w, "rename failed", 500)
+		return
+	}
+	slog.Info("bot renamed", "bot_id", botID, "new_name", req.Name)
 	json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
 }
 
