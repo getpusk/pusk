@@ -294,6 +294,7 @@ func (a *AdminAPI) registerOrg(w http.ResponseWriter, r *http.Request) {
 		"token":    tok,
 		"user_id":  user.ID,
 		"username": req.Username,
+		"role":     "admin",
 	})
 	slog.Info("org registered", "slug", req.Slug, "admin", req.Username)
 }
