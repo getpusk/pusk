@@ -78,6 +78,7 @@ func (a *ClientAPI) Route(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/health", a.health)
 	mux.HandleFunc("GET /api/push/vapid", a.vapidKey)
 	mux.HandleFunc("POST /api/invite/accept", RateLimit(regRL, limitBody(a.acceptInvite)))
+	mux.HandleFunc("GET /api/invite/check-user", a.checkInviteUser)
 
 	// Auth-required routes: Chat
 	mux.HandleFunc("GET /api/bots", a.AuthRequired(a.listBots))
