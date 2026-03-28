@@ -34,6 +34,7 @@ const inp=this;
 $('file-send').onclick=async()=>{bg.classList.remove('open');const cap=$('file-caption').value.trim()||file.name;const fd=new FormData();fd.append('file',file);fd.append('caption',cap);toast(ru?'Загрузка...':'Uploading...');const opts={method:'POST',headers:{},body:fd};if(S.token)opts.headers.Authorization=S.token;try{const r=await fetch('/api/channels/'+S.curChan+'/upload',opts);const msg=await r.json();if(msg&&msg.message_id){toast(ru?'Отправлено':'Sent');addMsg(msg);scrollDown()}}catch(e){toast('Error: '+e.message)}inp.value=''};
 $('file-cancel').onclick=()=>{bg.classList.remove('open');inp.value=''};
 $('file-caption').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();$('file-send').click()}};
+$('file-caption').addEventListener('input',function(){if(!S.curChan)return;const v=this.value;const cursor=this.selectionStart;const before=v.substring(0,cursor);const atMatch=before.match(/@(\w*)$/);if(atMatch){const query=atMatch[1].toLowerCase();const me=get('uname')||'';const matches=S.mentionUsers.filter(u=>u.username.toLowerCase().startsWith(query)&&u.username!==me);if(matches.length>0){const ml=$('mention-list');ml.innerHTML='';matches.slice(0,8).forEach(u=>{const item=document.createElement('div');item.className='ac-item-user';item.dataset.mention=u.username;item.dataset.target='file-caption';item.textContent=u.username;ml.appendChild(item)});ml.style.display='block';_mentionIdx=-1;return}}$('mention-list').style.display='none'});
 };
 
 // ── @mention & slash autocomplete ──
@@ -53,10 +54,10 @@ $('mention-list').addEventListener('mousedown',e=>{
   const slashItem=e.target.closest('[data-slash]');
   if(slashItem){$('msg-in').value=slashItem.dataset.slash;$('mention-list').style.display='none';$('msg-in').focus();return}
   const mentionItem=e.target.closest('[data-mention]');
-  if(mentionItem){insertMention(mentionItem.dataset.mention);return}
+  if(mentionItem){insertMention(mentionItem.dataset.mention,mentionItem.dataset.target);return}
 });
 
-function insertMention(username){const inp=$('msg-in');const v=inp.value;const cursor=inp.selectionStart;const before=v.substring(0,cursor);const after=v.substring(cursor);const atPos=before.lastIndexOf('@');inp.value=before.substring(0,atPos)+'@'+username+' '+after;inp.selectionStart=inp.selectionEnd=atPos+username.length+2;$('mention-list').style.display='none';inp.focus()}
+function insertMention(username,targetId){const inp=$(targetId||'msg-in');const v=inp.value;const cursor=inp.selectionStart;const before=v.substring(0,cursor);const after=v.substring(cursor);const atPos=before.lastIndexOf('@');inp.value=before.substring(0,atPos)+'@'+username+' '+after;inp.selectionStart=inp.selectionEnd=atPos+username.length+2;$('mention-list').style.display='none';inp.focus()}
 
 // ── Reply ──
 function startReply(mid,name,text){if(!S.curChan)return;S.replyToId=mid;S.replyToText=text;$('reply-text').innerHTML='<b>'+esc(name)+'</b>: '+esc(text);$('reply-bar').style.display='flex';$('msg-in').focus()}

@@ -61,3 +61,9 @@ func (s *Store) BotByID(id int64) (*Bot, error) {
 	}
 	return b, nil
 }
+
+// RenameBot updates the name of a bot.
+func (s *Store) RenameBot(botID int64, name string) error {
+	_, err := s.db.Exec("UPDATE bots SET name=? WHERE id=?", name, botID)
+	return err
+}

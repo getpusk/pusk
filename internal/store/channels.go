@@ -304,3 +304,9 @@ func (s *Store) ChannelReadersJoin(channelID int64) ([]ChannelReader, error) {
 	}
 	return readers, nil
 }
+
+// RenameChannel updates the name of a channel.
+func (s *Store) RenameChannel(channelID int64, name string) error {
+	_, err := s.db.Exec("UPDATE channels SET name=? WHERE id=?", name, channelID)
+	return err
+}
