@@ -1,5 +1,5 @@
 // Pusk Service Worker — App Shell cache + Push notifications
-const CACHE = 'pusk-v54';
+const CACHE = 'pusk-v55';
 const SHELL = [
   '/',
   '/css/pusk.css',
