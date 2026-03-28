@@ -402,6 +402,11 @@ func (a *ClientAPI) setUserRole(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "cannot demote yourself", 400)
 		return
 	}
+	// Protect primary admin (org creator) from demotion
+	if targetID == 1 && req.Role == "member" {
+		jsonErr(w, "cannot demote primary admin", 400)
+		return
+	}
 	// BUG-2: prevent demoting the last admin
 	if req.Role == "member" && s.IsAdmin(targetID) {
 		users, _ := s.ListUsers()
