@@ -10,22 +10,21 @@
 
 # Pusk — self-hosted алерты для ops-команд
 
-**Pusk** — self-hosted платформа алертов с командным чатом. Webhook из любого мониторинга, ACK одной кнопкой, push на телефон. Один бинарник, без внешних зависимостей.
+**Pusk** — self-hosted платформа для алертов и командной координации. Webhook из любого мониторинга, ACK одной кнопкой, push на телефон. Один бинарник, без внешних зависимостей.
 
 ## Зачем это нужно?
 
 **Проблема:** алерт сработал. Кто взял? Тишина.
-- Алерты тонут в Telegram среди мемов и личных чатов
+- Алерты тонут в общих чатах среди обсуждений
 - Нет подтверждения (ACK) — непонятно, кто разбирается
 - Нет эскалации — если дежурный спит, алерт умирает
 - Данные на чужих серверах — compliance не пройдёшь
-- Telegram могут замедлить или заблокировать
 
 **Решение — Pusk:**
 - Алерты из Grafana, Zabbix, Alertmanager, Uptime Kuma — в отдельные каналы
 - ACK одной кнопкой — автоматический silence в Alertmanager
 - Push-уведомления на телефон даже при закрытом браузере
-- Командный чат здесь же — каналы, @упоминания, файлы
+- Командный чат — каналы, @упоминания, файлы
 - Совместим с Telegram Bot API — существующие боты работают с заменой одной строки
 
 <img src=".github/assets/alerts.png" alt="Pusk — канал алертов" width="960" />
@@ -34,19 +33,20 @@
 
 - **DevOps/SRE-команды** — алерты из мониторинга + координация инцидентов
 - **Компании с compliance** — данные на своём сервере, air-gapped, ФСТЭК, 152-ФЗ
-- **Те, кому важен контроль** — никаких третьих сторон, работает при блокировке Telegram
+- **Те, кому нужна автономность** — работает без внешних зависимостей
 
 ## Что умеет
 
 | Возможность | Описание |
 |-------------|----------|
 | **Алерты** | Webhook из Alertmanager, Grafana, Zabbix, Uptime Kuma. Цветовые индикаторы, ACK, автоматический silence |
-| **Push** | Web Push уведомления на телефон и десктоп (даже при закрытом браузере) |
+| **Push** | Web Push на телефон и десктоп (даже при закрытом браузере) |
 | **Боты** | 13 методов Telegram Bot API. Inline-кнопки, webhook, long polling |
-| **Каналы** | Командные каналы для общения. @упоминания с push-уведомлениями |
-| **Файлы** | Фото, видео, голосовые, документы — загрузка и просмотр в чате |
-| **Мультитенант** | Отдельные организации с изоляцией данных |
-| **Простота** | Один бинарник (22 МБ), SQLite, ~2 МБ RAM, запуск за 1 секунду |
+| **Каналы** | Командные каналы, @упоминания с push, reply, pin, редактирование |
+| **Файлы** | Фото, видео, голосовые, документы — загрузка и просмотр |
+| **Онлайн-статус** | Имена онлайн/отошёл в реальном времени, typing-индикатор |
+| **Мультитенант** | Изолированные организации (отдельная SQLite на каждую) |
+| **Простота** | Один бинарник (23 МБ), SQLite, ~2 МБ RAM, запуск за 1 секунду |
 
 ## Частые вопросы
 
@@ -56,8 +56,8 @@
 </details>
 
 <details>
-<summary><b>Зачем это если есть Telegram?</b></summary>
-Telegram — чат. Pusk — алерты. ACK, автоматический silence в Alertmanager, push даже когда Telegram заблокирован. Командный чат — бонус, не цель.
+<summary><b>Чем отличается от PagerDuty?</b></summary>
+Self-hosted, бесплатный, один бинарник. Нет расписания дежурств (пока), но есть командный чат и совместимость с Telegram Bot API.
 </details>
 
 <details>
@@ -88,6 +88,7 @@ docker run -d --name pusk \
 1. Первый пользователь создаёт **организацию** — он становится администратором
 2. В настройках нажмите **Пригласить** — скопируйте ссылку и отправьте коллегам
 3. Коллеги переходят по ссылке, регистрируются — и сразу в команде
+4. Новые участники автоматически подписываются на все каналы
 
 > Назначьте минимум 2 админов, чтобы не зависеть от одного человека.
 
@@ -99,7 +100,7 @@ docker run -d --name pusk \
 receivers:
   - name: pusk
     webhook_configs:
-      - url: https://your-pusk/hook/BOT-TOKEN?format=alertmanager
+      - url: 'https://your-pusk/hook/BOT-TOKEN?format=alertmanager'
 ```
 
 #### Grafana
@@ -120,9 +121,9 @@ URL: `https://your-pusk/hook/BOT-TOKEN?format=raw&channel=alerts`
 #### Любая система с curl
 
 ```bash
-curl -X POST https://your-pusk/hook/BOT-TOKEN?format=raw \
-  -H Content-Type: application/json \
-  -d status:down
+curl -X POST 'https://your-pusk/hook/BOT-TOKEN?format=raw' \
+  -H 'Content-Type: application/json' \
+  -d '{"status":"down","name":"my-service"}'
 ```
 
 ### Из исходников
@@ -137,7 +138,7 @@ go build -o pusk ./cmd/pusk/
 ### Docker Compose
 
 ```yaml
-version: 3
+version: '3'
 services:
   pusk:
     image: ghcr.io/getpusk/pusk:latest
@@ -150,9 +151,9 @@ services:
     restart: unless-stopped
 ```
 
-## Миграция с Telegram
+## Совместимость с Telegram Bot API
 
-Если ваш бот использует `sendMessage`, `editMessageText`, inline-кнопки, webhook — достаточно поменять одну строку:
+Если у вас уже есть бот на Telegram Bot API — он заработает в Pusk с заменой одной строки:
 
 ```python
 # Python (aiogram)
@@ -167,7 +168,7 @@ app = Application.builder().token(TOKEN).base_url("https://your-pusk:8443/bot").
 bot.telegram.options.apiRoot = "https://your-pusk:8443";
 ```
 
-Поддерживается 13 из 80+ методов Telegram Bot API — достаточно для алертов, уведомлений и простых ботов.
+Поддерживается 13 из 80+ методов — достаточно для алертов, уведомлений и простых ботов.
 
 ## Установка на VPS
 
@@ -241,7 +242,7 @@ server {
 
 ```bash
 # Горячий бэкап
-sqlite3 data/orgs/default/pusk.db ".backup backup.db"
+sqlite3 data/orgs/my-org/pusk.db ".backup backup.db"
 
 # Полный бэкап
 tar czf pusk-backup-$(date +%Y%m%d).tar.gz data/
@@ -250,10 +251,10 @@ tar czf pusk-backup-$(date +%Y%m%d).tar.gz data/
 ## Архитектура
 
 ```
-pusk (22 МБ)
+pusk (23 МБ, ~8400 строк Go, 110 тестов)
 ├── Bot API    — /bot/<token>/<method>  (совместим с Telegram)
 ├── Client API — /api/*                 (бэкенд PWA)
-├── WebSocket  — /api/ws                (real-time)
+├── WebSocket  — /api/ws                (real-time статусы, typing)
 ├── Файлы      — /file/<id>             (медиа)
 ├── PWA        — /                      (веб-клиент)
 └── SQLite     — data/orgs/*/pusk.db    (база данных)
@@ -265,164 +266,12 @@ pusk (22 МБ)
 
 ## Безопасность
 
-- CSP-заголовки, bcrypt-хеширование, JWT с 7-дневным TTL
+- JWT с 7-дневным TTL, bcrypt-хеширование паролей
+- Защита владельца организации (первый админ) от удаления и понижения
+- Канал #general защищён от удаления и переименования
 - Rate limiting на авторизацию, регистрацию, отправку
 - SSRF-защита webhook URL
-- Мультитенант с изоляцией данных (отдельная SQLite на организацию)
-
-## Лицензия
-
-BSL 1.1 — Copyright (c) 2026 Volkov Pavel | DevITWay
-
-Подробнее в [LICENSE](LICENSE).
-READMEEOF application/json \
-  -d name:my-service
-```
-
-### Из исходников
-
-```bash
-git clone https://github.com/getpusk/pusk.git
-cd pusk
-go build -o pusk ./cmd/pusk/
-./pusk
-```
-
-### Docker Compose
-
-```yaml
-version: 3
-services:
-  pusk:
-    image: ghcr.io/getpusk/pusk:latest
-    ports:
-      - "8443:8443"
-    volumes:
-      - ./data:/app/data
-    environment:
-      - PUSK_ADMIN_TOKEN=your-secret
-    restart: unless-stopped
-```
-
-## Миграция с Telegram
-
-Если ваш бот использует `sendMessage`, `editMessageText`, inline-кнопки, webhook — достаточно поменять одну строку:
-
-```python
-# Python (aiogram)
-bot = Bot(token="TOKEN", base_url="https://your-pusk:8443/bot")
-
-# Python (python-telegram-bot)
-app = Application.builder().token(TOKEN).base_url("https://your-pusk:8443/bot").build()
-```
-
-```javascript
-// Node.js (Telegraf)
-bot.telegram.options.apiRoot = "https://your-pusk:8443";
-```
-
-Поддерживается 13 из 80+ методов Telegram Bot API — достаточно для алертов, уведомлений и простых ботов.
-
-## Установка на VPS
-
-### Systemd
-
-```bash
-sudo tee /etc/systemd/system/pusk.service << EOF
-[Unit]
-Description=Pusk
-After=network.target
-
-[Service]
-User=pusk
-WorkingDirectory=/opt/pusk
-ExecStart=/opt/pusk/pusk
-Restart=always
-Environment=PUSK_ADDR=:8443
-Environment=PUSK_ADMIN_TOKEN=your-secret
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-sudo systemctl enable --now pusk
-```
-
-### Обратный прокси (Caddy)
-
-```
-pusk.example.com {
-    reverse_proxy localhost:8443
-}
-```
-
-### Обратный прокси (Nginx)
-
-```nginx
-server {
-    listen 443 ssl;
-    server_name pusk.example.com;
-
-    location / {
-        proxy_pass http://127.0.0.1:8443;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-## Настройка
-
-| Переменная | По умолчанию | Описание |
-|-----------|-------------|----------|
-| `PUSK_ADDR` | `:8443` | Адрес сервера |
-| `PUSK_ADMIN_TOKEN` | — | Токен для Admin API |
-| `PUSK_DEMO` | — | `1` — включить демо-режим |
-| `PUSK_MSG_RETENTION_DAYS` | `30` | Автоудаление сообщений старше N дней. `0` — не удалять |
-| `PUSK_FILE_QUOTA_MB` | `1024` | Лимит хранилища файлов на организацию (МБ) |
-| `PUSK_WEBHOOK_DEBOUNCE` | `10s` | Дедупликация одинаковых webhook. `0` — отключить |
-| `PUSK_ALERTMANAGER_URL` | — | URL Alertmanager для авто-silence при ACK |
-| `VAPID_PUBLIC_KEY` | — | VAPID ключ для Web Push |
-| `VAPID_PRIVATE_KEY` | — | Приватный ключ VAPID |
-| `VAPID_EMAIL` | — | Email для push-сервиса |
-
-## Резервное копирование
-
-Все данные в папке `data/`:
-
-```bash
-# Горячий бэкап
-sqlite3 data/orgs/default/pusk.db ".backup backup.db"
-
-# Полный бэкап
-tar czf pusk-backup-$(date +%Y%m%d).tar.gz data/
-```
-
-## Архитектура
-
-```
-pusk (22 МБ)
-├── Bot API    — /bot/<token>/<method>  (совместим с Telegram)
-├── Client API — /api/*                 (бэкенд PWA)
-├── WebSocket  — /api/ws                (real-time)
-├── Файлы      — /file/<id>             (медиа)
-├── PWA        — /                      (веб-клиент)
-└── SQLite     — data/orgs/*/pusk.db    (база данных)
-```
-
-## Демо
-
-Попробуйте: [getpusk.ru](https://getpusk.ru) — кнопка «Demo», без регистрации.
-
-## Безопасность
-
-- CSP-заголовки, bcrypt-хеширование, JWT с 7-дневным TTL
-- Rate limiting на авторизацию, регистрацию, отправку
-- SSRF-защита webhook URL
-- Мультитенант с изоляцией данных (отдельная SQLite на организацию)
+- Мультитенант с полной изоляцией данных (отдельная SQLite на организацию)
 
 ## Лицензия
 
