@@ -34,7 +34,7 @@
 ## Who is it for
 
 - **DevOps/SRE teams** — monitoring alerts + incident coordination
-- **Companies with compliance needs** — data on your server, air-gapped, regulated environments
+- **Companies with compliance needs** — data on your server, no external dependencies
 - **Anyone who needs autonomy** — works without external dependencies
 
 ## Features
