@@ -36,7 +36,7 @@ if(S.invite){
   $('btn-demo').style.display='none';
   $('btn-reg').className='abtn abtn-p';$('btn-reg').textContent=t('register_btn');
   $('btn-login').style.display='none';
-  $('auth-sub').textContent=t('invite_hint');$('auth-sub').style.color='var(--accent)';$('auth-sub').style.fontSize='15px';
+  $('auth-sub').textContent=t('invite_hint');$('a-user').setAttribute('autocomplete','off');$('auth-sub').style.color='var(--accent)';$('auth-sub').style.fontSize='15px';
   const _invCode=S.invite;const _invOrg2=_p.get('org')||'';
   $('a-user').addEventListener('blur',async()=>{const u=$('a-user').value.trim();if(!u||!_invCode||!_invOrg2)return;try{const r=await fetch('/api/invite/check-user?code='+_invCode+'&org='+_invOrg2+'&username='+encodeURIComponent(u));const d=await r.json();if(d.exists){$('btn-login').style.display='';$('btn-login').textContent=S.lang==='ru'?'Войти':'Login';$('btn-reg').style.display='none';$('auth-sub').textContent=S.lang==='ru'?'Аккаунт найден — введите пароль':'Account found — enter password'}else{$('btn-reg').style.display='';$('btn-reg').textContent=t('register_btn');$('btn-login').style.display='none';$('auth-sub').textContent=t('invite_hint')}}catch{}});
 } else if(_p.get('demo')==='1'&&!S.token){
