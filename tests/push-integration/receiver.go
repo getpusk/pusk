@@ -55,14 +55,14 @@ func main() {
 		mu.Lock()
 		defer mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{"total": len(records), "records": records})
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"total": len(records), "records": records})
 	})
 
 	http.HandleFunc("/push-reset", func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		records = nil
 		mu.Unlock()
-		fmt.Fprintln(w, "reset")
+		_, _ = fmt.Fprintln(w, "reset")
 	})
 
 	log.Printf("Push receiver on :%s — POST /push-receive, GET /push-results", port)

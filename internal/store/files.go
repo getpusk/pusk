@@ -45,20 +45,21 @@ func (s *Store) ValidateFileToken(token string) (int64, error) {
 	}
 	expires, _ := time.Parse(time.RFC3339, expiresAt)
 	if time.Now().After(expires) {
-		s.db.Exec("DELETE FROM file_tokens WHERE token=?", token)
+		s.db.Exec("DELETE FROM file_tokens WHERE token=?", token) //nolint:errcheck // best-effort cleanup after validation
 		return 0, fmt.Errorf("file token expired")
 	}
 	// Consume token (single-use)
-	s.db.Exec("DELETE FROM file_tokens WHERE token=?", token)
+	s.db.Exec("DELETE FROM file_tokens WHERE token=?", token) //nolint:errcheck // best-effort cleanup
 	return userID, nil
 }
 
 func (s *Store) CleanExpiredFileTokens() {
-	s.db.Exec("DELETE FROM file_tokens WHERE expires_at < ?", Now())
+	s.db.Exec("DELETE FROM file_tokens WHERE expires_at < ?", Now()) //nolint:errcheck // best-effort expired token cleanup
 }
 
 func (s *Store) TotalFileSize() int64 {
 	var total int64
+	//nolint:errcheck // returns 0 on error
 	s.db.QueryRow("SELECT COALESCE(SUM(size), 0) FROM files").Scan(&total)
 	return total
 }

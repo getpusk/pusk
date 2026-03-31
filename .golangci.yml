@@ -1,0 +1,40 @@
+version: "2"
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - ineffassign
+    - unused
+
+  settings:
+    errcheck:
+      exclude-functions:
+        # Standard Go patterns where errors are non-actionable
+        - (io.Closer).Close
+        - (*database/sql.Rows).Close
+        - (*database/sql.Tx).Rollback
+        - (*net/http.Response).Body.Close
+        # HTTP handler JSON — response already started, error not actionable
+        - (*encoding/json.Encoder).Encode
+        - (*encoding/json.Decoder).Decode
+    staticcheck:
+      checks:
+        - "all"
+        - "-ST1000" # copyright headers, not package docs
+        - "-ST1020" # comment style on exports
+        - "-QF1001" # De Morgan readability preference
+        - "-QF1012" # WriteString(Sprintf) vs Fprintf — style
+
+issues:
+  exclude-dirs:
+    - vendor
+    - data
+
+run:
+  timeout: 5m
+
+formatters:
+  enable:
+    - gofmt

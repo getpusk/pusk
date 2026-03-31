@@ -44,12 +44,12 @@ func (c *Conn) ReadPump(hub *Hub, onMessage func(userID int64, data []byte)) {
 		if hub != nil {
 			hub.Unregister(c.Key, c)
 		}
-		c.ws.Close()
+		c.ws.Close() //nolint:errcheck // best-effort cleanup on disconnect
 	}()
 	c.ws.SetReadLimit(maxMsgSize)
-	c.ws.SetReadDeadline(time.Now().Add(pongWait))
+	_ = c.ws.SetReadDeadline(time.Now().Add(pongWait))
 	c.ws.SetPongHandler(func(string) error {
-		c.ws.SetReadDeadline(time.Now().Add(pongWait))
+		_ = c.ws.SetReadDeadline(time.Now().Add(pongWait))
 		return nil
 	})
 	for {
@@ -67,21 +67,21 @@ func (c *Conn) WritePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
-		c.ws.Close()
+		c.ws.Close() //nolint:errcheck // best-effort cleanup on disconnect
 	}()
 	for {
 		select {
 		case msg, ok := <-c.send:
-			c.ws.SetWriteDeadline(time.Now().Add(writeWait))
+			_ = c.ws.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
-				c.ws.WriteMessage(websocket.CloseMessage, []byte{})
+				_ = c.ws.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 			if err := c.ws.WriteMessage(websocket.TextMessage, msg); err != nil {
 				return
 			}
 		case <-ticker.C:
-			c.ws.SetWriteDeadline(time.Now().Add(writeWait))
+			_ = c.ws.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.ws.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
