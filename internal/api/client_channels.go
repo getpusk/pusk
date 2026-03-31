@@ -57,7 +57,6 @@ func (a *ClientAPI) ackChannelMessage(w http.ResponseWriter, r *http.Request) {
 		MessageID int64  `json:"message_id"`
 		Action    string `json:"action"`
 	}
-	//nolint:errcheck // field validation below
 	json.NewDecoder(r.Body).Decode(&req)
 
 	claims := ClaimsFromCtx(r.Context())
@@ -179,7 +178,6 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 		Text    string `json:"text"`
 		ReplyTo int64  `json:"reply_to"`
 	}
-	//nolint:errcheck // field validation below
 	json.NewDecoder(r.Body).Decode(&req)
 	if req.Text == "" {
 		jsonErr(w, "text required", 400)
@@ -305,7 +303,6 @@ func (a *ClientAPI) pushUnsubscribe(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Endpoint string `json:"endpoint"`
 	}
-	//nolint:errcheck // field validation below
 	json.NewDecoder(r.Body).Decode(&req)
 	if req.Endpoint == "" {
 		// Delete all push subscriptions for this user
@@ -330,7 +327,6 @@ func (a *ClientAPI) pushSubscribe(w http.ResponseWriter, r *http.Request) {
 			Auth   string `json:"auth"`
 		} `json:"keys"`
 	}
-	//nolint:errcheck // field validation below
 	json.NewDecoder(r.Body).Decode(&req)
 	if err := a.db(r).SavePushSubscription(userID, req.Endpoint, req.Keys.P256dh, req.Keys.Auth); err != nil {
 		jsonErr(w, "internal error", 500)
@@ -396,7 +392,6 @@ func (a *ClientAPI) setUserRole(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Role string `json:"role"`
 	}
-	//nolint:errcheck // field validation below
 	json.NewDecoder(r.Body).Decode(&req)
 	if req.Role != "admin" && req.Role != "member" {
 		jsonErr(w, "role must be admin or member", 400)
@@ -479,7 +474,6 @@ func (a *ClientAPI) editChannelMessage(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Text string `json:"text"`
 	}
-	//nolint:errcheck // field validation below
 	json.NewDecoder(r.Body).Decode(&req)
 	_ = s.UpdateChannelMessageText(msgID, req.Text, "")
 
@@ -660,7 +654,7 @@ func (a *ClientAPI) uploadToChannel(w http.ResponseWriter, r *http.Request) {
 		orgID = "default"
 	}
 	orgDir := filepath.Join("data/files", orgID)
-	_ = os.MkdirAll(orgDir, 0755)
+	_ = os.MkdirAll(orgDir, 0750)
 	localPath := filepath.Join(orgDir, fileID+ext)
 
 	dst, err := os.Create(localPath)

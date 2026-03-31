@@ -78,7 +78,7 @@ func (s *Store) DeleteUser(userID int64) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback() //nolint:errcheck // rollback after commit is a no-op
+	defer tx.Rollback()
 	cascade := []string{
 		"DELETE FROM channel_subscribers WHERE user_id=?",
 		"DELETE FROM channel_reads WHERE user_id=?",

@@ -67,7 +67,7 @@ func (s *Store) ActiveInvite() (string, error) {
 		"SELECT code FROM invites WHERE COALESCE(uses,0)<COALESCE(max_uses,50) AND expires_at > ? ORDER BY created_at DESC LIMIT 1",
 		time.Now().UTC().Format(time.RFC3339)).Scan(&code)
 	if err != nil {
-		return "", nil // no active invite
+		return "", nil //nolint:nilerr // sql.ErrNoRows means no active invite — not an error for callers
 	}
 	return code, nil
 }
