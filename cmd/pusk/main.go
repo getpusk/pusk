@@ -58,8 +58,8 @@ func main() {
 	if v := os.Getenv("PUSK_ADDR"); v != "" {
 		*addr = v
 	}
-	os.MkdirAll("data", 0755)
-	os.MkdirAll(*filesDir, 0755)
+	_ = os.MkdirAll("data", 0755)
+	_ = os.MkdirAll(*filesDir, 0755)
 
 	// Multi-tenant org manager
 	orgs, err := org.NewManager("data")
@@ -182,7 +182,7 @@ func main() {
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		srv.Shutdown(ctx)
+		_ = srv.Shutdown(ctx)
 	}()
 
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -206,7 +206,7 @@ func loadOrGenerateSecret(path string) string {
 		os.Exit(1)
 	}
 	secret := hex.EncodeToString(b)
-	os.WriteFile(path, []byte(secret+"\n"), 0600)
+	_ = os.WriteFile(path, []byte(secret+"\n"), 0600)
 	slog.Info("JWT secret generated", "path", path)
 	return secret
 }

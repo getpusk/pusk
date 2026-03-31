@@ -71,7 +71,7 @@ func (h *Handler) webhook(w http.ResponseWriter, r *http.Request) {
 	if !webhookAllowed(bot.Token) {
 		slog.Warn("webhook rate limited", "bot", bot.Name, "token_prefix", bot.Token[:8])
 		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]string{"status": "rate_limited"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "rate_limited"})
 		return
 	}
 
@@ -87,7 +87,7 @@ func (h *Handler) webhook(w http.ResponseWriter, r *http.Request) {
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok", "error": "read error"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok", "error": "read error"})
 		return
 	}
 
@@ -96,7 +96,7 @@ func (h *Handler) webhook(w http.ResponseWriter, r *http.Request) {
 		slog.Info("webhook deduplicated", "format", format, "bot", bot.Name)
 		metrics.WebhooksDedupedTotal.Inc()
 		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok", "deduped": "true"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok", "deduped": "true"})
 		return
 	}
 
@@ -105,7 +105,7 @@ func (h *Handler) webhook(w http.ResponseWriter, r *http.Request) {
 	if err := json.Unmarshal(bodyBytes, &payload); err != nil {
 		// Try as array (some systems send arrays)
 		w.WriteHeader(200) // Always 200 for webhook senders
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok", "error": "invalid json"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok", "error": "invalid json"})
 		return
 	}
 
@@ -126,7 +126,7 @@ func (h *Handler) webhook(w http.ResponseWriter, r *http.Request) {
 
 	if text == "" {
 		w.WriteHeader(200)
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 		return
 	}
 
@@ -142,11 +142,11 @@ func (h *Handler) webhook(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			slog.Error("webhook channel create failed", "channel", channelName, "error", err)
 			w.WriteHeader(200)
-			json.NewEncoder(w).Encode(map[string]string{"status": "ok", "error": "channel error"})
+			_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok", "error": "channel error"})
 			return
 		}
 		// Auto-subscribe admin (user_id=1) to new channel
-		s.Subscribe(ch.ID, 1)
+		_ = s.Subscribe(ch.ID, 1)
 		slog.Info("webhook auto-created channel", "channel", channelName, "bot", bot.Name)
 	}
 
@@ -170,7 +170,7 @@ func (h *Handler) webhook(w http.ResponseWriter, r *http.Request) {
 	metrics.WebhooksReceived.WithLabelValues(format).Inc()
 	slog.Info("webhook received", "format", format, "channel", channelName, "bot", bot.Name)
 	w.WriteHeader(200)
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
 // ── Format functions ──
@@ -203,13 +203,13 @@ func formatAlertmanager(p map[string]interface{}) string {
 			icon = "Resolved"
 		}
 
-		sb.WriteString(fmt.Sprintf("**%s** `%s`", icon, alertname))
+		fmt.Fprintf(&sb, "**%s** `%s`", icon, alertname)
 		if severity != "" {
-			sb.WriteString(fmt.Sprintf(" [%s]", severity))
+			fmt.Fprintf(&sb, " [%s]", severity)
 		}
 		sb.WriteString("\n")
 		if instance != "" {
-			sb.WriteString(fmt.Sprintf("Instance: *%s*\n", instance))
+			fmt.Fprintf(&sb, "Instance: *%s*\n", instance)
 		}
 		if summary != "" {
 			sb.WriteString(summary + "\n")

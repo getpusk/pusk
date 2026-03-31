@@ -57,6 +57,7 @@ func (a *ClientAPI) ackChannelMessage(w http.ResponseWriter, r *http.Request) {
 		MessageID int64  `json:"message_id"`
 		Action    string `json:"action"`
 	}
+	//nolint:errcheck // field validation below
 	json.NewDecoder(r.Body).Decode(&req)
 
 	claims := ClaimsFromCtx(r.Context())
@@ -94,7 +95,7 @@ func (a *ClientAPI) ackChannelMessage(w http.ResponseWriter, r *http.Request) {
 		status = fmt.Sprintf("\n\n**Resolved**: @%s в %s", username, now)
 	}
 	newText := msg.Text + status
-	s.UpdateChannelMessageText(msg.ID, newText, "")
+	_ = s.UpdateChannelMessageText(msg.ID, newText, "")
 
 	// Alertmanager silence on ACK/mute
 	amURL := os.Getenv("PUSK_ALERTMANAGER_URL")
@@ -178,6 +179,7 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 		Text    string `json:"text"`
 		ReplyTo int64  `json:"reply_to"`
 	}
+	//nolint:errcheck // field validation below
 	json.NewDecoder(r.Body).Decode(&req)
 	if req.Text == "" {
 		jsonErr(w, "text required", 400)
@@ -303,12 +305,13 @@ func (a *ClientAPI) pushUnsubscribe(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Endpoint string `json:"endpoint"`
 	}
+	//nolint:errcheck // field validation below
 	json.NewDecoder(r.Body).Decode(&req)
 	if req.Endpoint == "" {
 		// Delete all push subscriptions for this user
-		a.db(r).DeleteAllPushSubscriptions(userID)
+		_ = a.db(r).DeleteAllPushSubscriptions(userID)
 	} else {
-		a.db(r).DeletePushSubscription(req.Endpoint)
+		_ = a.db(r).DeletePushSubscription(req.Endpoint)
 	}
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
@@ -327,6 +330,7 @@ func (a *ClientAPI) pushSubscribe(w http.ResponseWriter, r *http.Request) {
 			Auth   string `json:"auth"`
 		} `json:"keys"`
 	}
+	//nolint:errcheck // field validation below
 	json.NewDecoder(r.Body).Decode(&req)
 	if err := a.db(r).SavePushSubscription(userID, req.Endpoint, req.Keys.P256dh, req.Keys.Auth); err != nil {
 		jsonErr(w, "internal error", 500)
@@ -392,6 +396,7 @@ func (a *ClientAPI) setUserRole(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Role string `json:"role"`
 	}
+	//nolint:errcheck // field validation below
 	json.NewDecoder(r.Body).Decode(&req)
 	if req.Role != "admin" && req.Role != "member" {
 		jsonErr(w, "role must be admin or member", 400)
@@ -421,7 +426,7 @@ func (a *ClientAPI) setUserRole(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	s.SetUserRole(targetID, req.Role)
+	_ = s.SetUserRole(targetID, req.Role)
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
@@ -446,7 +451,7 @@ func (a *ClientAPI) deleteUser(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "user not found", 404)
 		return
 	}
-	s.DeleteUser(targetID)
+	_ = s.DeleteUser(targetID)
 	claims := ClaimsFromCtx(r.Context())
 	if claims != nil {
 		RevokeUser(claims.OrgID, targetID)
@@ -474,8 +479,9 @@ func (a *ClientAPI) editChannelMessage(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Text string `json:"text"`
 	}
+	//nolint:errcheck // field validation below
 	json.NewDecoder(r.Body).Decode(&req)
-	s.UpdateChannelMessageText(msgID, req.Text, "")
+	_ = s.UpdateChannelMessageText(msgID, req.Text, "")
 
 	updated, _ := s.GetChannelMessage(msgID)
 	if updated != nil {
@@ -516,7 +522,7 @@ func (a *ClientAPI) deleteChannelMessage(w http.ResponseWriter, r *http.Request)
 	payload, _ := json.Marshal(map[string]int64{"message_id": msgID})
 	a.broadcastChannel(s, msg.ChannelID, orgID, "channel_message_delete", payload)
 
-	s.DeleteChannelMessage(msgID)
+	_ = s.DeleteChannelMessage(msgID)
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
@@ -564,7 +570,7 @@ func (a *ClientAPI) pinMessage(w http.ResponseWriter, r *http.Request) {
 		MessageID int64 `json:"message_id"`
 	}
 	json.NewDecoder(r.Body).Decode(&req)
-	s.PinMessage(channelID, req.MessageID)
+	_ = s.PinMessage(channelID, req.MessageID)
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
@@ -621,7 +627,7 @@ func (a *ClientAPI) uploadToChannel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	r.ParseMultipartForm(10 << 20) // 10MB max
+	_ = r.ParseMultipartForm(10 << 20) // 10MB max
 
 	file, header, err := r.FormFile("file")
 	if err != nil {
@@ -654,7 +660,7 @@ func (a *ClientAPI) uploadToChannel(w http.ResponseWriter, r *http.Request) {
 		orgID = "default"
 	}
 	orgDir := filepath.Join("data/files", orgID)
-	os.MkdirAll(orgDir, 0755)
+	_ = os.MkdirAll(orgDir, 0755)
 	localPath := filepath.Join(orgDir, fileID+ext)
 
 	dst, err := os.Create(localPath)
@@ -663,7 +669,7 @@ func (a *ClientAPI) uploadToChannel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	size, _ := io.Copy(dst, file)
-	dst.Close()
+	_ = dst.Close()
 
 	// Check storage quota (default 1GB, PUSK_FILE_QUOTA_MB env)
 	quotaMB := int64(1024)
@@ -673,13 +679,13 @@ func (a *ClientAPI) uploadToChannel(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if s.TotalFileSize()+size > quotaMB*1024*1024 {
-		os.Remove(localPath)
+		_ = os.Remove(localPath)
 		jsonErr(w, "storage quota exceeded", 400)
 		return
 	}
 
 	// Save file record
-	s.SaveFile(fileID, 0, header.Filename, ct, size, localPath)
+	_ = s.SaveFile(fileID, 0, header.Filename, ct, size, localPath)
 
 	// Get username and display_name
 	claims := ClaimsFromCtx(r.Context())

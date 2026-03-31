@@ -66,7 +66,7 @@ func (a *ClientAPI) AuthRequired(next http.HandlerFunc) http.HandlerFunc {
 			revokedAt := t.(time.Time)
 			if time.Since(revokedAt) > 7*24*time.Hour {
 				revokedUsers.Delete(rKey)
-			} else if claims.IssuedAt != nil && claims.IssuedAt.Time.Before(revokedAt) {
+			} else if claims.IssuedAt != nil && claims.IssuedAt.Before(revokedAt) {
 				jsonErr(w, "token revoked", 401)
 				return
 			}
