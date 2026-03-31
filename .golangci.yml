@@ -7,6 +7,8 @@ linters:
     - staticcheck
     - ineffassign
     - unused
+    - nilerr
+    - nolintlint
 
   settings:
     errcheck:
@@ -19,6 +21,9 @@ linters:
         # HTTP handler JSON — response already started, error not actionable
         - (*encoding/json.Encoder).Encode
         - (*encoding/json.Decoder).Decode
+    nolintlint:
+      require-explanation: true
+      require-specific: true
     staticcheck:
       checks:
         - "all"

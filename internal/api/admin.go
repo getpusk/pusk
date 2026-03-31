@@ -310,7 +310,6 @@ func (a *AdminAPI) resetPassword(w http.ResponseWriter, r *http.Request) {
 		Username string `json:"username"`
 		NewPin   string `json:"new_pin"`
 	}
-	//nolint:errcheck // decoded below with field validation
 	json.NewDecoder(r.Body).Decode(&req)
 	if req.Org == "" || req.Username == "" || req.NewPin == "" {
 		http.Error(w, `{"error":"org, username and new_pin required"}`, 400)
@@ -352,7 +351,6 @@ func (a *AdminAPI) adminSetRole(w http.ResponseWriter, r *http.Request) {
 		UserID int64  `json:"user_id"`
 		Role   string `json:"role"`
 	}
-	//nolint:errcheck // decoded below with field validation
 	json.NewDecoder(r.Body).Decode(&req)
 	if req.Org == "" || req.UserID == 0 || (req.Role != "admin" && req.Role != "member") {
 		http.Error(w, `{"error":"org, user_id and role (admin/member) required"}`, 400)
