@@ -58,6 +58,11 @@ jobs:
           fi
           echo "No private IPs or internal domains found"
 
+      - name: gosec — static security analysis
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          gosec -severity medium -quiet -exclude=G104 ./... || echo "::warning::gosec found issues (non-blocking)"
+
       - name: govulncheck — Go vulnerability database
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
