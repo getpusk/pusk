@@ -39,7 +39,7 @@ type Handler struct {
 }
 
 func NewHandler(orgs *org.Manager, defaultStore *store.Store, hub *ws.Hub, push *notify.PushService, jwtSvc *auth.JWTService, filesDir string) *Handler {
-	_ = os.MkdirAll(filesDir, 0755)
+	_ = os.MkdirAll(filesDir, 0750)
 
 	// Webhook debounce: PUSK_WEBHOOK_DEBOUNCE env (default 10s, "0" to disable)
 	var deb *Debouncer
@@ -237,7 +237,7 @@ func unwrapMarkup(raw json.RawMessage) string {
 // isHex reports whether s contains only hexadecimal characters.
 func isHex(s string) bool {
 	for _, c := range s {
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) { //nolint:staticcheck // QF1001: positive form is more readable for char range checks
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
 			return false
 		}
 	}
@@ -489,7 +489,7 @@ func (h *Handler) sendFile(fileType string) http.HandlerFunc {
 			jsonResp(w, 400, APIResponse{OK: false, Error: "missing file field: " + fileType})
 			return
 		}
-		defer file.Close() //nolint:errcheck // multipart file cleanup
+		defer file.Close()
 
 		fileID := randID()
 		ext := filepath.Ext(header.Filename)
@@ -502,7 +502,7 @@ func (h *Handler) sendFile(fileType string) http.HandlerFunc {
 			}
 		}
 		orgDir := filepath.Join(h.filesDir, orgID)
-		_ = os.MkdirAll(orgDir, 0755)
+		_ = os.MkdirAll(orgDir, 0750)
 		localPath := filepath.Join(orgDir, fileID+ext)
 
 		dst, err := os.Create(localPath)

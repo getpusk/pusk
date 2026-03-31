@@ -58,8 +58,8 @@ func main() {
 	if v := os.Getenv("PUSK_ADDR"); v != "" {
 		*addr = v
 	}
-	_ = os.MkdirAll("data", 0755)
-	_ = os.MkdirAll(*filesDir, 0755)
+	_ = os.MkdirAll("data", 0750)
+	_ = os.MkdirAll(*filesDir, 0750)
 
 	// Multi-tenant org manager
 	orgs, err := org.NewManager("data")
@@ -171,7 +171,11 @@ func main() {
 		"admin", "POST /admin/bots",
 	)
 
-	srv := &http.Server{Addr: *addr, Handler: securityHeaders(api.RequestLogger(bot.TelegramCompat(mux)))}
+	srv := &http.Server{
+		Addr:              *addr,
+		Handler:           securityHeaders(api.RequestLogger(bot.TelegramCompat(mux))),
+		ReadHeaderTimeout: 10 * time.Second,
+	}
 
 	// Graceful shutdown on SIGTERM/SIGINT
 	go func() {

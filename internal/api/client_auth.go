@@ -298,7 +298,6 @@ func (a *ClientAPI) revokeInvite(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Code string `json:"code"`
 	}
-	//nolint:errcheck // field validation below
 	json.NewDecoder(r.Body).Decode(&req)
 	if req.Code == "" {
 		jsonErr(w, "code required", 400)
