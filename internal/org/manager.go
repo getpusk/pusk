@@ -37,7 +37,7 @@ type Manager struct {
 
 func NewManager(dataDir string) (*Manager, error) {
 	dir := filepath.Join(dataDir, "orgs")
-	_ = os.MkdirAll(dir, 0755)
+	_ = os.MkdirAll(dir, 0750)
 
 	// Global token registry
 	tokDB, err := sql.Open("sqlite", filepath.Join(dataDir, "tokens.db")+"?_journal_mode=WAL")
@@ -85,7 +85,7 @@ func (m *Manager) OrgByToken(token string) (string, error) {
 	var slug string
 	err := m.tokDB.QueryRow("SELECT org FROM tokens WHERE token=?", token).Scan(&slug)
 	if err != nil {
-		return "default", nil // fallback to default for backwards compat
+		return "default", nil //nolint:nilerr // fallback to default org for backwards compat
 	}
 	return slug, nil
 }
@@ -134,7 +134,7 @@ func (m *Manager) Get(slug string) (*store.Store, error) {
 	}
 
 	orgDir := filepath.Join(m.dir, filepath.Base(slug))
-	_ = os.MkdirAll(orgDir, 0755)
+	_ = os.MkdirAll(orgDir, 0750)
 	dbPath := filepath.Join(orgDir, "pusk.db")
 
 	s, err := store.New(dbPath)
@@ -154,7 +154,7 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 		return fmt.Errorf("slug must be 2-32 characters")
 	}
 	for _, c := range slug {
-		if !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-') { //nolint:staticcheck // QF1001: positive form is more readable for char range checks
+		if !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-') {
 			return fmt.Errorf("slug must contain only lowercase letters, digits and hyphens")
 		}
 	}
@@ -179,7 +179,7 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 
 	// Create org directory and database
 	orgDir := filepath.Join(m.dir, filepath.Base(slug))
-	_ = os.MkdirAll(orgDir, 0755)
+	_ = os.MkdirAll(orgDir, 0750)
 	dbPath := filepath.Join(orgDir, "pusk.db")
 
 	s, err := store.New(dbPath)
