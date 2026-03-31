@@ -109,7 +109,7 @@ func (a *AdminAPI) registerBot(w http.ResponseWriter, r *http.Request) {
 	}
 	slog.Info("bot registered", "bot", b.Name, "token_prefix", b.Token[:8])
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(b)
+	_ = json.NewEncoder(w).Encode(b)
 }
 
 func (a *AdminAPI) createChannel(w http.ResponseWriter, r *http.Request) {
@@ -128,19 +128,19 @@ func (a *AdminAPI) createChannel(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(400)
-		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": err.Error()})
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": err.Error()})
 		return
 	}
 	// BUG-7: validate channel name
 	if len(req.Name) < 1 || len(req.Name) > 64 {
 		w.WriteHeader(400)
-		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": "channel name must be 1-64 characters"})
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": "channel name must be 1-64 characters"})
 		return
 	}
 	bots, _ := s.ListBots()
 	if len(bots) == 0 {
 		w.WriteHeader(400)
-		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": "create a bot first"})
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": "create a bot first"})
 		return
 	}
 	ch, err := s.CreateChannel(bots[0].ID, req.Name, req.Description)
@@ -302,7 +302,7 @@ func (a *AdminAPI) registerOrg(w http.ResponseWriter, r *http.Request) {
 func (a *AdminAPI) resetPassword(w http.ResponseWriter, r *http.Request) {
 	authHeader := r.Header.Get("Authorization")
 	if a.adminToken == "" || subtle.ConstantTimeCompare([]byte(strings.TrimPrefix(authHeader, "Bearer ")), []byte(a.adminToken)) != 1 {
-		http.Error(w, `{"error":"admin token required"}`, 403)
+		http.Error(w, `{"error":"admin token required"}`, http.StatusForbidden)
 		return
 	}
 	var req struct {
@@ -310,6 +310,7 @@ func (a *AdminAPI) resetPassword(w http.ResponseWriter, r *http.Request) {
 		Username string `json:"username"`
 		NewPin   string `json:"new_pin"`
 	}
+	//nolint:errcheck // decoded below with field validation
 	json.NewDecoder(r.Body).Decode(&req)
 	if req.Org == "" || req.Username == "" || req.NewPin == "" {
 		http.Error(w, `{"error":"org, username and new_pin required"}`, 400)
@@ -343,7 +344,7 @@ func (a *AdminAPI) resetPassword(w http.ResponseWriter, r *http.Request) {
 func (a *AdminAPI) adminSetRole(w http.ResponseWriter, r *http.Request) {
 	authHeader := r.Header.Get("Authorization")
 	if a.adminToken == "" || subtle.ConstantTimeCompare([]byte(strings.TrimPrefix(authHeader, "Bearer ")), []byte(a.adminToken)) != 1 {
-		http.Error(w, `{"error":"admin token required"}`, 403)
+		http.Error(w, `{"error":"admin token required"}`, http.StatusForbidden)
 		return
 	}
 	var req struct {
@@ -351,6 +352,7 @@ func (a *AdminAPI) adminSetRole(w http.ResponseWriter, r *http.Request) {
 		UserID int64  `json:"user_id"`
 		Role   string `json:"role"`
 	}
+	//nolint:errcheck // decoded below with field validation
 	json.NewDecoder(r.Body).Decode(&req)
 	if req.Org == "" || req.UserID == 0 || (req.Role != "admin" && req.Role != "member") {
 		http.Error(w, `{"error":"org, user_id and role (admin/member) required"}`, 400)
@@ -361,7 +363,7 @@ func (a *AdminAPI) adminSetRole(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "org not found", 404)
 		return
 	}
-	s.SetUserRole(req.UserID, req.Role)
+	_ = s.SetUserRole(req.UserID, req.Role)
 	slog.Info("admin role set", "org", req.Org, "user_id", req.UserID, "role", req.Role)
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }

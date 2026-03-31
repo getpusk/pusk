@@ -269,14 +269,14 @@ func (a *ClientAPI) acceptInvite(w http.ResponseWriter, r *http.Request) {
 	// Auto-subscribe to all channels in org
 	channels, _ := s.ListChannels()
 	for _, ch := range channels {
-		s.Subscribe(ch.ID, user.ID)
+		_ = s.Subscribe(ch.ID, user.ID)
 	}
 
 	// Post "X joined" in #general
 	for _, ch := range channels {
 		if ch.Name == "general" {
 			joinText := "→ " + req.Username + " joined the team"
-			s.SaveChannelMessage(ch.ID, joinText, "", "", "")
+			_, _ = s.SaveChannelMessage(ch.ID, joinText, "", "", "")
 			break
 		}
 	}
@@ -298,12 +298,13 @@ func (a *ClientAPI) revokeInvite(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Code string `json:"code"`
 	}
+	//nolint:errcheck // field validation below
 	json.NewDecoder(r.Body).Decode(&req)
 	if req.Code == "" {
 		jsonErr(w, "code required", 400)
 		return
 	}
-	s.RevokeInvite(req.Code)
+	_ = s.RevokeInvite(req.Code)
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
@@ -333,7 +334,9 @@ func (a *ClientAPI) orgStats(w http.ResponseWriter, r *http.Request) {
 	users, _ := s.ListUsers()
 	channels, _ := s.ListChannels()
 	var msgCount, fileSize int64
+	//nolint:errcheck // returns 0 on error
 	s.DB().QueryRow("SELECT COUNT(*) FROM channel_messages").Scan(&msgCount)
+	//nolint:errcheck // returns 0 on error
 	s.DB().QueryRow("SELECT COALESCE(SUM(size),0) FROM files").Scan(&fileSize)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"users":     len(users),

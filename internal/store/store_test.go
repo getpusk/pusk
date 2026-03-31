@@ -17,7 +17,7 @@ func newTestStore(t *testing.T) *Store {
 	if err != nil {
 		t.Fatalf("New(:memory:): %v", err)
 	}
-	t.Cleanup(func() { s.Close() })
+	t.Cleanup(func() { _ = s.Close() })
 	return s
 }
 
@@ -81,7 +81,7 @@ func TestCreateUser_EmptyFields(t *testing.T) {
 
 func TestAuthUser_Success(t *testing.T) {
 	s := newTestStore(t)
-	s.CreateUser("carol", "secret", "Carol")
+	_, _ = s.CreateUser("carol", "secret", "Carol")
 	u, err := s.AuthUser("carol", "secret")
 	if err != nil {
 		t.Fatalf("AuthUser: %v", err)
@@ -93,7 +93,7 @@ func TestAuthUser_Success(t *testing.T) {
 
 func TestAuthUser_WrongPin(t *testing.T) {
 	s := newTestStore(t)
-	s.CreateUser("dave", "correct", "")
+	_, _ = s.CreateUser("dave", "correct", "")
 	_, err := s.AuthUser("dave", "wrong")
 	if err == nil {
 		t.Error("expected error for wrong pin")
@@ -116,7 +116,7 @@ func TestSetUserRole_IsAdmin(t *testing.T) {
 	if s.IsAdmin(u.ID) {
 		t.Error("new user should not be admin")
 	}
-	s.SetUserRole(u.ID, "admin")
+	_ = s.SetUserRole(u.ID, "admin")
 	if !s.IsAdmin(u.ID) {
 		t.Error("user should be admin after SetUserRole")
 	}
@@ -146,7 +146,7 @@ func TestDeleteUser(t *testing.T) {
 
 func TestResetPassword(t *testing.T) {
 	s := newTestStore(t)
-	s.CreateUser("resetme", "old", "")
+	_, _ = s.CreateUser("resetme", "old", "")
 	if err := s.ResetPassword("resetme", "new"); err != nil {
 		t.Fatalf("ResetPassword: %v", err)
 	}
@@ -168,8 +168,8 @@ func TestResetPassword_NotFound(t *testing.T) {
 
 func TestListUsers(t *testing.T) {
 	s := newTestStore(t)
-	s.CreateUser("u1", "p", "")
-	s.CreateUser("u2", "p", "")
+	_, _ = s.CreateUser("u1", "p", "")
+	_, _ = s.CreateUser("u2", "p", "")
 	users, err := s.ListUsers()
 	if err != nil {
 		t.Fatal(err)
@@ -270,7 +270,7 @@ func TestUpdateMessageText(t *testing.T) {
 	chat, _ := s.GetOrCreateChat(u.ID, bot.ID)
 	msg, _ := s.SaveMessage(chat.ID, "bot", "v1", "", "", "")
 
-	s.UpdateMessageText(msg.ID, "v2", `{"keyboard":[]}`)
+	_ = s.UpdateMessageText(msg.ID, "v2", `{"keyboard":[]}`)
 	got, _ := s.GetMessage(msg.ID)
 	if got.Text != "v2" || got.ReplyMarkup != `{"keyboard":[]}` {
 		t.Errorf("update mismatch: %+v", got)
@@ -284,7 +284,7 @@ func TestDeleteMessage(t *testing.T) {
 	chat, _ := s.GetOrCreateChat(u.ID, bot.ID)
 	msg, _ := s.SaveMessage(chat.ID, "bot", "bye", "", "", "")
 
-	s.DeleteMessage(msg.ID)
+	_ = s.DeleteMessage(msg.ID)
 	_, err := s.GetMessage(msg.ID)
 	if err == nil {
 		t.Error("expected error after delete")
@@ -331,7 +331,7 @@ func TestChatMessages_Limit(t *testing.T) {
 	chat, _ := s.GetOrCreateChat(u.ID, bot.ID)
 
 	for i := 0; i < 5; i++ {
-		s.SaveMessage(chat.ID, "bot", "msg", "", "", "")
+		_, _ = s.SaveMessage(chat.ID, "bot", "msg", "", "", "")
 	}
 	msgs, _ := s.ChatMessages(chat.ID, 2)
 	if len(msgs) != 2 {
@@ -377,7 +377,7 @@ func TestCreateChannel_Subscribe_Unsubscribe(t *testing.T) {
 	}
 
 	// Unsubscribe
-	s.Unsubscribe(ch.ID, u.ID)
+	_ = s.Unsubscribe(ch.ID, u.ID)
 	if s.IsSubscribed(ch.ID, u.ID) {
 		t.Error("should not be subscribed after unsubscribe")
 	}
@@ -392,7 +392,7 @@ func TestChannelSubscribers_Empty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if subs != nil && len(subs) != 0 {
+	if len(subs) != 0 {
 		t.Errorf("expected empty, got %v", subs)
 	}
 }
@@ -406,9 +406,9 @@ func TestChannelSubscribers_Multiple(t *testing.T) {
 	u2, _ := s.CreateUser("s2", "p", "")
 	u3, _ := s.CreateUser("s3", "p", "")
 
-	s.Subscribe(ch.ID, u1.ID)
-	s.Subscribe(ch.ID, u2.ID)
-	s.Subscribe(ch.ID, u3.ID)
+	_ = s.Subscribe(ch.ID, u1.ID)
+	_ = s.Subscribe(ch.ID, u2.ID)
+	_ = s.Subscribe(ch.ID, u3.ID)
 
 	subs, _ := s.ChannelSubscribers(ch.ID)
 	if len(subs) != 3 {
@@ -419,7 +419,7 @@ func TestChannelSubscribers_Multiple(t *testing.T) {
 func TestChannelByName(t *testing.T) {
 	s := newTestStore(t)
 	bot, _ := s.CreateBot("nb", "NBot")
-	s.CreateChannel(bot.ID, "alerts", "Alert channel")
+	_, _ = s.CreateChannel(bot.ID, "alerts", "Alert channel")
 
 	ch, err := s.ChannelByName(bot.ID, "alerts")
 	if err != nil {
@@ -479,10 +479,10 @@ func TestUnreadCount_MarkRead(t *testing.T) {
 	bot, _ := s.CreateBot("ub", "UBot")
 	ch, _ := s.CreateChannel(bot.ID, "unread", "")
 	u, _ := s.CreateUser("reader", "p", "")
-	s.Subscribe(ch.ID, u.ID)
+	_ = s.Subscribe(ch.ID, u.ID)
 
 	m1, _ := s.SaveChannelMessage(ch.ID, "msg1", "", "", "")
-	s.SaveChannelMessage(ch.ID, "msg2", "", "", "")
+	_, _ = s.SaveChannelMessage(ch.ID, "msg2", "", "", "")
 
 	if n := s.UnreadCount(ch.ID, u.ID); n != 2 {
 		t.Errorf("expected 2 unread, got %d", n)
@@ -519,7 +519,7 @@ func TestPinMessage(t *testing.T) {
 	if pid := s.GetPinnedMessage(ch.ID); pid != 0 {
 		t.Errorf("expected no pin, got %d", pid)
 	}
-	s.PinMessage(ch.ID, 99)
+	_ = s.PinMessage(ch.ID, 99)
 	if pid := s.GetPinnedMessage(ch.ID); pid != 99 {
 		t.Errorf("expected pin=99, got %d", pid)
 	}
@@ -552,8 +552,8 @@ func TestPushSubscriptions_UpsertSameEndpoint(t *testing.T) {
 	s := newTestStore(t)
 	u, _ := s.CreateUser("upuser", "p", "")
 
-	s.SavePushSubscription(u.ID, "https://push.example.com/dup", "key1", "auth1")
-	s.SavePushSubscription(u.ID, "https://push.example.com/dup", "key2", "auth2")
+	_ = s.SavePushSubscription(u.ID, "https://push.example.com/dup", "key1", "auth1")
+	_ = s.SavePushSubscription(u.ID, "https://push.example.com/dup", "key2", "auth2")
 
 	subs, _ := s.UserPushSubscriptions(u.ID)
 	if len(subs) != 1 {
@@ -569,7 +569,7 @@ func TestPushSubscriptions_MaxFivePerUser(t *testing.T) {
 	u, _ := s.CreateUser("maxuser", "p", "")
 
 	for i := 0; i < 7; i++ {
-		s.SavePushSubscription(u.ID, "https://push.example.com/"+string(rune('a'+i)), "k", "a")
+		_ = s.SavePushSubscription(u.ID, "https://push.example.com/"+string(rune('a'+i)), "k", "a")
 	}
 	subs, _ := s.UserPushSubscriptions(u.ID)
 	if len(subs) > 5 {
@@ -580,8 +580,8 @@ func TestPushSubscriptions_MaxFivePerUser(t *testing.T) {
 func TestDeletePushSubscription(t *testing.T) {
 	s := newTestStore(t)
 	u, _ := s.CreateUser("delps", "p", "")
-	s.SavePushSubscription(u.ID, "https://push.example.com/del", "k", "a")
-	s.DeletePushSubscription("https://push.example.com/del")
+	_ = s.SavePushSubscription(u.ID, "https://push.example.com/del", "k", "a")
+	_ = s.DeletePushSubscription("https://push.example.com/del")
 	subs, _ := s.UserPushSubscriptions(u.ID)
 	if len(subs) != 0 {
 		t.Error("expected 0 after delete")
@@ -648,8 +648,8 @@ func TestSaveFile_GetFile(t *testing.T) {
 func TestTotalFileSize(t *testing.T) {
 	s := newTestStore(t)
 	bot, _ := s.CreateBot("tsb", "TSBot")
-	s.SaveFile("a1", bot.ID, "a", "x", 100, "/a")
-	s.SaveFile("a2", bot.ID, "b", "x", 200, "/b")
+	_ = s.SaveFile("a1", bot.ID, "a", "x", 100, "/a")
+	_ = s.SaveFile("a2", bot.ID, "b", "x", 200, "/b")
 	if total := s.TotalFileSize(); total != 300 {
 		t.Errorf("expected 300, got %d", total)
 	}
@@ -682,8 +682,8 @@ func TestDeleteChannel_CleansUp(t *testing.T) {
 	bot, _ := s.CreateBot("dcb", "DCBot")
 	u, _ := s.CreateUser("dcuser", "p", "")
 	ch, _ := s.CreateChannel(bot.ID, "todelete", "")
-	s.Subscribe(ch.ID, u.ID)
-	s.SaveChannelMessage(ch.ID, "msg", "", "", "")
+	_ = s.Subscribe(ch.ID, u.ID)
+	_, _ = s.SaveChannelMessage(ch.ID, "msg", "", "", "")
 
 	if err := s.DeleteChannel(ch.ID); err != nil {
 		t.Fatal(err)
@@ -707,8 +707,8 @@ func TestUserSubscriptions(t *testing.T) {
 	ch1, _ := s.CreateChannel(bot.ID, "ch1", "")
 	ch2, _ := s.CreateChannel(bot.ID, "ch2", "")
 
-	s.Subscribe(ch1.ID, u.ID)
-	s.Subscribe(ch2.ID, u.ID)
+	_ = s.Subscribe(ch1.ID, u.ID)
+	_ = s.Subscribe(ch2.ID, u.ID)
 
 	chs, err := s.UserSubscriptions(u.ID)
 	if err != nil {
@@ -763,7 +763,7 @@ func TestConcurrentCreateUser(t *testing.T) {
 func TestSetWebhook(t *testing.T) {
 	s := newTestStore(t)
 	bot, _ := s.CreateBot("whb", "WHBot")
-	s.SetWebhook(bot.ID, "https://example.com/hook")
+	_ = s.SetWebhook(bot.ID, "https://example.com/hook")
 	got, _ := s.BotByID(bot.ID)
 	if got.WebhookURL != "https://example.com/hook" {
 		t.Errorf("webhook = %q", got.WebhookURL)
@@ -825,7 +825,7 @@ func TestGetUserByID_NotFound(t *testing.T) {
 func TestGetUserByID_AfterRoleChange(t *testing.T) {
 	s := newTestStore(t)
 	user, _ := s.CreateUser("rolecheck", "pin123", "Role User")
-	s.SetUserRole(user.ID, "admin")
+	_ = s.SetUserRole(user.ID, "admin")
 	got, err := s.GetUserByID(user.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -843,8 +843,8 @@ func TestGetUserByID_AfterRoleChange(t *testing.T) {
 func TestDeleteAllPushSubscriptions(t *testing.T) {
 	s := newTestStore(t)
 	user, _ := s.CreateUser("pushall", "pin123", "Push User")
-	s.SavePushSubscription(user.ID, "https://endpoint1.example.com", "key1", "auth1")
-	s.SavePushSubscription(user.ID, "https://endpoint2.example.com", "key2", "auth2")
+	_ = s.SavePushSubscription(user.ID, "https://endpoint1.example.com", "key1", "auth1")
+	_ = s.SavePushSubscription(user.ID, "https://endpoint2.example.com", "key2", "auth2")
 
 	subs, _ := s.UserPushSubscriptions(user.ID)
 	if len(subs) != 2 {
@@ -876,12 +876,12 @@ func TestDeleteAllPushSubscriptions_IsolateUsers(t *testing.T) {
 	u1, _ := s.CreateUser("pu1", "p", "")
 	u2, _ := s.CreateUser("pu2", "p", "")
 
-	s.SavePushSubscription(u1.ID, "https://ep-u1-a.example.com", "k", "a")
-	s.SavePushSubscription(u1.ID, "https://ep-u1-b.example.com", "k", "a")
-	s.SavePushSubscription(u2.ID, "https://ep-u2-a.example.com", "k", "a")
+	_ = s.SavePushSubscription(u1.ID, "https://ep-u1-a.example.com", "k", "a")
+	_ = s.SavePushSubscription(u1.ID, "https://ep-u1-b.example.com", "k", "a")
+	_ = s.SavePushSubscription(u2.ID, "https://ep-u2-a.example.com", "k", "a")
 
 	// Delete all for u1 only
-	s.DeleteAllPushSubscriptions(u1.ID)
+	_ = s.DeleteAllPushSubscriptions(u1.ID)
 
 	subs1, _ := s.UserPushSubscriptions(u1.ID)
 	subs2, _ := s.UserPushSubscriptions(u2.ID)
@@ -902,7 +902,7 @@ func TestListChannelsForUser(t *testing.T) {
 	ch1, _ := s.CreateChannel(bot.ID, "alpha", "Alpha channel")
 	_, _ = s.CreateChannel(bot.ID, "beta", "Beta channel")
 
-	s.Subscribe(ch1.ID, u.ID)
+	_ = s.Subscribe(ch1.ID, u.ID)
 	// ch2 not subscribed
 
 	chs, err := s.ListChannelsForUser(u.ID)
@@ -940,8 +940,8 @@ func TestChannelReadersJoin(t *testing.T) {
 	u2, _ := s.CreateUser("reader2", "p", "")
 	ch, _ := s.CreateChannel(bot.ID, "readjoin", "")
 
-	s.Subscribe(ch.ID, u1.ID)
-	s.Subscribe(ch.ID, u2.ID)
+	_ = s.Subscribe(ch.ID, u1.ID)
+	_ = s.Subscribe(ch.ID, u2.ID)
 
 	msg, _ := s.SaveChannelMessage(ch.ID, "hello", "", "", "")
 	s.MarkChannelRead(ch.ID, u1.ID, msg.ID)
@@ -986,12 +986,12 @@ func TestDeleteChannelMessage_ClearsPin(t *testing.T) {
 	ch, _ := s.CreateChannel(bot.ID, "delpin", "")
 	msg, _ := s.SaveChannelMessage(ch.ID, "pinned msg", "", "", "")
 
-	s.PinMessage(ch.ID, msg.ID)
+	_ = s.PinMessage(ch.ID, msg.ID)
 	if pid := s.GetPinnedMessage(ch.ID); pid != msg.ID {
 		t.Fatalf("pin not set: got %d", pid)
 	}
 
-	s.DeleteChannelMessage(msg.ID)
+	_ = s.DeleteChannelMessage(msg.ID)
 	if pid := s.GetPinnedMessage(ch.ID); pid != 0 {
 		t.Errorf("pin should be cleared after message delete, got %d", pid)
 	}

@@ -21,7 +21,7 @@ func (s *Store) SavePushSubscription(userID int64, endpoint, p256dh, auth string
 		return err
 	}
 	// Trim to max 5 per user
-	s.db.Exec(`DELETE FROM push_subscriptions WHERE user_id=? AND id NOT IN
+	_, _ = s.db.Exec(`DELETE FROM push_subscriptions WHERE user_id=? AND id NOT IN
 		(SELECT id FROM push_subscriptions WHERE user_id=? ORDER BY id DESC LIMIT 5)`, userID, userID)
 	return nil
 }

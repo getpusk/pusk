@@ -68,6 +68,7 @@ func (s *Store) SetUserRole(userID int64, role string) error {
 
 func (s *Store) IsAdmin(userID int64) bool {
 	var role string
+	//nolint:errcheck // returns false on error — non-admin is safe default
 	s.db.QueryRow("SELECT COALESCE(role,'member') FROM users WHERE id=?", userID).Scan(&role)
 	return role == "admin"
 }
@@ -77,14 +78,19 @@ func (s *Store) DeleteUser(userID int64) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
-	tx.Exec("DELETE FROM channel_subscribers WHERE user_id=?", userID)
-	tx.Exec("DELETE FROM channel_reads WHERE user_id=?", userID)
-	tx.Exec("DELETE FROM push_subscriptions WHERE user_id=?", userID)
-	tx.Exec("DELETE FROM messages WHERE chat_id IN (SELECT id FROM chats WHERE user_id=?)", userID)
-	tx.Exec("DELETE FROM chats WHERE user_id=?", userID)
-	if _, err := tx.Exec("DELETE FROM users WHERE id=?", userID); err != nil {
-		return err
+	defer tx.Rollback() //nolint:errcheck // rollback after commit is a no-op
+	cascade := []string{
+		"DELETE FROM channel_subscribers WHERE user_id=?",
+		"DELETE FROM channel_reads WHERE user_id=?",
+		"DELETE FROM push_subscriptions WHERE user_id=?",
+		"DELETE FROM messages WHERE chat_id IN (SELECT id FROM chats WHERE user_id=?)",
+		"DELETE FROM chats WHERE user_id=?",
+		"DELETE FROM users WHERE id=?",
+	}
+	for _, stmt := range cascade {
+		if _, err := tx.Exec(stmt, userID); err != nil {
+			return fmt.Errorf("delete user %d: %w", userID, err)
+		}
 	}
 	return tx.Commit()
 }
@@ -92,6 +98,7 @@ func (s *Store) DeleteUser(userID int64) error {
 // UserExists returns true if a user with the given ID exists.
 func (s *Store) UserExists(userID int64) bool {
 	var count int
+	//nolint:errcheck // returns false on error — safe default
 	s.db.QueryRow("SELECT COUNT(*) FROM users WHERE id=?", userID).Scan(&count)
 	return count > 0
 }
