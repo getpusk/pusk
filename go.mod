@@ -7,6 +7,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/prometheus/client_golang v1.23.2
+	go.uber.org/goleak v1.3.0
 	golang.org/x/crypto v0.49.0
 	modernc.org/sqlite v1.47.0
 )
