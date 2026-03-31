@@ -39,7 +39,7 @@ type Handler struct {
 }
 
 func NewHandler(orgs *org.Manager, defaultStore *store.Store, hub *ws.Hub, push *notify.PushService, jwtSvc *auth.JWTService, filesDir string) *Handler {
-	os.MkdirAll(filesDir, 0755)
+	_ = os.MkdirAll(filesDir, 0755)
 
 	// Webhook debounce: PUSK_WEBHOOK_DEBOUNCE env (default 10s, "0" to disable)
 	var deb *Debouncer
@@ -184,7 +184,7 @@ func jsonResp(w http.ResponseWriter, status int, resp APIResponse) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 func decodeBody(r *http.Request, v interface{}) error {
@@ -237,7 +237,7 @@ func unwrapMarkup(raw json.RawMessage) string {
 // isHex reports whether s contains only hexadecimal characters.
 func isHex(s string) bool {
 	for _, c := range s {
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) { //nolint:staticcheck // QF1001: positive form is more readable for char range checks
 			return false
 		}
 	}
@@ -388,7 +388,7 @@ func (h *Handler) deleteMessage(w http.ResponseWriter, r *http.Request) {
 
 	// BUG-5: handle channel messages (negative chat_id)
 	if req.ChatID < 0 {
-		h.db(r).DeleteChannelMessage(req.MessageID)
+		_ = h.db(r).DeleteChannelMessage(req.MessageID)
 		jsonResp(w, 200, APIResponse{OK: true, Result: true})
 		return
 	}
@@ -400,7 +400,7 @@ func (h *Handler) deleteMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.db(r).DeleteMessage(req.MessageID)
+	_ = h.db(r).DeleteMessage(req.MessageID)
 	jsonResp(w, 200, APIResponse{OK: true, Result: true})
 }
 
@@ -412,7 +412,7 @@ func (h *Handler) answerCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req AnswerCallbackRequest
-	decodeBody(r, &req)
+	_ = decodeBody(r, &req)
 
 	if req.Text != "" {
 		// Parse callback_query_id (set to messageID string in pushCallbackToQueue)
@@ -452,7 +452,7 @@ func (h *Handler) setWebhook(w http.ResponseWriter, r *http.Request) {
 		jsonResp(w, 400, APIResponse{OK: false, Error: "local URLs not allowed for webhooks"})
 		return
 	}
-	h.db(r).SetWebhook(bot.ID, req.URL)
+	_ = h.db(r).SetWebhook(bot.ID, req.URL)
 	slog.Info("webhook set", "bot", bot.Name, "url", req.URL)
 	jsonResp(w, 200, APIResponse{OK: true, Result: true})
 }
@@ -479,7 +479,7 @@ func (h *Handler) sendFile(fileType string) http.HandlerFunc {
 			return
 		}
 
-		r.ParseMultipartForm(50 << 20) // 50MB max
+		_ = r.ParseMultipartForm(50 << 20) // 50MB max
 
 		chatID, _ := strconv.ParseInt(r.FormValue("chat_id"), 10, 64)
 		caption := r.FormValue("caption")
@@ -489,7 +489,7 @@ func (h *Handler) sendFile(fileType string) http.HandlerFunc {
 			jsonResp(w, 400, APIResponse{OK: false, Error: "missing file field: " + fileType})
 			return
 		}
-		defer file.Close()
+		defer file.Close() //nolint:errcheck // multipart file cleanup
 
 		fileID := randID()
 		ext := filepath.Ext(header.Filename)
@@ -502,7 +502,7 @@ func (h *Handler) sendFile(fileType string) http.HandlerFunc {
 			}
 		}
 		orgDir := filepath.Join(h.filesDir, orgID)
-		os.MkdirAll(orgDir, 0755)
+		_ = os.MkdirAll(orgDir, 0755)
 		localPath := filepath.Join(orgDir, fileID+ext)
 
 		dst, err := os.Create(localPath)
@@ -511,7 +511,7 @@ func (h *Handler) sendFile(fileType string) http.HandlerFunc {
 			return
 		}
 		size, _ := io.Copy(dst, file)
-		dst.Close()
+		_ = dst.Close()
 
 		// Check storage quota (default 1GB, PUSK_FILE_QUOTA_MB env)
 		quotaMB := int64(1024)
@@ -521,12 +521,13 @@ func (h *Handler) sendFile(fileType string) http.HandlerFunc {
 			}
 		}
 		if h.db(r).TotalFileSize()+size > quotaMB*1024*1024 {
+			//nolint:errcheck // best-effort cleanup on thumbnail failure
 			os.Remove(localPath)
 			jsonResp(w, 400, APIResponse{OK: false, Error: "storage quota exceeded"})
 			return
 		}
 
-		h.db(r).SaveFile(fileID, bot.ID, header.Filename,
+		_ = h.db(r).SaveFile(fileID, bot.ID, header.Filename,
 			header.Header.Get("Content-Type"), size, localPath)
 
 		text := caption
@@ -746,7 +747,7 @@ func (h *Handler) getUpdates(w http.ResponseWriter, r *http.Request) {
 
 	// Support both JSON body and query params
 	if r.Method == "POST" {
-		decodeBody(r, &req)
+		_ = decodeBody(r, &req)
 	}
 	if v := r.URL.Query().Get("offset"); v != "" {
 		req.Offset, _ = strconv.ParseInt(v, 10, 64)
@@ -778,7 +779,7 @@ func (h *Handler) deleteWebhook(w http.ResponseWriter, r *http.Request) {
 		jsonResp(w, 401, APIResponse{OK: false, Error: "Unauthorized"})
 		return
 	}
-	h.db(r).SetWebhook(bot.ID, "")
+	_ = h.db(r).SetWebhook(bot.ID, "")
 	slog.Info("webhook deleted", "bot", bot.Name)
 	jsonResp(w, 200, APIResponse{OK: true, Result: true})
 }
