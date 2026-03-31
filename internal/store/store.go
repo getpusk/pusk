@@ -25,8 +25,10 @@ func New(path string) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
-	db.SetMaxOpenConns(4)                           // WAL mode allows concurrent reads; single writer enforced by WAL
+	db.SetMaxOpenConns(4) // WAL mode allows concurrent reads; single writer enforced by WAL
+	//nolint:errcheck // best-effort PRAGMA tuning — defaults are safe
 	db.Exec("PRAGMA journal_size_limit = 67108864") // 64MB
+	//nolint:errcheck // best-effort PRAGMA tuning
 	db.Exec("PRAGMA synchronous = NORMAL")
 	s := &Store{db: db}
 	if err := s.migrate(); err != nil {
@@ -48,6 +50,7 @@ func (s *Store) Ping() error {
 
 func (s *Store) migrate() error {
 	var version int
+	//nolint:errcheck // defaults to 0 on fresh DB — triggers full migration
 	s.db.QueryRow("PRAGMA user_version").Scan(&version)
 
 	if version < 1 {
@@ -188,7 +191,9 @@ func (s *Store) migrate() error {
 
 	// v3: multi-use invites
 	if version < 3 {
+		//nolint:errcheck // ALTER TABLE ADD COLUMN is idempotent in SQLite — safe to ignore "duplicate column" error
 		s.db.Exec("ALTER TABLE invites ADD COLUMN uses INTEGER DEFAULT 0")
+		//nolint:errcheck // same as above
 		s.db.Exec("ALTER TABLE invites ADD COLUMN max_uses INTEGER DEFAULT 50")
 	}
 

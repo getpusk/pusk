@@ -37,14 +37,14 @@ type Manager struct {
 
 func NewManager(dataDir string) (*Manager, error) {
 	dir := filepath.Join(dataDir, "orgs")
-	os.MkdirAll(dir, 0755)
+	_ = os.MkdirAll(dir, 0755)
 
 	// Global token registry
 	tokDB, err := sql.Open("sqlite", filepath.Join(dataDir, "tokens.db")+"?_journal_mode=WAL")
 	if err != nil {
 		return nil, fmt.Errorf("open tokens db: %w", err)
 	}
-	tokDB.Exec(`CREATE TABLE IF NOT EXISTS tokens (
+	_, _ = tokDB.Exec(`CREATE TABLE IF NOT EXISTS tokens (
 		token TEXT PRIMARY KEY,
 		org   TEXT NOT NULL
 	)`)
@@ -58,13 +58,13 @@ func NewManager(dataDir string) (*Manager, error) {
 
 	// Load existing orgs
 	if data, err := os.ReadFile(m.masterFn); err == nil {
-		json.Unmarshal(data, &m.orgs)
+		_ = json.Unmarshal(data, &m.orgs)
 	}
 
 	// Ensure "default" org exists
 	if !m.hasOrg("default") {
 		m.orgs = append(m.orgs, Org{Slug: "default", Name: "Default", Created: store.Now()})
-		m.save()
+		_ = m.save()
 	}
 
 	slog.Info("orgs loaded", "count", len(m.orgs))
@@ -73,11 +73,11 @@ func NewManager(dataDir string) (*Manager, error) {
 
 // RegisterToken maps a bot token to an org in the global registry
 func (m *Manager) RegisterToken(token, orgSlug string) {
-	m.tokDB.Exec("INSERT OR REPLACE INTO tokens (token, org) VALUES (?, ?)", token, orgSlug)
+	_, _ = m.tokDB.Exec("INSERT OR REPLACE INTO tokens (token, org) VALUES (?, ?)", token, orgSlug)
 }
 
 func (m *Manager) registerTokenLocked(token, orgSlug string) {
-	m.tokDB.Exec("INSERT OR REPLACE INTO tokens (token, org) VALUES (?, ?)", token, orgSlug)
+	_, _ = m.tokDB.Exec("INSERT OR REPLACE INTO tokens (token, org) VALUES (?, ?)", token, orgSlug)
 }
 
 // OrgByToken looks up which org a bot token belongs to
@@ -134,7 +134,7 @@ func (m *Manager) Get(slug string) (*store.Store, error) {
 	}
 
 	orgDir := filepath.Join(m.dir, filepath.Base(slug))
-	os.MkdirAll(orgDir, 0755)
+	_ = os.MkdirAll(orgDir, 0755)
 	dbPath := filepath.Join(orgDir, "pusk.db")
 
 	s, err := store.New(dbPath)
@@ -154,7 +154,7 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 		return fmt.Errorf("slug must be 2-32 characters")
 	}
 	for _, c := range slug {
-		if !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-') {
+		if !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-') { //nolint:staticcheck // QF1001: positive form is more readable for char range checks
 			return fmt.Errorf("slug must contain only lowercase letters, digits and hyphens")
 		}
 	}
@@ -179,7 +179,7 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 
 	// Create org directory and database
 	orgDir := filepath.Join(m.dir, filepath.Base(slug))
-	os.MkdirAll(orgDir, 0755)
+	_ = os.MkdirAll(orgDir, 0755)
 	dbPath := filepath.Join(orgDir, "pusk.db")
 
 	s, err := store.New(dbPath)
@@ -194,7 +194,7 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 	if err != nil {
 		return fmt.Errorf("create admin: %w", err)
 	}
-	s.SetUserRole(admin.ID, "admin")
+	_ = s.SetUserRole(admin.ID, "admin")
 
 	// Create default system bot (needed for channels)
 	tokenBytes := make([]byte, 16)
@@ -207,7 +207,7 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 		// Create #general channel with welcome message
 		ch, _ := s.CreateChannel(sysBot.ID, "general", "General channel")
 		if ch != nil {
-			s.Subscribe(ch.ID, 1) // admin user_id = 1
+			_ = s.Subscribe(ch.ID, 1) // admin user_id = 1
 			welcome := fmt.Sprintf("Welcome to **%s**! / Добро пожаловать в **%s**!\n\n"+
 				"This is #general — your team's chat channel.\n"+
 				"Это #general — канал для общения команды.\n\n"+
@@ -219,7 +219,7 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 				"Connect monitoring → Settings ⚙️ → Webhook URL\n"+
 				"Подключить мониторинг → Настройки ⚙️ → Webhook URL",
 				name, name)
-			s.SaveChannelMessage(ch.ID, welcome, "", "", "")
+			_, _ = s.SaveChannelMessage(ch.ID, welcome, "", "", "")
 		}
 
 		// Welcome message from system bot
@@ -234,7 +234,7 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 					"Webhook: /hook/%s?format=alertmanager\n\n"+
 					"Full docs / Документация: https://getpusk.ru",
 					name, name, botToken, botToken, botToken)
-				s.SaveMessage(chat.ID, "bot", welcome, "", "", "")
+				_, _ = s.SaveMessage(chat.ID, "bot", welcome, "", "", "")
 			}
 		}
 
@@ -250,7 +250,7 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 	// Use proper timestamp
 	m.orgs[len(m.orgs)-1].Created = store.Now()
 
-	m.save()
+	_ = m.save()
 	slog.Info("org registered", "slug", slug, "name", name)
 	return nil
 }
@@ -269,10 +269,10 @@ func (m *Manager) Close() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for slug, s := range m.stores {
-		s.Close()
+		_ = s.Close()
 		slog.Info("org closed", "slug", slug)
 	}
 	if m.tokDB != nil {
-		m.tokDB.Close()
+		_ = m.tokDB.Close()
 	}
 }

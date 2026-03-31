@@ -42,7 +42,7 @@ func initDemo(db *store.Store) {
 			return
 		}
 		slog.Info("demo user created", "user", "guest")
-		db.SetUserRole(guest.ID, "member")
+		_ = db.SetUserRole(guest.ID, "member")
 	}
 
 	// Test users (admin uses ADMIN_TOKEN, these are regular users for demo)
@@ -52,7 +52,7 @@ func initDemo(db *store.Store) {
 		{"operator3", "1234", "Operator 3"},
 	} {
 		if _, err := db.AuthUser(u.name, u.pin); err != nil {
-			db.CreateUser(u.name, u.pin, u.display)
+			_, _ = db.CreateUser(u.name, u.pin, u.display)
 			slog.Info("demo user created", "user", u.name)
 		}
 	}
@@ -65,7 +65,7 @@ func initDemo(db *store.Store) {
 	msgs, _ := db.ChatMessages(demoChat.ID, 1)
 	if len(msgs) == 0 {
 		for _, m := range demoBotMessages {
-			db.SaveMessage(demoChat.ID, m.sender, m.text, m.markup, "", "")
+			_, _ = db.SaveMessage(demoChat.ID, m.sender, m.text, m.markup, "", "")
 		}
 		slog.Info("demo chat seeded", "bot", "DemoBot")
 	}
@@ -78,7 +78,7 @@ func initDemo(db *store.Store) {
 	msgs2, _ := db.ChatMessages(monChat.ID, 1)
 	if len(msgs2) == 0 {
 		for _, m := range monitorBotMessages {
-			db.SaveMessage(monChat.ID, m.sender, m.text, m.markup, "", "")
+			_, _ = db.SaveMessage(monChat.ID, m.sender, m.text, m.markup, "", "")
 		}
 		slog.Info("demo chat seeded", "bot", "MonitorBot")
 	}
@@ -102,9 +102,9 @@ func seedChannelWithMarkup(db *store.Store, bot *store.Bot, guest *store.User, n
 		if err != nil {
 			return
 		}
-		db.Subscribe(ch.ID, guest.ID)
+		_ = db.Subscribe(ch.ID, guest.ID)
 		for _, m := range messages {
-			db.SaveChannelMessage(ch.ID, m.text, m.markup, "", "")
+			_, _ = db.SaveChannelMessage(ch.ID, m.text, m.markup, "", "")
 		}
 		slog.Info("demo channel seeded", "channel", name, "messages", len(messages))
 	}
@@ -117,9 +117,9 @@ func seedChannel(db *store.Store, bot *store.Bot, guest *store.User, name, desc 
 		if err != nil {
 			return
 		}
-		db.Subscribe(ch.ID, guest.ID)
+		_ = db.Subscribe(ch.ID, guest.ID)
 		for _, text := range messages {
-			db.SaveChannelMessage(ch.ID, text, "", "", "")
+			_, _ = db.SaveChannelMessage(ch.ID, text, "", "", "")
 		}
 		slog.Info("demo channel seeded", "channel", name, "messages", len(messages))
 	}

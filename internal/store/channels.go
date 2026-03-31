@@ -121,6 +121,7 @@ func (s *Store) UserSubscriptions(userID int64) ([]Channel, error) {
 
 func (s *Store) IsSubscribed(channelID, userID int64) bool {
 	var count int
+	//nolint:errcheck // returns false on error — acceptable for subscription check
 	s.db.QueryRow("SELECT COUNT(*) FROM channel_subscribers WHERE channel_id=? AND user_id=?",
 		channelID, userID).Scan(&count)
 	return count > 0
@@ -170,6 +171,7 @@ func (s *Store) GetChannelMessage(id int64) (*ChannelMessage, error) {
 }
 
 func (s *Store) SetChannelMessageReplyTo(id, replyTo int64) {
+	//nolint:errcheck // fire-and-forget: reply_to is optional metadata
 	s.db.Exec("UPDATE channel_messages SET reply_to=? WHERE id=?", replyTo, id)
 }
 
@@ -179,33 +181,39 @@ func (s *Store) UpdateChannelMessageText(id int64, text, replyMarkup string) err
 }
 
 func (s *Store) DeleteChannelMessage(id int64) error {
-	// Clear pin if this message was pinned
+	//nolint:errcheck // best-effort pin cleanup before delete
 	s.db.Exec("UPDATE channels SET pinned_message_id=0 WHERE pinned_message_id=?", id)
 	_, err := s.db.Exec("DELETE FROM channel_messages WHERE id=?", id)
 	return err
 }
 
 func (s *Store) DeleteChannel(id int64) error {
+	//nolint:errcheck // cascade cleanup — best-effort before main delete
 	s.db.Exec("DELETE FROM channel_messages WHERE channel_id=?", id)
+	//nolint:errcheck // cascade cleanup
 	s.db.Exec("DELETE FROM channel_subscribers WHERE channel_id=?", id)
+	//nolint:errcheck // cascade cleanup
 	s.db.Exec("DELETE FROM channel_reads WHERE channel_id=?", id)
 	_, err := s.db.Exec("DELETE FROM channels WHERE id=?", id)
 	return err
 }
 
 func (s *Store) MarkChannelRead(channelID, userID, lastMsgID int64) {
+	//nolint:errcheck // fire-and-forget: read tracking is non-critical
 	s.db.Exec("INSERT INTO channel_reads (channel_id, user_id, last_read_id) VALUES (?,?,?) ON CONFLICT(channel_id,user_id) DO UPDATE SET last_read_id=?",
 		channelID, userID, lastMsgID, lastMsgID)
 }
 
 func (s *Store) GetLastRead(channelID, userID int64) int64 {
 	var id int64
+	//nolint:errcheck // returns 0 on error — acceptable for read tracking
 	s.db.QueryRow("SELECT COALESCE(last_read_id,0) FROM channel_reads WHERE channel_id=? AND user_id=?", channelID, userID).Scan(&id)
 	return id
 }
 
 func (s *Store) UnreadCount(channelID, userID int64) int {
 	var count int
+	//nolint:errcheck // returns 0 on error — acceptable for unread counter
 	s.db.QueryRow("SELECT COUNT(*) FROM channel_messages WHERE channel_id=? AND id > COALESCE((SELECT last_read_id FROM channel_reads WHERE channel_id=? AND user_id=?), 0)",
 		channelID, channelID, userID).Scan(&count)
 	return count
@@ -218,6 +226,7 @@ func (s *Store) PinMessage(channelID, messageID int64) error {
 
 func (s *Store) GetPinnedMessage(channelID int64) int64 {
 	var id int64
+	//nolint:errcheck // returns 0 on error
 	s.db.QueryRow("SELECT COALESCE(pinned_message_id,0) FROM channels WHERE id=?", channelID).Scan(&id)
 	return id
 }
