@@ -18,5 +18,5 @@ lint:
 	go vet ./...
 	gofmt -l .
 
-deploy: build
-	@echo "Use: make build && scp pusk prod:/path/"
+deploy:
+	@bash scripts/deploy.sh
