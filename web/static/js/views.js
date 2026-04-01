@@ -170,6 +170,10 @@ export async function showList(){try{S.curChat=null;S.curChan=null;S.mentionUser
     });
   }
   if(chs&&chs.length){
+    const botMap={};if(bots)bots.forEach(b=>{botMap[b.id]=b.name});
+    const nameCounts={};chs.forEach(c=>{nameCounts[c.name]=(nameCounts[c.name]||0)+1});
+    const hasDupes=Object.values(nameCounts).some(n=>n>1);
+    const multiBots=bots&&bots.length>1;
     const secTitle=document.createElement('div');secTitle.className='sec-title';secTitle.textContent=t('ch');el.appendChild(secTitle);
     for(const c of chs){
       const row=document.createElement('div');row.className='ch-row';row.dataset.chanId=c.id;row.dataset.chanName=c.name;
@@ -180,6 +184,7 @@ export async function showList(){try{S.curChat=null;S.curChan=null;S.mentionUser
 
       const body=document.createElement('div');body.className='ch-body';
       const chName=document.createElement('div');chName.className='ch-name';chName.textContent=c.name;
+      if((hasDupes||multiBots)&&botMap[c.bot_id]){const botTag=document.createElement('span');botTag.className='ch-bot-tag';botTag.textContent=botMap[c.bot_id];chName.appendChild(botTag)}
       if(c.unread>0){const badge=document.createElement('span');badge.className='ch-unread ch-badge ch-badge-'+c.id;badge.textContent=c.unread;chName.appendChild(badge)}else{const badge=document.createElement('span');badge.className='ch-unread ch-badge ch-badge-'+c.id;badge.style.display='none';chName.appendChild(badge)}
       body.appendChild(chName);
       const desc=document.createElement('div');desc.className='ch-desc';desc.textContent=c.description||'';body.appendChild(desc);
