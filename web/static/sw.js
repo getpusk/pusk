@@ -1,5 +1,5 @@
 // Pusk Service Worker — App Shell cache + Push notifications
-const CACHE = 'pusk-v64';
+const CACHE = 'pusk-v65';
 const SHELL = [
   '/',
   '/css/pusk.css',
@@ -83,6 +83,7 @@ self.addEventListener('push', e => {
     icon: data.icon || '/icon-192.png',
     badge: '/icon-192.png',
     tag: data.tag || 'pusk-msg',
+    vibrate: [200, 100, 200],
     renotify: true,
     requireInteraction: true,
     data: { url: data.url || '/' },
