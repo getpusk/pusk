@@ -17,7 +17,10 @@ jobs:
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version: '1.26.x'
-      - run: go build -o pusk ./cmd/pusk/
+      - name: Build with version
+        run: |
+          VER=$(git describe --tags --always 2>/dev/null || echo "ci")
+          go build -ldflags "-X github.com/pusk-platform/pusk/internal/api.Version=$VER" -o pusk ./cmd/pusk/
       - run: go vet ./...
       - run: go test -race -shuffle=on ./...
       - name: golangci-lint
@@ -88,7 +91,9 @@ jobs:
           go-version: '1.26.x'
 
       - name: Build Pusk
-        run: go build -o pusk ./cmd/pusk/
+        run: |
+          VER=$(git describe --tags --always 2>/dev/null || echo "ci")
+          go build -ldflags "-X github.com/pusk-platform/pusk/internal/api.Version=$VER" -o pusk ./cmd/pusk/
 
       - name: Start Pusk
         run: |

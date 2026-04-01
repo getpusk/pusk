@@ -27,6 +27,23 @@ else
 fi
 echo "=== Deploying Pusk $VER ==="
 
+# --- Lint + Test gate ---
+echo "[0/6] Lint & test..."
+if [ -f go.mod ]; then
+  echo "  go vet..."
+  go vet ./...
+  echo "  gofmt..."
+  BAD=$(gofmt -l . | grep -v vendor || true)
+  [ -n "$BAD" ] && { echo "FAIL: gofmt: $BAD"; exit 1; }
+  echo "  tests..."
+  go test ./... -count=1 -timeout 60s
+  echo "  All checks passed."
+else
+  BSSH="ssh -i $BUILD_KEY $BUILD_HOST"
+  $BSSH "cd $PUSK_BUILD_DIR && export PATH=\$PATH:/usr/local/go/bin && go vet ./... && test -z \"\$(gofmt -l .)\" && go test ./... -count=1 -timeout 60s"
+  echo "  All checks passed (remote)."
+fi
+
 # --- Build ---
 echo "[1/6] Building..."
 if [ -f go.mod ]; then
