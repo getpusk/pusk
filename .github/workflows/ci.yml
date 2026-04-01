@@ -34,6 +34,10 @@ jobs:
           for fn in addMsg sendMsg showList openChat openChan connectWS onCb onDel toggleSub showApp logout auth setLang beep scrollDown; do
             grep -rq "function $fn\|async function $fn" web/static/js/ || { echo "MISSING: $fn"; exit 1; }
           done
+      - name: Push notification properties
+        run: |
+          grep -q 'vibrate' web/static/sw.js || { echo "MISSING: vibrate in push notifications"; exit 1; }
+          grep -q 'requireInteraction' web/static/sw.js || { echo "MISSING: requireInteraction in push notifications"; exit 1; }
       - name: No hardcoded secrets in frontend
         run: |
           ! grep -rn 'monitor-bot-token' web/static/ --include='*.html' --include='*.js' || { echo 'Hardcoded token found'; exit 1; }
