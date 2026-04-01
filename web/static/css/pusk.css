@@ -84,6 +84,8 @@ header h2{font-size:14px;font-weight:600;flex:1}
 .ch-body{flex:1;min-width:0}
 .ch-name{font-weight:600;font-size:14px;display:flex;align-items:center;gap:6px}
 .ch-badge{display:inline-block;width:8px;height:8px;border-radius:50%;background:#3db887;margin-left:6px;vertical-align:middle}
+.ch-bot-tag{font-size:11px;font-weight:400;color:var(--text2);opacity:0.7;margin-left:2px}
+.ch-bot-tag::before{content:'· '}
 .ch-desc{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sub-btn{padding:4px 12px;border-radius:8px;border:1px solid var(--primary);background:transparent;color:var(--accent);cursor:pointer;font-size:13px;line-height:20px;white-space:nowrap;min-width:80px;text-align:center;flex-shrink:0}
 .sub-btn.on{background:#2d8a63;color:#fff;border-color:#2d8a63}
