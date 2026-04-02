@@ -111,8 +111,12 @@ export function auth(r){S.token=r.token;set('token',S.token);set('uid',r.user_id
 export function logout(){S.token=null;S.curChat=null;S.curChan=null;remove('token');remove('uid');remove('uname');remove('display_name');remove('view');remove('role');remove('org');disconnectWS();$('landing').style.display='flex';$('auth').style.display='none';$('app').style.display='none';$('fab').style.display='none';$('settings').style.display='none';$('settings-bg').style.display='none';window.initLandingChat()}
 
 // ── App views ──
-export async function showApp(){$('auth').style.display='none';$('app').style.display='flex';const u=S.isDemo?'Demo':(get('display_name')||get('uname')||'?');$('hdr-ava').textContent=u[0].toUpperCase();$('hdr-ava').style.background=nameColor(u);$('hdr-name').textContent=u;if(S.isDemo){$('hdr-ava').onclick=null;$('hdr-name').onclick=null}connectWS();if(!S.isDemo)registerPush();await showList();const params=new URLSearchParams(location.search);
-const pushCh=params.get('channel');const pushChat=params.get('chat');
+export async function showApp(){$('auth').style.display='none';$('app').style.display='flex';const u=S.isDemo?'Demo':(get('display_name')||get('uname')||'?');$('hdr-ava').textContent=u[0].toUpperCase();$('hdr-ava').style.background=nameColor(u);$('hdr-name').textContent=u;if(S.isDemo){$('hdr-ava').onclick=null;$('hdr-name').onclick=null}connectWS();if(!S.isDemo)registerPush();await showList();
+// Push navigation: check sessionStorage first (cross-org), then URL params (direct open)
+const pn=sessionStorage.getItem('pushNav');
+let pushCh,pushChat;
+if(pn){try{const nav=JSON.parse(pn);pushCh=nav.channel;pushChat=nav.chat;sessionStorage.removeItem('pushNav')}catch{sessionStorage.removeItem('pushNav')}}
+if(!pushCh&&!pushChat){const params=new URLSearchParams(location.search);pushCh=params.get('channel');pushChat=params.get('chat')}
 if(pushCh){openChan(+pushCh,'');history.replaceState(null,'',location.pathname)}
 else if(pushChat){openChat(+pushChat,'');history.replaceState(null,'',location.pathname)}
 else{const v=get('view');if(v){try{const o=JSON.parse(v);if(o.t==='chat')openChat(o.id,o.n);else if(o.t==='ch')openChan(o.id,o.n)}catch{}}}
