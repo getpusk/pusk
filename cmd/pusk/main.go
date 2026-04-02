@@ -135,8 +135,17 @@ func main() {
 		}
 		promhttp.Handler().ServeHTTP(w, r)
 	})
-	// Static files (PWA)
-	mux.Handle("GET /", http.FileServer(http.Dir(*staticDir)))
+	// Static files (PWA) — no HTTP cache for JS/CSS, SW manages caching
+	fs := http.FileServer(http.Dir(*staticDir))
+	mux.Handle("GET /", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := r.URL.Path
+		if strings.HasSuffix(p, ".js") || strings.HasSuffix(p, ".css") {
+			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+			r.Header.Del("If-Modified-Since")
+			r.Header.Del("If-None-Match")
+		}
+		fs.ServeHTTP(w, r)
+	}))
 
 	// Message retention cleanup (default 30 days, PUSK_MSG_RETENTION_DAYS env)
 	retentionDays := 30
