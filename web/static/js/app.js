@@ -29,6 +29,21 @@ setLang();
 (async()=>{const h=await fetch('/api/health').then(r=>r.json()).catch(()=>({}));const ver=h.version||'';$('a-ver').textContent=ver;if($('land-ver'))$('land-ver').textContent=ver})();
 
 const _p=new URLSearchParams(location.search);
+// Handle cross-org push URL (from SW openWindow or location.reload)
+const _pushOrg=_p.get('org');const _pushCh=_p.get('channel');const _pushChat=_p.get('chat');
+const _curOrg=localStorage.getItem('org')||'default';
+const _orgsRaw=localStorage.getItem('orgs')||'{}';
+if(_pushOrg&&(_pushCh||_pushChat)&&_pushOrg!==_curOrg){
+  const _orgs=JSON.parse(_orgsRaw);const _o=_orgs[_pushOrg];
+  if(_o&&_o.token){
+    S.token=_o.token;localStorage.setItem('token',_o.token);localStorage.setItem('org',_pushOrg);
+    if(_o.user)localStorage.setItem('uname',_o.user);
+    if(_o.display_name)localStorage.setItem('display_name',_o.display_name);
+    if(_o.role)localStorage.setItem('role',_o.role);
+    sessionStorage.setItem('pushNav',JSON.stringify({channel:_pushCh,chat:_pushChat}));
+    history.replaceState(null,'',location.pathname);
+  }
+}
 S.invite=_p.get('invite');
 if(S.invite){
   hideLanding();$('auth').style.display='flex';
@@ -58,24 +73,53 @@ if(S.invite){
 
 }catch(e){console.error("[pusk] init error:",e)}
 
-// ── Push notification navigation (from SW postMessage) ──
+// ── Push notification navigation (from SW IDB or postMessage) ──
+function _handlePushTarget(url) {
+  const p = new URLSearchParams(url.replace(/^.*\?/, ''));
+  const ch = p.get('channel');
+  const chat = p.get('chat');
+  const pushOrg = p.get('org');
+  const curOrg = localStorage.getItem('org') || 'default';
+  if (pushOrg && pushOrg !== curOrg) {
+    const orgs = JSON.parse(localStorage.getItem('orgs') || '{}');
+    const o = orgs[pushOrg];
+    if (o && o.token) {
+      sessionStorage.setItem('pushNav', JSON.stringify({channel: ch, chat: chat}));
+      localStorage.setItem('token', o.token);
+      localStorage.setItem('org', pushOrg);
+      if (o.user) localStorage.setItem('uname', o.user);
+      if (o.display_name) localStorage.setItem('display_name', o.display_name);
+      if (o.role) localStorage.setItem('role', o.role);
+      location.reload();
+      return true;
+    }
+  } else if (ch) {
+    import('./views.js').then(v => v.openChan(+ch, ''));
+    return true;
+  } else if (chat) {
+    import('./views.js').then(v => v.openChat(+chat, ''));
+    return true;
+  }
+  return false;
+}
+// IDB helpers (same DB as SW)
+function _idbGet(key){return new Promise((resolve)=>{try{const req=indexedDB.open('pusk-sw',1);req.onupgradeneeded=()=>req.result.createObjectStore('kv');req.onsuccess=()=>{const db=req.result;const tx=db.transaction('kv','readonly');const g=tx.objectStore('kv').get(key);g.onsuccess=()=>{db.close();resolve(g.result)};g.onerror=()=>{db.close();resolve(null)}};req.onerror=()=>resolve(null)}catch(e){resolve(null)}})}
+function _idbDel(key){try{const req=indexedDB.open('pusk-sw',1);req.onsuccess=()=>{const db=req.result;const tx=db.transaction('kv','readwrite');tx.objectStore('kv').delete(key);tx.oncomplete=()=>db.close()}}catch(e){}}
+// Check IDB for pending push target (from SW notificationclick)
+function _checkPushIDB(){_idbGet('pushTarget').then(target=>{if(target){_idbDel('pushTarget');_handlePushTarget(target)}})}
+_checkPushIDB();
+// Also check when PWA comes to foreground (user clicked notification while app was in background)
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(_checkPushIDB,100)});
 if ('serviceWorker' in navigator && navigator.serviceWorker) {
   try { navigator.serviceWorker.addEventListener('message', e => {
+    // SW sends push-click when notification was tapped
+    if (e.data && e.data.type === 'push-click') {
+      _idbGet('pushTarget').then(target=>{if(target){_idbDel('pushTarget');_handlePushTarget(target)}});
+      return;
+    }
     if (e.data && e.data.type === 'push-navigate') {
-      const p = new URLSearchParams(e.data.url.replace(/^.*\?/, ''));
-      const ch = p.get('channel');
-      const chat = p.get('chat');
-      const pushOrg = p.get('org');
-      // If push is from a different org, auto-switch then navigate
-      const curOrg = localStorage.getItem('org') || 'default';
-      if (pushOrg && pushOrg !== curOrg) {
-        // Store push target in sessionStorage — showApp() will pick it up after successful org switch
-        sessionStorage.setItem('pushNav', JSON.stringify({channel: ch, chat: chat, org: pushOrg}));
-        if (window._switchOrg) window._switchOrg(pushOrg);
-        return;
-      }
-      if (ch) import('./views.js').then(v => v.openChan(+ch, ''));
-      else if (chat) import('./views.js').then(v => v.openChat(+chat, ''));
+      _handlePushTarget(e.data.url);
+      return;
     }
   });
   } catch(e) {}

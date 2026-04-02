@@ -1,5 +1,5 @@
 // Pusk Service Worker — App Shell cache + Push notifications
-const CACHE = 'pusk-v67';
+const CACHE = 'pusk-v74';
 const SHELL = [
   '/',
   '/css/pusk.css',
@@ -21,7 +21,7 @@ const SHELL = [
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE)
-      .then(c => c.addAll(SHELL))
+      .then(c => Promise.all(SHELL.map(u => fetch(u, {cache:'reload'}).then(r => c.put(u, r)))))
       .then(() => self.skipWaiting())
   );
 });
@@ -46,10 +46,10 @@ self.addEventListener('fetch', e => {
       url.pathname === '/metrics') {
     return;
   }
-  // JS and CSS: network-first (always fresh code, cache as offline fallback)
+  // JS and CSS: network-first, bypass HTTP cache (SW manages versioned caching)
   if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
     e.respondWith(
-      fetch(e.request).then(resp => {
+      fetch(e.request, {cache:'no-store'}).then(resp => {
         if (resp.ok) {
           const clone = resp.clone();
           caches.open(CACHE).then(c => c.put(e.request, clone));
@@ -90,19 +90,41 @@ self.addEventListener('push', e => {
   }));
 });
 
-// 5. Notification click → open/focus app
+// 5. Notification click → store target in IDB, then focus or open
 self.addEventListener('notificationclick', e => {
   e.notification.close();
   const target = e.notification.data?.url || '/';
   e.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
-      for (const c of list) {
-        if (c.url.includes(self.location.origin) && 'focus' in c) {
-          c.postMessage({ type: 'push-navigate', url: target });
-          return c.focus();
+    // Store push target in IDB (accessible from both SW and page)
+    idbSet('pushTarget', target).then(() =>
+      clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+        for (const c of list) {
+          if (c.url.includes(self.location.origin) && 'focus' in c) {
+            c.postMessage({ type: 'push-click' });
+            return c.focus();
+          }
         }
-      }
-      return clients.openWindow(target);
-    })
+        return clients.openWindow(target);
+      })
+    )
   );
 });
+
+// Simple IDB helpers for SW↔page communication
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('pusk-sw', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('kv');
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+function idbSet(key, val) {
+  return idbOpen().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction('kv', 'readwrite');
+    tx.objectStore('kv').put(val, key);
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); reject(); };
+  }));
+}
+
