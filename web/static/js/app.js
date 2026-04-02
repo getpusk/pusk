@@ -66,10 +66,11 @@ if ('serviceWorker' in navigator && navigator.serviceWorker) {
       const ch = p.get('channel');
       const chat = p.get('chat');
       const pushOrg = p.get('org');
-      // If push is from a different org, ignore (user must switch manually)
+      // If push is from a different org, auto-switch then navigate
       const curOrg = localStorage.getItem('org') || 'default';
       if (pushOrg && pushOrg !== curOrg) {
-        import('./util.js').then(u => u.toast(u.S.lang==='ru' ? 'Переключитесь в орг '+pushOrg : 'Switch to org '+pushOrg));
+        history.replaceState(null, '', e.data.url);
+        if (window._switchOrg) window._switchOrg(pushOrg);
         return;
       }
       if (ch) import('./views.js').then(v => v.openChan(+ch, ''));
