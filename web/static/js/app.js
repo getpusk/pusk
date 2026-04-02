@@ -69,7 +69,8 @@ if ('serviceWorker' in navigator && navigator.serviceWorker) {
       // If push is from a different org, auto-switch then navigate
       const curOrg = localStorage.getItem('org') || 'default';
       if (pushOrg && pushOrg !== curOrg) {
-        history.replaceState(null, '', e.data.url);
+        // Store push target in sessionStorage — showApp() will pick it up after successful org switch
+        sessionStorage.setItem('pushNav', JSON.stringify({channel: ch, chat: chat, org: pushOrg}));
         if (window._switchOrg) window._switchOrg(pushOrg);
         return;
       }
