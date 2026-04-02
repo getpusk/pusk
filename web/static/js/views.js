@@ -106,7 +106,7 @@ export function setMsgHandlers(handlers){
 }
 
 // ── Auth ──
-export function auth(r){S.token=r.token;set('token',S.token);set('uid',r.user_id);set('uname',r.username||'');if(r.display_name)set('display_name',r.display_name);if(r.role)set('role',r.role);if(r.org){set('org',r.org);const orgs=getJSON('orgs')||{};Object.keys(orgs).forEach(k=>{if(orgs[k].user&&orgs[k].user!==r.username)delete orgs[k]});orgs[r.org]={token:r.token,user:r.username,display_name:r.display_name||r.username,name:r.org,role:r.role||'member'};setJSON('orgs',orgs)}showApp()}
+export function auth(r){S.token=r.token;set('token',S.token);set('uid',r.user_id);set('uname',r.username||'');if(r.display_name)set('display_name',r.display_name);if(r.role)set('role',r.role);if(r.org){set('org',r.org);const orgs=getJSON('orgs')||{};orgs[r.org]={token:r.token,user:r.username,display_name:r.display_name||r.username,name:r.org,role:r.role||'member'};setJSON('orgs',orgs)}showApp()}
 
 export function logout(){S.token=null;S.curChat=null;S.curChan=null;remove('token');remove('uid');remove('uname');remove('display_name');remove('view');remove('role');remove('org');disconnectWS();$('landing').style.display='flex';$('auth').style.display='none';$('app').style.display='none';$('fab').style.display='none';$('settings').style.display='none';$('settings-bg').style.display='none';window.initLandingChat()}
 
