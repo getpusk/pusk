@@ -15,6 +15,7 @@ import (
 )
 
 // PIN auth lockout: 5 failed attempts = 15 min lockout
+var usernameRe = regexp.MustCompile(`^[\p{L}\p{N}_-]{2,32}$`)
 var authFailures sync.Map // key: "orgSlug:username" -> *failureInfo
 
 type failureInfo struct {
@@ -138,8 +139,8 @@ func (a *ClientAPI) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !regexp.MustCompile(`^[a-zA-Z0-9_-]{2,32}$`).MatchString(req.Username) {
-		jsonErr(w, "username must be 2-32 alphanumeric characters", 400)
+	if !usernameRe.MatchString(req.Username) {
+		jsonErr(w, "username must be 2-32 characters (letters, digits, _ or -)", 400)
 		return
 	}
 	if len(req.Pin) < 6 {
@@ -224,8 +225,8 @@ func (a *ClientAPI) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "code, username and pin required", 400)
 		return
 	}
-	if !regexp.MustCompile(`^[a-zA-Z0-9_-]{2,32}$`).MatchString(req.Username) {
-		jsonErr(w, "username must be 2-32 alphanumeric characters", 400)
+	if !usernameRe.MatchString(req.Username) {
+		jsonErr(w, "username must be 2-32 characters (letters, digits, _ or -)", 400)
 		return
 	}
 	if len(req.Pin) < 6 {
