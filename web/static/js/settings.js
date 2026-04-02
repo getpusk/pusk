@@ -138,3 +138,4 @@ $('s-test-push').onclick=testPush;
 
 // ── Expose renderSettings for setLang() ──
 window._renderSettings=renderSettings;
+window._switchOrg=switchOrg;
