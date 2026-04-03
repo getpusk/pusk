@@ -1,5 +1,5 @@
 import S from './state.js';
-import {get,set} from './storage.js';
+import {get,set,remove,getJSON} from './storage.js';
 import {$,t,api,setLang,initEye,toast} from './util.js';
 import {showApp,logout} from './views.js';
 import {initLandingChat,hideLanding} from './landing.js';
@@ -31,15 +31,14 @@ setLang();
 const _p=new URLSearchParams(location.search);
 // Handle cross-org push URL (from SW openWindow or location.reload)
 const _pushOrg=_p.get('org');const _pushCh=_p.get('channel');const _pushChat=_p.get('chat');
-const _curOrg=localStorage.getItem('org')||'default';
-const _orgsRaw=localStorage.getItem('orgs')||'{}';
+const _curOrg=get('org')||'default';
 if(_pushOrg&&(_pushCh||_pushChat)&&_pushOrg!==_curOrg){
-  const _orgs=JSON.parse(_orgsRaw);const _o=_orgs[_pushOrg];
+  const _orgs=getJSON('orgs')||{};const _o=_orgs[_pushOrg];
   if(_o&&_o.token){
-    S.token=_o.token;localStorage.setItem('token',_o.token);localStorage.setItem('org',_pushOrg);
-    if(_o.user)localStorage.setItem('uname',_o.user);
-    if(_o.display_name)localStorage.setItem('display_name',_o.display_name);
-    if(_o.role)localStorage.setItem('role',_o.role);
+    S.token=_o.token;set('token',_o.token);set('org',_pushOrg);
+    if(_o.user)set('uname',_o.user);
+    if(_o.display_name)set('display_name',_o.display_name);
+    if(_o.role)set('role',_o.role);
     sessionStorage.setItem('pushNav',JSON.stringify({channel:_pushCh,chat:_pushChat}));
     history.replaceState(null,'',location.pathname);
   }
@@ -58,14 +57,14 @@ if(S.invite){
   hideLanding();$('auth').style.display='flex';$('btn-demo').click();
 } else if(S.token){
   // Validate token — if guest in default org, check if user has real orgs
-  const savedOrg=localStorage.getItem('org')||'default';
-  const savedUser=localStorage.getItem('uname')||'';
+  const savedOrg=get('org')||'default';
+  const savedUser=get('uname')||'';
   if(savedUser==='guest'&&savedOrg==='default'){
     // Guest session from demo — don't auto-login, show landing
-    localStorage.removeItem('token');S.token=null;
+    remove('token');S.token=null;
     initLandingChat();
   } else {
-    hideLanding();api('GET','/api/bots').then(r=>{if(r&&!r.error)showApp();else{const o=localStorage.getItem('org');const u=localStorage.getItem('uname');logout();if(o&&o!=='default'){$('a-org').value=o;if(u)$('a-user').value=u;$('a-err').textContent=S.lang==='ru'?'Сессия истекла — войдите снова':'Session expired — login again';$('a-err').style.color='var(--accent)'}}}).catch(()=>{const o=localStorage.getItem('org');const u=localStorage.getItem('uname');logout();if(o&&o!=='default'){$('a-org').value=o;if(u)$('a-user').value=u;$('a-err').textContent=S.lang==='ru'?'Сессия истекла — войдите снова':'Session expired — login again';$('a-err').style.color='var(--accent)'}});
+    hideLanding();api('GET','/api/bots').then(r=>{if(r&&!r.error)showApp();else{const o=get('org');const u=get('uname');logout();if(o&&o!=='default'){$('a-org').value=o;if(u)$('a-user').value=u;$('a-err').textContent=S.lang==='ru'?'Сессия истекла — войдите снова':'Session expired — login again';$('a-err').style.color='var(--accent)'}}}).catch(()=>{const o=get('org');const u=get('uname');logout();if(o&&o!=='default'){$('a-org').value=o;if(u)$('a-user').value=u;$('a-err').textContent=S.lang==='ru'?'Сессия истекла — войдите снова':'Session expired — login again';$('a-err').style.color='var(--accent)'}});
   }
 } else {
   initLandingChat();
@@ -79,17 +78,17 @@ function _handlePushTarget(url) {
   const ch = p.get('channel');
   const chat = p.get('chat');
   const pushOrg = p.get('org');
-  const curOrg = localStorage.getItem('org') || 'default';
+  const curOrg = get('org') || 'default';
   if (pushOrg && pushOrg !== curOrg) {
-    const orgs = JSON.parse(localStorage.getItem('orgs') || '{}');
+    const orgs = getJSON('orgs') || {};
     const o = orgs[pushOrg];
     if (o && o.token) {
       sessionStorage.setItem('pushNav', JSON.stringify({channel: ch, chat: chat}));
-      localStorage.setItem('token', o.token);
-      localStorage.setItem('org', pushOrg);
-      if (o.user) localStorage.setItem('uname', o.user);
-      if (o.display_name) localStorage.setItem('display_name', o.display_name);
-      if (o.role) localStorage.setItem('role', o.role);
+      set('token', o.token);
+      set('org', pushOrg);
+      if (o.user) set('uname', o.user);
+      if (o.display_name) set('display_name', o.display_name);
+      if (o.role) set('role', o.role);
       location.reload();
       return true;
     }
