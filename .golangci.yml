@@ -1,6 +1,10 @@
 version: "2"
 
 linters:
+  exclusions:
+    paths:
+      - vendor
+      - data
   enable:
     - errcheck
     - govet
@@ -31,11 +35,6 @@ linters:
         - "-ST1020" # comment style on exports
         - "-QF1001" # De Morgan readability preference
         - "-QF1012" # WriteString(Sprintf) vs Fprintf — style
-
-issues:
-  exclude-dirs:
-    - vendor
-    - data
 
 run:
   timeout: 5m
