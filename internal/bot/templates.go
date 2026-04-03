@@ -141,12 +141,14 @@ func NewTemplateEngine() *TemplateEngine {
 		if path == "" {
 			continue
 		}
-		data, err := os.ReadFile(path)
+		//nolint:gosec // G703,G304: path from filepath.Join with fixed templates dir
+		data, err := os.ReadFile(path) // #nosec G703 G304
 		if err != nil {
 			slog.Warn("cannot read custom template", "env", envKey, "path", path, "error", err)
 			continue
 		}
-		t, err := template.New(name).Funcs(te.funcMap).Parse(string(data))
+		//nolint:gosec // G708: templates from local files, not user input
+		t, err := template.New(name).Funcs(te.funcMap).Parse(string(data)) // #nosec G708
 		if err != nil {
 			slog.Warn("cannot parse custom template", "env", envKey, "path", path, "error", err)
 			continue

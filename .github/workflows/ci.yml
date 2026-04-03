@@ -68,12 +68,12 @@ jobs:
       - name: gosec — static security analysis
         run: |
           go install github.com/securego/gosec/v2/cmd/gosec@latest
-          gosec -severity medium -quiet -exclude=G104 ./... || echo "::warning::gosec found issues (non-blocking)"
+          gosec -severity medium -quiet -exclude=G104 ./...
 
       - name: govulncheck — Go vulnerability database
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
-          govulncheck ./... || echo "::warning::govulncheck found issues (non-blocking)"
+          go build -o /tmp/pusk-vulncheck ./cmd/pusk/ && govulncheck -mode binary /tmp/pusk-vulncheck
 
       - name: Trivy — filesystem scan (go.sum + source)
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
@@ -82,7 +82,7 @@ jobs:
           scan-ref: .
           format: table
           severity: HIGH,CRITICAL
-          exit-code: 0
+          exit-code: 1
 
   integration:
     name: Integration
