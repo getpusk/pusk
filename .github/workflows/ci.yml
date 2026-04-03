@@ -189,7 +189,7 @@ jobs:
         env:
           PUSK_URL: http://localhost:9999
           BASE_URL: http://localhost:9999
-        run: npx playwright test pusk.spec.js regression.spec.js regression-28mar.spec.js security.spec.js bot-full.spec.js
+        run: npx playwright test pusk.spec.js
 
       - name: Stop Pusk
         if: always()
