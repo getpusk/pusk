@@ -333,11 +333,8 @@ func (a *ClientAPI) orgStats(w http.ResponseWriter, r *http.Request) {
 	}
 	users, _ := s.ListUsers()
 	channels, _ := s.ListChannels()
-	var msgCount, fileSize int64
-	//nolint:errcheck // returns 0 on error
-	s.DB().QueryRow("SELECT COUNT(*) FROM channel_messages").Scan(&msgCount)
-	//nolint:errcheck // returns 0 on error
-	s.DB().QueryRow("SELECT COALESCE(SUM(size),0) FROM files").Scan(&fileSize)
+	msgCount := s.MessageCount()
+	fileSize := s.TotalFileSize()
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"users":     len(users),
 		"channels":  len(channels),

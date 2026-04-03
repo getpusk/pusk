@@ -41,7 +41,7 @@ document.addEventListener('visibilitychange',()=>{
 // ── Push ──
 export async function registerPush(){
   if(!('serviceWorker' in navigator)||!('PushManager' in window)||!S.token)return;
-  if((localStorage.getItem('pusk_org')||'default')==='default')return;
+  if((get('org')||'default')==='default')return;
   try{
     const perm=await Notification.requestPermission();
     if(perm!=='granted')return;
@@ -58,6 +58,6 @@ export async function registerPush(){
     const bName=(()=>{if(ua.includes('YaBrowser'))return'Яндекс Браузер';if(ua.includes('Edg/'))return'Edge';if(ua.includes('OPR/')||ua.includes('Opera'))return'Opera';if(ua.includes('Vivaldi'))return'Vivaldi';if(ua.includes('Brave'))return'Brave';if(ua.includes('Firefox'))return'Firefox';if(ua.includes('Safari')&&!ua.includes('Chrome'))return'Safari';if(ua.includes('Chrome'))return'Chrome';return''})();
     const epName=ep.includes('mozilla')?'Firefox':ep.includes('fcm.googleapis')?'Chrome/Chromium':ep.includes('windows.com')?'Edge':ep.includes('apple.com')?'Safari':'';
     const isFF=bName==='Firefox';const isMoz=ep.includes('mozilla');const isChromium=!isFF&&!ep.includes('apple')&&!ep.includes('windows');
-    if((isFF&&!isMoz)||(!isFF&&isMoz)){const{toast:t2}=await import('./util.js');const ru=localStorage.getItem('pusk_lang')!=='en';t2(ru?'Push подписка от '+epName+'. Вы в '+bName+'. Нажмите Push Вкл для подписки '+bName+'.':'Push subscription from '+epName+'. You are in '+bName+'. Click Push On to subscribe.')}
+    if((isFF&&!isMoz)||(!isFF&&isMoz)){const{toast:t2}=await import('./util.js');const ru=get('lang')!=='en';t2(ru?'Push подписка от '+epName+'. Вы в '+bName+'. Нажмите Push Вкл для подписки '+bName+'.':'Push subscription from '+epName+'. You are in '+bName+'. Click Push On to subscribe.')}
   }catch(e){}
 }

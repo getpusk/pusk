@@ -65,3 +65,10 @@ func (s *Store) ChatMessages(chatID int64, limit int) ([]Message, error) {
 	}
 	return msgs, nil
 }
+
+func (s *Store) MessageCount() int64 {
+	var count int64
+	//nolint:errcheck // returns 0 on error
+	s.db.QueryRow("SELECT COUNT(*) FROM channel_messages").Scan(&count)
+	return count
+}
