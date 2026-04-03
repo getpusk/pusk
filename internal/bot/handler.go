@@ -612,7 +612,7 @@ func (h *Handler) pushMessageToChat(s *store.Store, chatID int64, bot *store.Bot
 		Title: bot.Name,
 		Body:  truncate(msg.Text, 100),
 		Tag:   "chat-" + fmt.Sprintf("%d", chatID),
-		URL:   fmt.Sprintf("/?chat=%d", chatID),
+		URL:   fmt.Sprintf("/?chat=%d&org=%s", chatID, s.OrgID),
 	})
 }
 
@@ -648,7 +648,7 @@ func (h *Handler) pushChannelMessage(s *store.Store, ch *store.Channel, bot *sto
 				Title: "#" + ch.Name,
 				Body:  truncate(msg.Text, 100),
 				Tag:   fmt.Sprintf("ch-%d-%d", ch.ID, msg.ID),
-				URL:   fmt.Sprintf("/?channel=%d", ch.ID),
+				URL:   fmt.Sprintf("/?channel=%d&org=%s", ch.ID, s.OrgID),
 			})
 		}
 	}
