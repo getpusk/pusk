@@ -1,20 +1,129 @@
 # Changelog
 
+## v0.7.0 (2026-04-03)
+
+### Features
+- **Cross-org push navigation** — click a push notification to jump directly into the alert channel, even from a different org
+- **Unicode usernames** — Cyrillic and other non-Latin characters in usernames
+- **Bot tag in sidebar** — bot name shown next to channel when multiple bots exist
+- **Push vibration** — haptic feedback on incoming push notifications (Android)
+- **Deploy pipeline** — lint + test gate before every deployment
+
+### Fixes
+- Push notifications now include org parameter for reliable cross-org routing
+- localStorage split-brain resolved — all keys use consistent `pusk_` prefix
+- Service Worker cache bumped (v75) to ensure clients pick up JS updates
+- golangci-lint v2 config migration (`exclude-dirs` → `linters.exclusions.paths`)
+
+### CI/CD
+- Lint + test gate enforced in deploy script
+- Playwright bumped to 1.59.0
+- CI validates push notification properties (vibrate, requireInteraction)
+
+---
+
+## v0.6.1 (2026-03-28)
+
+### Features
+- **Multi-use invite links** — 7-day TTL, up to 50 uses, revokable
+- **Online/away dots** on message avatars
+- **Smart invite form** — auto-detects whether user needs login or registration
+- **Server-side org discovery** — find all orgs where your account exists
+- **Push deep links** — notifications link directly to channels and chats
+- **Org stats API** — online count, channel stats, Prometheus gauges
+- **Owner protection** — org owner cannot be deleted or demoted
+- **Channel rename** — admins can rename channels (double-click header or long press on mobile)
+- **Compact online status** on mobile (2● 1○)
+- **localStorage migration** — seamless upgrade from old key format to `pusk_` prefix
+
+### Fixes
+- Push subscriptions stored per-device (max 5), refresh on app open
+- Safe Service Worker update strategy — no auto-reload, user-triggered
+- Org isolation: mention lists, read receipts, FAB permissions scoped to current org
+- Token expiry shows login form with saved org (not guest fallback)
+- Push delivery logging, stacking, requireInteraction for alerts
+- Footer shows per-org online count instead of global
+- Invite link shows registration even when logged into another org
+
+### Security
+- Cross-org isolation tests (mentions, read receipts, file access)
+- Token cleanup on org switch
+- Push disabled in demo org
+
+### CI/CD
+- Full release pipeline: Alpine + RED OS + Astra Linux images
+- Cosign keyless signing (binary + SBOM)
+- SBOM generation (SPDX-JSON)
+- Trivy image scanning (HIGH/CRITICAL)
+- Security regression tests
+- golangci-lint with errcheck + staticcheck + nilerr
+
+---
+
+## v0.6.0 (2026-03-25)
+
+### Features
+- **ES modules** — frontend split from monolith into 9 JS modules
+- **Service Worker** — app shell caching, offline indicator, update notification
+- **Infinite scroll** for message history
+- **File upload** — photos, videos, documents in channels (thumbnails 320px)
+- **@mentions** with autocomplete and push notifications
+- **Read receipts** — see who read the last message in channels
+- **Away status** — idle detection + typing indicator
+- **Alert filters** — filter alerts by status, precise timestamps
+- **Elapsed time badges** on firing alerts
+- **Reply to messages** in channels with quote display
+- **Pin messages** — shows who pinned, unpin button
+- **Context menu** — edit, delete, copy, reply on messages
+- **Onboarding wizard** — 3-step setup for new organizations
+- **Org switcher** with unread counters
+- **getUpdates long polling** — drop-in migration path for Telegram polling bots
+- **Telegram-native URLs** — `/botTOKEN/method` routing for full Bot API compatibility
+- **Custom Go templates** for webhook message formatting
+- **Webhook debounce** — deduplicates Alertmanager bursts
+- **Prometheus /metrics** — HTTP, WebSocket, message counters
+- **Structured logging** (slog) with request logger middleware
+- **File tokens** + message retention + storage quota
+- **ACK → Alertmanager Silence** API integration
+- **/test-push** button in Settings
+- **Clickable URLs** and /commands in messages
+- **i18n** — full bilingual UI (Russian / English)
+- **Double-back-to-exit** on mobile PWA
+- **Loading skeleton** for initial app load
+
+### Security
+- JWT revocation on password change and user deletion
+- XSS escaping hardening, PIN lockout (5 attempts)
+- SSRF webhook validation (DNS resolve + IsPrivate check)
+- Per-org file directories
+- Rate limiting on send/upload endpoints
+- Content-Security-Policy headers
+- Admin auth on /admin/ endpoints
+
+### CI/CD
+- Dependabot for Go modules, GitHub Actions, npm, Docker
+- All GitHub Actions pinned by commit SHA
+- CodeQL scheduled analysis
+- OpenSSF Scorecard
+- Integration tests: Bot API, webhooks, multi-tenant, auth flows
+- Frontend integrity checks in CI
+
+---
+
 ## v0.5.0 (2026-03-20)
 
 ### Features
 - **Channel replies** — subscribers can write in channels (team coordination)
 - **ACK/Mute/Resolved buttons** on webhook alerts
-- **Webhook endpoint** — native Alertmanager, Zabbix, Grafana, Uptime Kuma support (`POST /hook/{token}?format=`)
-- **Smart raw parser** — extracts `msg`/`message`/`text` from any webhook payload
-- **sendMessage → channel fallback** — negative `chat_id` sends to channel (Telegram convention)
-- **Invite links** — one-time codes with 24h TTL, UI button in Settings
+- **Webhook endpoint** — native Alertmanager, Zabbix, Grafana, Uptime Kuma support
+- **Smart raw parser** — extracts msg/message/text from any webhook payload
+- **sendMessage → channel fallback** — negative chat_id sends to channel (Telegram convention)
+- **Invite links** — one-time codes with 24h TTL
 - **Multi-tenant** — SQLite per organization, isolated data
 - **Org registration** — create org with system bot + #general channel
 - **Webhook Relay** — localhost bots via WebSocket, no ngrok needed
 - **Landing page** — split view with live demo chat
 - **PWA install prompt** with app icon
-- **AI DemoBot** — Groq-powered demo bot responds in real-time
 
 ### Security
 - bcrypt password hashing
@@ -26,7 +135,11 @@
 - File serving requires JWT
 - WebSocket origin validation
 - Graceful shutdown (SIGTERM → 5s grace)
-- 27 security issues found, 20+ fixed
+
+### Integrations
+- Alertmanager, Zabbix, Grafana, Uptime Kuma
+- Any system with Telegram notification type (negative chat_id)
+- Generic webhook (format=raw)
 
 ### CI/CD
 - CodeQL SAST analysis
@@ -34,15 +147,10 @@
 - Trivy filesystem + Docker image scan
 - Integration tests (Bot API, webhooks, multi-tenant, auth)
 - OpenSSF Scorecard
-- 34 E2E Playwright tests + 32 QA Panel checks
+- 34 E2E Playwright tests
 
-### Integrations
-- Alertmanager (`format=alertmanager`)
-- Zabbix (`format=zabbix`)
-- Grafana (`format=grafana`)
-- Uptime Kuma (smart raw with `msg` field extraction)
-- Any system with Telegram notification type (negative `chat_id`)
-- Generic webhook (`format=raw`)
+---
 
 ## v0.4.0 — v0.1.0
-See git history for earlier releases.
+
+See [git history](https://github.com/getpusk/pusk/commits/main) for earlier releases.
