@@ -39,7 +39,7 @@ type Handler struct {
 }
 
 func NewHandler(orgs *org.Manager, defaultStore *store.Store, hub *ws.Hub, push *notify.PushService, jwtSvc *auth.JWTService, filesDir string) *Handler {
-	_ = os.MkdirAll(filesDir, 0750)
+	_ = os.MkdirAll(filesDir, 0o750)
 
 	// Webhook debounce: PUSK_WEBHOOK_DEBOUNCE env (default 10s, "0" to disable)
 	var deb *Debouncer
@@ -479,8 +479,7 @@ func (h *Handler) sendFile(fileType string) http.HandlerFunc {
 			return
 		}
 
-		//nolint:gosec // G120: bounded to 50MB
-		_ = r.ParseMultipartForm(50 << 20) // #nosec G120 -- 50MB max
+		_ = r.ParseMultipartForm(50 << 20) // 50MB max
 
 		chatID, _ := strconv.ParseInt(r.FormValue("chat_id"), 10, 64)
 		caption := r.FormValue("caption")
@@ -503,12 +502,10 @@ func (h *Handler) sendFile(fileType string) http.HandlerFunc {
 			}
 		}
 		orgDir := filepath.Join(h.filesDir, orgID)
-		//nolint:gosec // G703: orgDir from filepath.Join with JWT-derived orgID
-		_ = os.MkdirAll(orgDir, 0750) // #nosec G703
+		_ = os.MkdirAll(orgDir, 0o750)
 		localPath := filepath.Join(orgDir, fileID+ext)
 
-		//nolint:gosec // G703,G304: path from filepath.Join with server-generated UUID
-		dst, err := os.Create(localPath) // #nosec G703 G304
+		dst, err := os.Create(localPath)
 		if err != nil {
 			jsonResp(w, 500, APIResponse{OK: false, Error: "cannot save file"})
 			return
@@ -525,8 +522,7 @@ func (h *Handler) sendFile(fileType string) http.HandlerFunc {
 		}
 		if h.db(r).TotalFileSize()+size > quotaMB*1024*1024 {
 			//nolint:errcheck // best-effort cleanup on thumbnail failure
-			//nolint:gosec // G703: path from filepath.Join with server-generated UUID
-			os.Remove(localPath) // #nosec G703
+			os.Remove(localPath)
 			jsonResp(w, 400, APIResponse{OK: false, Error: "storage quota exceeded"})
 			return
 		}

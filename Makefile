@@ -16,7 +16,7 @@ test:
 
 lint:
 	go vet ./...
-	gofmt -l .
+	gofumpt -l .
 
 deploy:
 	@bash scripts/deploy.sh

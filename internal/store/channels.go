@@ -140,8 +140,10 @@ func (s *Store) SaveChannelMessageFrom(channelID int64, sender, senderName, text
 		return nil, err
 	}
 	id, _ := res.LastInsertId()
-	return &ChannelMessage{ID: id, ChannelID: channelID, Sender: sender, SenderName: senderName,
-		Text: text, ReplyMarkup: replyMarkup, FileID: fileID, FileType: fileType, CreatedAt: now}, nil
+	return &ChannelMessage{
+		ID: id, ChannelID: channelID, Sender: sender, SenderName: senderName,
+		Text: text, ReplyMarkup: replyMarkup, FileID: fileID, FileType: fileType, CreatedAt: now,
+	}, nil
 }
 
 func (s *Store) ChannelMessages(channelID int64, limit int) ([]ChannelMessage, error) {

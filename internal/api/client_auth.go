@@ -15,8 +15,10 @@ import (
 )
 
 // PIN auth lockout: 5 failed attempts = 15 min lockout
-var usernameRe = regexp.MustCompile(`^[\p{L}\p{N}_-]{2,32}$`)
-var authFailures sync.Map // key: "orgSlug:username" -> *failureInfo
+var (
+	usernameRe   = regexp.MustCompile(`^[\p{L}\p{N}_-]{2,32}$`)
+	authFailures sync.Map // key: "orgSlug:username" -> *failureInfo
+)
 
 type failureInfo struct {
 	mu       sync.Mutex
@@ -369,6 +371,7 @@ func (a *ClientAPI) findMyOrgs(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewEncoder(w).Encode(result)
 }
+
 func (a *ClientAPI) checkInviteUser(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("code")
 	org := r.URL.Query().Get("org")
@@ -396,6 +399,7 @@ func (a *ClientAPI) checkInviteUser(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewEncoder(w).Encode(map[string]bool{"exists": exists})
 }
+
 func (a *ClientAPI) changePassword(w http.ResponseWriter, r *http.Request) {
 	s := a.db(r)
 	var req struct {

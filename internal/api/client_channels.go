@@ -596,8 +596,7 @@ func createAlertmanagerSilence(amURL, username, alertText string) {
 
 	data, _ := json.Marshal(silence)
 	client := &http.Client{Timeout: 10 * time.Second}
-	//nolint:gosec // G704: Alertmanager URL from server config
-	resp, err := client.Post(amURL+"/api/v2/silences", "application/json", bytes.NewReader(data)) // #nosec G704
+	resp, err := client.Post(amURL+"/api/v2/silences", "application/json", bytes.NewReader(data))
 	if err != nil {
 		slog.Warn("alertmanager silence failed", "error", err)
 		return
@@ -622,8 +621,7 @@ func (a *ClientAPI) uploadToChannel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//nolint:gosec // G120: bounded to 10MB
-	_ = r.ParseMultipartForm(10 << 20) // #nosec G120 -- 10MB max
+	_ = r.ParseMultipartForm(10 << 20) // 10MB max
 
 	file, header, err := r.FormFile("file")
 	if err != nil {
@@ -656,11 +654,10 @@ func (a *ClientAPI) uploadToChannel(w http.ResponseWriter, r *http.Request) {
 		orgID = "default"
 	}
 	orgDir := filepath.Join("data/files", orgID)
-	_ = os.MkdirAll(orgDir, 0750)
+	_ = os.MkdirAll(orgDir, 0o750)
 	localPath := filepath.Join(orgDir, fileID+ext)
 
-	//nolint:gosec // G703,G304: path from filepath.Join with server-generated UUID
-	dst, err := os.Create(localPath) // #nosec G703 G304
+	dst, err := os.Create(localPath)
 	if err != nil {
 		jsonErr(w, "cannot save file", 500)
 		return
@@ -676,8 +673,7 @@ func (a *ClientAPI) uploadToChannel(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if s.TotalFileSize()+size > quotaMB*1024*1024 {
-		//nolint:gosec // G703: path from filepath.Join with server-generated UUID
-		_ = os.Remove(localPath) // #nosec G703
+		_ = os.Remove(localPath)
 		jsonErr(w, "storage quota exceeded", 400)
 		return
 	}

@@ -99,8 +99,8 @@ if echo "$HEALTH" | grep -q '"status":"ok"'; then
   echo "  Version: $VERSION"
   echo "  Online:  $ONLINE users"
 
-  ERRORS=$($SSH "tail -10 $REMOTE_DIR/pusk.log 2>/dev/null | grep -c 'ERROR\|panic'" 2>/dev/null | tr -d '[:space:]' || echo "0")
-  [ "${ERRORS:-0}" -gt 0 ] 2>/dev/null && echo "  WARNING: $ERRORS errors in recent log"
+  ERRORS=$($SSH "tail -10 $REMOTE_DIR/pusk.log 2>/dev/null | grep -c ERROR || true" 2>/dev/null | tr -d '[:space:]')
+  [ "${ERRORS:-0}" -gt 0 ] 2>/dev/null && echo "  WARNING: $ERRORS errors in recent log" || true
 else
   echo ""
   echo "=== HEALTH FAILED — ROLLING BACK ==="
