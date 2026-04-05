@@ -27,7 +27,7 @@ async def ask_groq(session, text):
     if not GROQ_KEY:
         return "AlertBot: GROQ_API_KEY not configured. Set it to enable AI analysis."
     try:
-        async with session.post(GROQ_URL, proxy=PROXY, headers={
+        async with session.post(GROQ_URL, proxy=PROXY or None, headers={
             "Authorization": f"Bearer {GROQ_KEY}",
             "Content-Type": "application/json"
         }, json={

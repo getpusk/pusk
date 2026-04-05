@@ -49,7 +49,7 @@ func (s *Store) ListUsers() ([]User, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var users []User
 	for rows.Next() {
 		var u User
@@ -78,7 +78,7 @@ func (s *Store) DeleteUser(userID int64) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	cascade := []string{
 		"DELETE FROM channel_subscribers WHERE user_id=?",
 		"DELETE FROM channel_reads WHERE user_id=?",
