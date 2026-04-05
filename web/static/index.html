@@ -117,7 +117,7 @@ bot = Bot(token="my-token",
   <div id="input-bar">
     <div id="mention-list"></div>
     <label for="file-input" class="file-label">&#128206;</label><input type="file" id="file-input" accept="image/*,video/*,.pdf,.zip">
-    <textarea id="msg-in" rows="1" aria-label="Message" enterkeyhint="send"></textarea>
+    <textarea id="msg-in" rows="1" aria-label="Message" enterkeyhint="enter"></textarea>
     <button id="msg-send" aria-label="Send">&#8594;</button>
   </div>
 </div>
@@ -167,6 +167,7 @@ bot = Bot(token="my-token",
       <button class="mbtn-ok" id="org-ok">Создать</button>
     </div>
     <div class="modal-msg" id="org-msg" role="status" aria-live="polite"></div>
+    <div style="text-align:center;margin-top:8px"><a href="#" id="org-to-login" style="color:var(--accent);font-size:13px">Уже есть аккаунт? Войти</a></div>
   </div>
 </div>
 

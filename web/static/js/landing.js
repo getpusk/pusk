@@ -70,6 +70,7 @@ $('btn-demo').onclick=async()=>{let r=await api('POST','/api/auth',{username:'gu
 // ── Org creation ──
 $('land-create-org').onclick=()=>{$('org-modal-bg').classList.add('open');$('org-slug').focus()};
 $('org-cancel').onclick=()=>$('org-modal-bg').classList.remove('open');
+$('org-to-login').onclick=(e)=>{e.preventDefault();$('org-modal-bg').classList.remove('open');hideLanding();$('auth').style.display='flex';const savedOrg=get('org');if(savedOrg)$('a-org').value=savedOrg};
 $('org-modal-bg').onclick=e=>{if(e.target===$('org-modal-bg'))$('org-modal-bg').classList.remove('open')};
 $('org-ok').onclick=async()=>{
   const slug=$('org-slug').value.trim().toLowerCase().replace(/[^a-z0-9-]/g,'');
@@ -147,6 +148,7 @@ function translateLanding(){
   orgInputs.forEach((id,i)=>{const el=document.getElementById(id);if(el)el.placeholder=ru?orgRu[i]:orgEn[i]});
   tx('#org-cancel','Отмена','Cancel');
   tx('#org-ok','Создать','Create');
+  const orgLogin=document.getElementById('org-to-login');if(orgLogin)orgLogin.textContent=ru?'Уже есть аккаунт? Войти':'Already have an account? Login';
 
   // Install banner
   const installText=document.querySelector('#install-banner span');

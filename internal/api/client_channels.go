@@ -263,10 +263,9 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 			}
 			wsKey := orgID + ":" + fmt.Sprintf("%d", uid)
 			if a.hub.IsConnected(wsKey) {
-				st := a.hub.GetStatus(wsKey)
 				ach := a.hub.GetActiveChannel(wsKey)
-				if st == "online" && ach == ch.ID {
-					continue
+				if ach == ch.ID {
+					continue // viewing this channel, gets WS event
 				}
 			}
 			a.push.SendToUser(s, uid, notify.PushPayload{
