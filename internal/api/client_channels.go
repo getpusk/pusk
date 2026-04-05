@@ -143,7 +143,6 @@ func (a *ClientAPI) unsubscribe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) channelMessages(w http.ResponseWriter, r *http.Request) {
-	userID := UserIDFromCtx(r.Context())
 	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
 	s := a.db(r)
 	limit := 50
@@ -161,10 +160,32 @@ func (a *ClientAPI) channelMessages(w http.ResponseWriter, r *http.Request) {
 	if msgs == nil {
 		msgs = []store.ChannelMessage{}
 	}
-	if len(msgs) > 0 {
-		s.MarkChannelRead(channelID, userID, msgs[0].ID)
-	}
 	_ = json.NewEncoder(w).Encode(msgs)
+}
+
+func (a *ClientAPI) markChannelRead(w http.ResponseWriter, r *http.Request) {
+	userID := UserIDFromCtx(r.Context())
+	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
+	s := a.db(r)
+
+	var req struct {
+		LastReadID int64 `json:"last_read_id"`
+	}
+	// Body is optional — if empty or missing last_read_id, mark up to latest message
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
+	if req.LastReadID == 0 {
+		// Find the latest message in the channel
+		msgs, err := s.ChannelMessages(channelID, 1)
+		if err != nil || len(msgs) == 0 {
+			_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+			return
+		}
+		req.LastReadID = msgs[0].ID
+	}
+
+	s.MarkChannelRead(channelID, userID, req.LastReadID)
+	_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
 func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
