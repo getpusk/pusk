@@ -25,8 +25,10 @@ func (s *Store) SaveMessage(chatID int64, sender, text, replyMarkup, fileID, fil
 		return nil, err
 	}
 	id, _ := res.LastInsertId()
-	return &Message{ID: id, ChatID: chatID, Sender: sender, Text: text,
-		ReplyMarkup: replyMarkup, FileID: fileID, FileType: fileType, CreatedAt: now}, nil
+	return &Message{
+		ID: id, ChatID: chatID, Sender: sender, Text: text,
+		ReplyMarkup: replyMarkup, FileID: fileID, FileType: fileType, CreatedAt: now,
+	}, nil
 }
 
 func (s *Store) GetMessage(id int64) (*Message, error) {
@@ -54,7 +56,7 @@ func (s *Store) ChatMessages(chatID int64, limit int) ([]Message, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var msgs []Message
 	for rows.Next() {
 		var m Message

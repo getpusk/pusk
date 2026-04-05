@@ -1,0 +1,2337 @@
+openapi: 3.1.0
+info:
+  title: Pusk API
+  version: 0.7.0
+  description: |
+    Self-hosted alert platform for ops teams. Telegram Bot API compatible.
+
+    ## Authentication
+
+    Three auth schemes are used depending on the endpoint group:
+
+    - **Bot Token** — passed as a path parameter in `/bot/{token}/{method}` endpoints.
+    - **JWT Bearer** — returned by `/api/auth` or `/api/register`, used for all `/api/` client endpoints.
+    - **Admin Token** — server-configured token for `/admin/` management endpoints. Some admin endpoints also accept JWT with admin role.
+  license:
+    name: BSL 1.1
+    url: https://github.com/getpusk/pusk/blob/main/LICENSE
+  contact:
+    name: Pusk
+    url: https://getpusk.ru
+
+servers:
+  - url: https://getpusk.ru
+    description: Production
+
+tags:
+  - name: Bot API
+    description: Telegram-compatible Bot API. All methods use `/bot/{token}/{method}`.
+  - name: Webhook
+    description: Incoming alert webhooks from Alertmanager, Zabbix, Grafana, or raw JSON.
+  - name: File
+    description: File download endpoint.
+  - name: Client Auth
+    description: Public authentication and registration endpoints (no auth required).
+  - name: Client Chat
+    description: Chat and bot interaction endpoints (JWT required).
+  - name: Client Channels
+    description: Channel messaging, subscriptions, and management (JWT required).
+  - name: Client Users
+    description: User listing and management (JWT required).
+  - name: Client Infra
+    description: WebSocket, push notifications, invites, stats, and other infrastructure endpoints.
+  - name: Admin
+    description: Administrative endpoints. Require Admin Token header or JWT with admin role.
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /api/auth or /api/register. 7-day TTL.
+    AdminToken:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Admin token configured on the server. Passed as `Bearer {admin_token}`.
+
+  schemas:
+    TelegramMessage:
+      type: object
+      properties:
+        message_id:
+          type: integer
+          format: int64
+        chat:
+          type: object
+          properties:
+            id:
+              type: integer
+              format: int64
+            type:
+              type: string
+        from:
+          type: object
+          properties:
+            id:
+              type: integer
+              format: int64
+            is_bot:
+              type: boolean
+            username:
+              type: string
+            first_name:
+              type: string
+        date:
+          type: integer
+          description: Unix timestamp
+        text:
+          type: string
+
+    TelegramChannelMessage:
+      type: object
+      properties:
+        message_id:
+          type: integer
+          format: int64
+        chat:
+          type: object
+          properties:
+            id:
+              type: integer
+              format: int64
+            type:
+              type: string
+              enum: [channel]
+        date:
+          type: integer
+        text:
+          type: string
+
+    BotOkResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+          const: true
+        result:
+          type: boolean
+          const: true
+
+    BotMessageResponse:
+      type: object
+      required: [ok, result]
+      properties:
+        ok:
+          type: boolean
+          const: true
+        result:
+          $ref: '#/components/schemas/TelegramMessage'
+
+    BotChannelMessageResponse:
+      type: object
+      required: [ok, result]
+      properties:
+        ok:
+          type: boolean
+          const: true
+        result:
+          $ref: '#/components/schemas/TelegramChannelMessage'
+
+    Update:
+      type: object
+      properties:
+        update_id:
+          type: integer
+          format: int64
+          description: Monotonic update ID (UnixMilli-based).
+        message:
+          $ref: '#/components/schemas/TelegramMessage'
+        callback_query:
+          type: object
+          properties:
+            id:
+              type: string
+            from:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  format: int64
+                username:
+                  type: string
+            message:
+              $ref: '#/components/schemas/TelegramMessage'
+            data:
+              type: string
+
+    BotInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        is_bot:
+          type: boolean
+          const: true
+        username:
+          type: string
+        first_name:
+          type: string
+
+    WebhookInfo:
+      type: object
+      properties:
+        url:
+          type: string
+        has_custom_certificate:
+          type: boolean
+        pending_update_count:
+          type: integer
+
+    Channel:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        description:
+          type: string
+        bot_id:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+          format: date-time
+
+    Bot:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        username:
+          type: string
+        token:
+          type: string
+
+    Chat:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        bot_id:
+          type: integer
+          format: int64
+        bot_name:
+          type: string
+        user_id:
+          type: integer
+          format: int64
+        last_message:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        chat_id:
+          type: integer
+          format: int64
+        sender:
+          type: string
+          enum: [user, bot]
+        text:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    ChannelInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        description:
+          type: string
+        bot_name:
+          type: string
+        subscribed:
+          type: boolean
+        unread:
+          type: integer
+
+    ChannelMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        channel_id:
+          type: integer
+          format: int64
+        text:
+          type: string
+        sender:
+          type: string
+        reply_to:
+          type: integer
+          format: int64
+          nullable: true
+        pinned:
+          type: boolean
+        file_id:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    ChannelReader:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        display_name:
+          type: string
+        last_read_id:
+          type: integer
+          format: int64
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        display_name:
+          type: string
+        role:
+          type: string
+          enum: [admin, member]
+        created_at:
+          type: string
+          format: date-time
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user_id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        org:
+          type: string
+        role:
+          type: string
+          enum: [admin, member]
+        display_name:
+          type: string
+
+    OrgInfo:
+      type: object
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        online:
+          type: integer
+        version:
+          type: string
+        db:
+          type: string
+        uptime:
+          type: string
+
+    OnlineResponse:
+      type: object
+      properties:
+        online:
+          type: integer
+        total_connected:
+          type: integer
+        users:
+          type: array
+          items:
+            type: string
+
+    StatsResponse:
+      type: object
+      properties:
+        users:
+          type: integer
+        channels:
+          type: integer
+        messages:
+          type: integer
+        file_size:
+          type: integer
+          format: int64
+          description: Total file storage in bytes.
+
+    InviteResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        url:
+          type: string
+
+    OkResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+
+    ErrorResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: false
+        description:
+          type: string
+
+    ReplyMarkup:
+      type: object
+      description: Telegram-compatible inline keyboard markup (JSON object).
+      properties:
+        inline_keyboard:
+          type: array
+          items:
+            type: array
+            items:
+              type: object
+              properties:
+                text:
+                  type: string
+                callback_data:
+                  type: string
+                url:
+                  type: string
+
+  parameters:
+    BotToken:
+      name: token
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Bot API token.
+
+paths:
+  # ============================================================
+  # BOT API
+  # ============================================================
+
+  /bot/{token}/sendMessage:
+    post:
+      tags: [Bot API]
+      operationId: botSendMessage
+      summary: Send a text message
+      parameters:
+        - $ref: '#/components/parameters/BotToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [chat_id, text]
+              properties:
+                chat_id:
+                  type: integer
+                  format: int64
+                text:
+                  type: string
+                reply_markup:
+                  $ref: '#/components/schemas/ReplyMarkup'
+                parse_mode:
+                  type: string
+                  enum: [Markdown, MarkdownV2, HTML]
+      responses:
+        '200':
+          description: Message sent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BotMessageResponse'
+        '400':
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid bot token.
+
+  /bot/{token}/editMessageText:
+    post:
+      tags: [Bot API]
+      operationId: botEditMessageText
+      summary: Edit a sent message's text
+      parameters:
+        - $ref: '#/components/parameters/BotToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [chat_id, message_id, text]
+              properties:
+                chat_id:
+                  type: integer
+                  format: int64
+                message_id:
+                  type: integer
+                  format: int64
+                text:
+                  type: string
+                reply_markup:
+                  $ref: '#/components/schemas/ReplyMarkup'
+      responses:
+        '200':
+          description: Message edited.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BotMessageResponse'
+
+  /bot/{token}/deleteMessage:
+    post:
+      tags: [Bot API]
+      operationId: botDeleteMessage
+      summary: Delete a message
+      parameters:
+        - $ref: '#/components/parameters/BotToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [chat_id, message_id]
+              properties:
+                chat_id:
+                  type: integer
+                  format: int64
+                message_id:
+                  type: integer
+                  format: int64
+      responses:
+        '200':
+          description: Message deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BotOkResponse'
+
+  /bot/{token}/answerCallbackQuery:
+    post:
+      tags: [Bot API]
+      operationId: botAnswerCallbackQuery
+      summary: Answer a callback query from an inline keyboard
+      parameters:
+        - $ref: '#/components/parameters/BotToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [callback_query_id]
+              properties:
+                callback_query_id:
+                  type: string
+                text:
+                  type: string
+                  description: Notification text shown to the user.
+                show_alert:
+                  type: boolean
+                  default: false
+                  description: Show an alert popup instead of a toast.
+      responses:
+        '200':
+          description: Callback answered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BotOkResponse'
+
+  /bot/{token}/sendPhoto:
+    post:
+      tags: [Bot API]
+      operationId: botSendPhoto
+      summary: Send a photo
+      parameters:
+        - $ref: '#/components/parameters/BotToken'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [chat_id, photo]
+              properties:
+                chat_id:
+                  type: integer
+                  format: int64
+                photo:
+                  type: string
+                  format: binary
+                caption:
+                  type: string
+      responses:
+        '200':
+          description: Photo sent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BotMessageResponse'
+
+  /bot/{token}/sendDocument:
+    post:
+      tags: [Bot API]
+      operationId: botSendDocument
+      summary: Send a document file
+      parameters:
+        - $ref: '#/components/parameters/BotToken'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [chat_id, document]
+              properties:
+                chat_id:
+                  type: integer
+                  format: int64
+                document:
+                  type: string
+                  format: binary
+                caption:
+                  type: string
+      responses:
+        '200':
+          description: Document sent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BotMessageResponse'
+
+  /bot/{token}/sendVoice:
+    post:
+      tags: [Bot API]
+      operationId: botSendVoice
+      summary: Send a voice message
+      parameters:
+        - $ref: '#/components/parameters/BotToken'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [chat_id, voice]
+              properties:
+                chat_id:
+                  type: integer
+                  format: int64
+                voice:
+                  type: string
+                  format: binary
+                caption:
+                  type: string
+      responses:
+        '200':
+          description: Voice message sent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BotMessageResponse'
+
+  /bot/{token}/sendVideo:
+    post:
+      tags: [Bot API]
+      operationId: botSendVideo
+      summary: Send a video
+      parameters:
+        - $ref: '#/components/parameters/BotToken'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [chat_id, video]
+              properties:
+                chat_id:
+                  type: integer
+                  format: int64
+                video:
+                  type: string
+                  format: binary
+                caption:
+                  type: string
+      responses:
+        '200':
+          description: Video sent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BotMessageResponse'
+
+  /bot/{token}/setWebhook:
+    post:
+      tags: [Bot API]
+      operationId: botSetWebhook
+      summary: Set webhook URL for receiving updates
+      parameters:
+        - $ref: '#/components/parameters/BotToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url:
+                  type: string
+                  format: uri
+      responses:
+        '200':
+          description: Webhook set.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BotOkResponse'
+
+  /bot/{token}/deleteWebhook:
+    post:
+      tags: [Bot API]
+      operationId: botDeleteWebhook
+      summary: Remove the current webhook
+      parameters:
+        - $ref: '#/components/parameters/BotToken'
+      responses:
+        '200':
+          description: Webhook deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BotOkResponse'
+
+  /bot/{token}/getMe:
+    get:
+      tags: [Bot API]
+      operationId: botGetMe
+      summary: Get bot info
+      parameters:
+        - $ref: '#/components/parameters/BotToken'
+      responses:
+        '200':
+          description: Bot info.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    const: true
+                  result:
+                    $ref: '#/components/schemas/BotInfo'
+    post:
+      tags: [Bot API]
+      operationId: botGetMePost
+      summary: Get bot info (POST variant)
+      parameters:
+        - $ref: '#/components/parameters/BotToken'
+      responses:
+        '200':
+          description: Bot info.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    const: true
+                  result:
+                    $ref: '#/components/schemas/BotInfo'
+
+  /bot/{token}/getUpdates:
+    get:
+      tags: [Bot API]
+      operationId: botGetUpdatesGet
+      summary: Long-poll for updates (GET)
+      parameters:
+        - $ref: '#/components/parameters/BotToken'
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            format: int64
+          description: Return updates with update_id >= offset.
+        - name: timeout
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: Long-poll timeout in seconds.
+      responses:
+        '200':
+          description: List of updates.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    const: true
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Update'
+    post:
+      tags: [Bot API]
+      operationId: botGetUpdatesPost
+      summary: Long-poll for updates (POST)
+      parameters:
+        - $ref: '#/components/parameters/BotToken'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                offset:
+                  type: integer
+                  format: int64
+                timeout:
+                  type: integer
+                  default: 0
+      responses:
+        '200':
+          description: List of updates.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    const: true
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Update'
+
+  /bot/{token}/getWebhookInfo:
+    get:
+      tags: [Bot API]
+      operationId: botGetWebhookInfoGet
+      summary: Get current webhook status (GET)
+      parameters:
+        - $ref: '#/components/parameters/BotToken'
+      responses:
+        '200':
+          description: Webhook info.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    const: true
+                  result:
+                    $ref: '#/components/schemas/WebhookInfo'
+    post:
+      tags: [Bot API]
+      operationId: botGetWebhookInfoPost
+      summary: Get current webhook status (POST)
+      parameters:
+        - $ref: '#/components/parameters/BotToken'
+      responses:
+        '200':
+          description: Webhook info.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    const: true
+                  result:
+                    $ref: '#/components/schemas/WebhookInfo'
+
+  /bot/{token}/createChannel:
+    post:
+      tags: [Bot API]
+      operationId: botCreateChannel
+      summary: Create a channel (Pusk extension)
+      description: Non-standard Telegram API extension. Creates a channel owned by this bot.
+      parameters:
+        - $ref: '#/components/parameters/BotToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          description: Channel created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    const: true
+                  result:
+                    $ref: '#/components/schemas/Channel'
+
+  /bot/{token}/sendChannel:
+    post:
+      tags: [Bot API]
+      operationId: botSendChannel
+      summary: Send message to a channel (Pusk extension)
+      description: Non-standard Telegram API extension. Sends a message to a named channel.
+      parameters:
+        - $ref: '#/components/parameters/BotToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [channel, text]
+              properties:
+                channel:
+                  type: string
+                  description: Channel name.
+                text:
+                  type: string
+                reply_markup:
+                  $ref: '#/components/schemas/ReplyMarkup'
+      responses:
+        '200':
+          description: Message sent to channel.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BotChannelMessageResponse'
+
+  /bot/{token}/relay:
+    get:
+      tags: [Bot API]
+      operationId: botRelay
+      summary: WebSocket relay for real-time bot updates
+      description: |
+        Upgrades to WebSocket. The bot receives updates in real-time
+        instead of polling with getUpdates.
+      parameters:
+        - $ref: '#/components/parameters/BotToken'
+      responses:
+        '101':
+          description: WebSocket upgrade successful.
+        '401':
+          description: Invalid bot token.
+
+  # ============================================================
+  # WEBHOOK
+  # ============================================================
+
+  /hook/{token}:
+    post:
+      tags: [Webhook]
+      operationId: webhookReceive
+      summary: Receive an alert webhook
+      description: |
+        Accepts alerts from monitoring systems. The `format` query parameter
+        selects the parser: alertmanager, zabbix, grafana, or raw JSON.
+        Messages are routed to the specified channel (defaults to the bot's first channel).
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Bot token that owns the target channel.
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [alertmanager, zabbix, grafana, raw]
+            default: raw
+          description: Alert payload format.
+        - name: channel
+          in: query
+          schema:
+            type: string
+          description: Target channel name (e.g. "alerts").
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Alert payload. Structure depends on the format parameter.
+      responses:
+        '200':
+          description: Alert accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    const: ok
+
+  # ============================================================
+  # FILE
+  # ============================================================
+
+  /file/{fileID}:
+    get:
+      tags: [File]
+      operationId: fileDownload
+      summary: Download a file
+      description: Requires either a valid JWT Bearer token or a file-token query parameter.
+      security:
+        - BearerAuth: []
+        - {}
+      parameters:
+        - name: fileID
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: token
+          in: query
+          schema:
+            type: string
+          description: File-token for unauthenticated access (e.g. from push notifications).
+      responses:
+        '200':
+          description: File contents.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401':
+          description: Missing or invalid auth.
+        '404':
+          description: File not found.
+
+  # ============================================================
+  # CLIENT AUTH (public, no auth)
+  # ============================================================
+
+  /api/auth:
+    post:
+      tags: [Client Auth]
+      operationId: clientAuth
+      summary: Authenticate a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, pin]
+              properties:
+                username:
+                  type: string
+                pin:
+                  type: string
+                  description: User PIN (password). Lockout after 5 failed attempts.
+                org:
+                  type: string
+                  description: Organization slug. Defaults to "default".
+      responses:
+        '200':
+          description: Authentication successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials or locked out.
+
+  /api/register:
+    post:
+      tags: [Client Auth]
+      operationId: clientRegister
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, pin]
+              properties:
+                username:
+                  type: string
+                pin:
+                  type: string
+                display_name:
+                  type: string
+                org:
+                  type: string
+      responses:
+        '200':
+          description: Registration successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '409':
+          description: Username already exists.
+
+  /api/health:
+    get:
+      tags: [Client Auth]
+      operationId: clientHealth
+      summary: Health check
+      responses:
+        '200':
+          description: Service health.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /api/my-orgs:
+    get:
+      tags: [Client Auth]
+      operationId: clientMyOrgs
+      summary: List organizations for a username
+      parameters:
+        - name: username
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of orgs the user belongs to.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrgInfo'
+
+  /api/push/vapid:
+    get:
+      tags: [Client Auth]
+      operationId: clientVapidKey
+      summary: Get VAPID public key for web push
+      responses:
+        '200':
+          description: VAPID key.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  key:
+                    type: string
+
+  /api/invite/accept:
+    post:
+      tags: [Client Auth]
+      operationId: clientInviteAccept
+      summary: Accept an invite and register/login
+      parameters:
+        - name: org
+          in: query
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, username, pin]
+              properties:
+                code:
+                  type: string
+                username:
+                  type: string
+                pin:
+                  type: string
+                display_name:
+                  type: string
+      responses:
+        '200':
+          description: Invite accepted, user authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid or expired invite code.
+
+  /api/invite/check-user:
+    get:
+      tags: [Client Auth]
+      operationId: clientInviteCheckUser
+      summary: Check if a user exists in an org (for invite flow)
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: org
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: username
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User existence check.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  exists:
+                    type: boolean
+
+  # ============================================================
+  # CLIENT CHAT
+  # ============================================================
+
+  /api/bots:
+    get:
+      tags: [Client Chat]
+      operationId: clientListBots
+      summary: List available bots
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Bot list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Bot'
+
+  /api/chats:
+    get:
+      tags: [Client Chat]
+      operationId: clientListChats
+      summary: List user's chats with bots
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Chat list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Chat'
+
+  /api/chats/{chatID}/messages:
+    get:
+      tags: [Client Chat]
+      operationId: clientChatMessages
+      summary: Get messages in a chat
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: chatID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Message list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+
+  /api/chats/{chatID}/send:
+    post:
+      tags: [Client Chat]
+      operationId: clientChatSend
+      summary: Send a message in a chat
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: chatID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+      responses:
+        '200':
+          description: Message sent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+
+  /api/chats/{chatID}/callback:
+    post:
+      tags: [Client Chat]
+      operationId: clientChatCallback
+      summary: Send a callback query (inline keyboard button press)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: chatID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, message_id]
+              properties:
+                data:
+                  type: string
+                message_id:
+                  type: integer
+                  format: int64
+      responses:
+        '200':
+          description: Callback processed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /api/bots/{botID}/start:
+    post:
+      tags: [Client Chat]
+      operationId: clientBotStart
+      summary: Start a new chat with a bot
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: botID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Chat started.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chat'
+
+  /api/messages/{msgID}:
+    delete:
+      tags: [Client Chat]
+      operationId: clientDeleteMessage
+      summary: Delete a message
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: msgID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Message deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  # ============================================================
+  # CLIENT CHANNELS
+  # ============================================================
+
+  /api/channels:
+    get:
+      tags: [Client Channels]
+      operationId: clientListChannels
+      summary: List channels
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Channel list with subscription status and unread counts.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChannelInfo'
+
+  /api/channels/{channelID}/subscribe:
+    post:
+      tags: [Client Channels]
+      operationId: clientChannelSubscribe
+      summary: Subscribe to a channel
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: channelID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Subscribed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /api/channels/{channelID}/unsubscribe:
+    post:
+      tags: [Client Channels]
+      operationId: clientChannelUnsubscribe
+      summary: Unsubscribe from a channel
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: channelID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Unsubscribed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /api/channels/{channelID}/messages:
+    get:
+      tags: [Client Channels]
+      operationId: clientChannelMessages
+      summary: Get messages in a channel
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: channelID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Channel messages.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChannelMessage'
+
+  /api/channels/{channelID}/readers:
+    get:
+      tags: [Client Channels]
+      operationId: clientChannelReaders
+      summary: Get read receipts for a channel
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: channelID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: List of readers with their last-read message ID.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChannelReader'
+
+  /api/channels/{channelID}/send:
+    post:
+      tags: [Client Channels]
+      operationId: clientChannelSend
+      summary: Send a message to a channel
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: channelID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                reply_to:
+                  type: integer
+                  format: int64
+                  description: Message ID to reply to.
+      responses:
+        '200':
+          description: Message sent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelMessage'
+
+  /api/channels/{channelID}/ack:
+    post:
+      tags: [Client Channels]
+      operationId: clientChannelAck
+      summary: Acknowledge, mute, or resolve an alert
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: channelID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message_id, action]
+              properties:
+                message_id:
+                  type: integer
+                  format: int64
+                action:
+                  type: string
+                  enum: [ack, mute, resolved]
+      responses:
+        '200':
+          description: Action applied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /api/channels/{channelID}/messages/{msgID}:
+    put:
+      tags: [Client Channels]
+      operationId: clientChannelEditMessage
+      summary: Edit a channel message
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: channelID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: msgID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+      responses:
+        '200':
+          description: Message edited.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /api/channels/messages/{msgID}:
+    delete:
+      tags: [Client Channels]
+      operationId: clientChannelDeleteMessage
+      summary: Delete a channel message
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: msgID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Message deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /api/channels/{channelID}/pin:
+    post:
+      tags: [Client Channels]
+      operationId: clientChannelPin
+      summary: Pin a message in a channel
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: channelID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message_id]
+              properties:
+                message_id:
+                  type: integer
+                  format: int64
+      responses:
+        '200':
+          description: Message pinned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /api/channels/{channelID}/upload:
+    post:
+      tags: [Client Channels]
+      operationId: clientChannelUpload
+      summary: Upload a file to a channel
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: channelID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                caption:
+                  type: string
+      responses:
+        '200':
+          description: File uploaded and message created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelMessage'
+
+  # ============================================================
+  # CLIENT USERS
+  # ============================================================
+
+  /api/users:
+    get:
+      tags: [Client Users]
+      operationId: clientListUsers
+      summary: List users in the org
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+
+  /api/users/{userID}/role:
+    post:
+      tags: [Client Users]
+      operationId: clientSetUserRole
+      summary: Change a user's role (admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role:
+                  type: string
+                  enum: [admin, member]
+      responses:
+        '200':
+          description: Role updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '403':
+          description: Not an admin.
+
+  /api/users/{userID}:
+    delete:
+      tags: [Client Users]
+      operationId: clientDeleteUser
+      summary: Delete a user (admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: User deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '403':
+          description: Not an admin.
+
+  # ============================================================
+  # CLIENT INFRA
+  # ============================================================
+
+  /api/ws:
+    get:
+      tags: [Client Infra]
+      operationId: clientWebSocket
+      summary: WebSocket connection for real-time updates
+      description: |
+        Upgrades to WebSocket. JWT is passed as a query parameter or via
+        the first message. Delivers real-time messages, typing indicators,
+        online status, and read receipts.
+      security:
+        - BearerAuth: []
+      responses:
+        '101':
+          description: WebSocket upgrade successful.
+        '401':
+          description: Invalid or missing JWT.
+
+  /api/online:
+    get:
+      tags: [Client Infra]
+      operationId: clientOnline
+      summary: Get online users
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Online status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnlineResponse'
+
+  /api/push/subscribe:
+    post:
+      tags: [Client Infra]
+      operationId: clientPushSubscribe
+      summary: Register a web push subscription
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [endpoint, keys]
+              properties:
+                endpoint:
+                  type: string
+                  format: uri
+                keys:
+                  type: object
+                  required: [p256dh, auth]
+                  properties:
+                    p256dh:
+                      type: string
+                    auth:
+                      type: string
+      responses:
+        '200':
+          description: Subscription registered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+    delete:
+      tags: [Client Infra]
+      operationId: clientPushUnsubscribe
+      summary: Remove a push subscription
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                endpoint:
+                  type: string
+                  format: uri
+                  description: Specific endpoint to remove. Omit to remove all.
+      responses:
+        '200':
+          description: Subscription removed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /api/push/test:
+    post:
+      tags: [Client Infra]
+      operationId: clientPushTest
+      summary: Send a test push notification
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Test push sent.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  subscriptions:
+                    type: integer
+                    description: Number of active push subscriptions.
+                  error:
+                    type: string
+
+  /api/invite:
+    post:
+      tags: [Client Infra]
+      operationId: clientInviteCreate
+      summary: Create an invite link (admin only)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Invite created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteResponse'
+        '403':
+          description: Not an admin.
+    delete:
+      tags: [Client Infra]
+      operationId: clientInviteRevoke
+      summary: Revoke an invite code (admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+      responses:
+        '200':
+          description: Invite revoked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '403':
+          description: Not an admin.
+
+  /api/invite/active:
+    get:
+      tags: [Client Infra]
+      operationId: clientInviteActive
+      summary: Get active invite code (admin only)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Active invite.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteResponse'
+        '403':
+          description: Not an admin.
+        '404':
+          description: No active invite.
+
+  /api/file-token:
+    post:
+      tags: [Client Infra]
+      operationId: clientFileToken
+      summary: Generate a short-lived file download token
+      description: Returns a token for unauthenticated file access (e.g. from push notifications or external links).
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: File token generated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+
+  /api/stats:
+    get:
+      tags: [Client Infra]
+      operationId: clientStats
+      summary: Get org statistics (admin only)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Org statistics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatsResponse'
+        '403':
+          description: Not an admin.
+
+  /api/change-password:
+    post:
+      tags: [Client Infra]
+      operationId: clientChangePassword
+      summary: Change current user's PIN
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [old_pin, new_pin]
+              properties:
+                old_pin:
+                  type: string
+                new_pin:
+                  type: string
+      responses:
+        '200':
+          description: Password changed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '401':
+          description: Old PIN is incorrect.
+
+  # ============================================================
+  # ADMIN
+  # ============================================================
+
+  /admin/bots:
+    post:
+      tags: [Admin]
+      operationId: adminCreateBot
+      summary: Register a new bot
+      security:
+        - AdminToken: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, name]
+              properties:
+                token:
+                  type: string
+                  description: Bot API token (generated or provided).
+                name:
+                  type: string
+      responses:
+        '200':
+          description: Bot created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bot'
+
+  /admin/bots/{botID}:
+    put:
+      tags: [Admin]
+      operationId: adminRenameBot
+      summary: Rename a bot
+      security:
+        - AdminToken: []
+        - BearerAuth: []
+      parameters:
+        - name: botID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+      responses:
+        '200':
+          description: Bot renamed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /admin/channel:
+    post:
+      tags: [Admin]
+      operationId: adminCreateChannel
+      summary: Create a channel via admin API
+      security:
+        - AdminToken: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          description: Channel created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    const: true
+                  result:
+                    $ref: '#/components/schemas/Channel'
+
+  /admin/channel/{channelID}:
+    put:
+      tags: [Admin]
+      operationId: adminRenameChannel
+      summary: Rename a channel
+      security:
+        - AdminToken: []
+        - BearerAuth: []
+      parameters:
+        - name: channelID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+      responses:
+        '200':
+          description: Channel renamed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+    delete:
+      tags: [Admin]
+      operationId: adminDeleteChannel
+      summary: Delete a channel
+      security:
+        - AdminToken: []
+        - BearerAuth: []
+      parameters:
+        - name: channelID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Channel deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /admin/reset-password:
+    post:
+      tags: [Admin]
+      operationId: adminResetPassword
+      summary: Reset a user's PIN (admin token only)
+      security:
+        - AdminToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [org, username, new_pin]
+              properties:
+                org:
+                  type: string
+                username:
+                  type: string
+                new_pin:
+                  type: string
+      responses:
+        '200':
+          description: Password reset.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /admin/set-role:
+    post:
+      tags: [Admin]
+      operationId: adminSetRole
+      summary: Set a user's role (admin token only)
+      security:
+        - AdminToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [org, user_id, role]
+              properties:
+                org:
+                  type: string
+                user_id:
+                  type: integer
+                  format: int64
+                role:
+                  type: string
+                  enum: [admin, member]
+      responses:
+        '200':
+          description: Role updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /api/org/register:
+    post:
+      tags: [Admin]
+      operationId: adminOrgRegister
+      summary: Register a new organization
+      description: Creates a new org with the first user as admin. No auth required (self-service org creation).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [slug, username, pin]
+              properties:
+                slug:
+                  type: string
+                  description: URL-safe org identifier.
+                name:
+                  type: string
+                  description: Human-readable org name.
+                username:
+                  type: string
+                pin:
+                  type: string
+      responses:
+        '200':
+          description: Org created, first user authenticated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  org:
+                    type: string
+                  token:
+                    type: string
+                  user_id:
+                    type: integer
+                    format: int64
+                  username:
+                    type: string
+                  role:
+                    type: string
+                    enum: [admin]
+        '409':
+          description: Org slug already exists.

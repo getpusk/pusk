@@ -11,7 +11,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "alert-ai-token")
 GROQ_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-PROXY = os.getenv("HTTPS_PROXY", "http://100.106.12.16:8888")
+PROXY = os.getenv("HTTPS_PROXY", "")
 
 SYSTEM_PROMPT = """You are AlertBot, an AI ops assistant. You analyze monitoring alerts and provide brief, actionable recommendations.
 
@@ -27,7 +27,7 @@ async def ask_groq(session, text):
     if not GROQ_KEY:
         return "AlertBot: GROQ_API_KEY not configured. Set it to enable AI analysis."
     try:
-        async with session.post(GROQ_URL, proxy=PROXY, headers={
+        async with session.post(GROQ_URL, proxy=PROXY or None, headers={
             "Authorization": f"Bearer {GROQ_KEY}",
             "Content-Type": "application/json"
         }, json={

@@ -15,8 +15,10 @@ import (
 )
 
 // PIN auth lockout: 5 failed attempts = 15 min lockout
-var usernameRe = regexp.MustCompile(`^[\p{L}\p{N}_-]{2,32}$`)
-var authFailures sync.Map // key: "orgSlug:username" -> *failureInfo
+var (
+	usernameRe   = regexp.MustCompile(`^[\p{L}\p{N}_-]{2,32}$`)
+	authFailures sync.Map // key: "orgSlug:username" -> *failureInfo
+)
 
 type failureInfo struct {
 	mu       sync.Mutex
@@ -106,7 +108,7 @@ func (a *ClientAPI) auth(w http.ResponseWriter, r *http.Request) {
 		role = "admin"
 	}
 	slog.Info("auth success", "username", user.Username, "org", orgSlug, "role", role, "user_id", user.ID)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"token": token, "user_id": user.ID, "username": user.Username, "org": orgSlug, "role": role, "display_name": user.DisplayName,
 	})
 }
@@ -165,7 +167,7 @@ func (a *ClientAPI) register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	token, _ := a.jwt.Generate(user.ID, orgSlug, req.Username)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"token": token, "user_id": user.ID, "username": req.Username, "org": orgSlug, "role": "member", "display_name": req.DisplayName,
 	})
 }
@@ -206,7 +208,7 @@ func (a *ClientAPI) createInvite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"code": code, "url": "/invite/" + code})
+	_ = json.NewEncoder(w).Encode(map[string]string{"code": code, "url": "/invite/" + code})
 }
 
 func (a *ClientAPI) acceptInvite(w http.ResponseWriter, r *http.Request) {
@@ -284,7 +286,7 @@ func (a *ClientAPI) acceptInvite(w http.ResponseWriter, r *http.Request) {
 
 	token, _ := a.jwt.Generate(user.ID, orgSlug, req.Username)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"token": token, "user_id": user.ID, "username": req.Username, "org": orgSlug, "role": "member", "display_name": req.DisplayName,
 	})
 }
@@ -299,13 +301,16 @@ func (a *ClientAPI) revokeInvite(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Code string `json:"code"`
 	}
-	json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonErr(w, "invalid request body", 400)
+		return
+	}
 	if req.Code == "" {
 		jsonErr(w, "code required", 400)
 		return
 	}
 	_ = s.RevokeInvite(req.Code)
-	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
 func (a *ClientAPI) activeInvite(w http.ResponseWriter, r *http.Request) {
@@ -321,7 +326,7 @@ func (a *ClientAPI) activeInvite(w http.ResponseWriter, r *http.Request) {
 	if code != "" {
 		url = "/invite/" + code + "?org=" + claims.OrgID
 	}
-	json.NewEncoder(w).Encode(map[string]string{"code": code, "url": url})
+	_ = json.NewEncoder(w).Encode(map[string]string{"code": code, "url": url})
 }
 
 func (a *ClientAPI) orgStats(w http.ResponseWriter, r *http.Request) {
@@ -335,7 +340,7 @@ func (a *ClientAPI) orgStats(w http.ResponseWriter, r *http.Request) {
 	channels, _ := s.ListChannels()
 	msgCount := s.MessageCount()
 	fileSize := s.TotalFileSize()
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"users":     len(users),
 		"channels":  len(channels),
 		"messages":  msgCount,
@@ -367,8 +372,9 @@ func (a *ClientAPI) findMyOrgs(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	json.NewEncoder(w).Encode(result)
+	_ = json.NewEncoder(w).Encode(result)
 }
+
 func (a *ClientAPI) checkInviteUser(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("code")
 	org := r.URL.Query().Get("org")
@@ -379,7 +385,7 @@ func (a *ClientAPI) checkInviteUser(w http.ResponseWriter, r *http.Request) {
 	}
 	s, err := a.orgs.Get(org)
 	if err != nil {
-		json.NewEncoder(w).Encode(map[string]bool{"exists": false})
+		_ = json.NewEncoder(w).Encode(map[string]bool{"exists": false})
 		return
 	}
 	if err := s.ValidateInvite(code); err != nil {
@@ -394,8 +400,9 @@ func (a *ClientAPI) checkInviteUser(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	json.NewEncoder(w).Encode(map[string]bool{"exists": exists})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"exists": exists})
 }
+
 func (a *ClientAPI) changePassword(w http.ResponseWriter, r *http.Request) {
 	s := a.db(r)
 	var req struct {
@@ -429,5 +436,5 @@ func (a *ClientAPI) changePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	RevokeUser(claims.OrgID, claims.UserID)
-	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
