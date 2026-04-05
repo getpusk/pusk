@@ -108,7 +108,7 @@ function _idbDel(key){try{const req=indexedDB.open('pusk-sw',1);req.onsuccess=()
 function _checkPushIDB(){_idbGet('pushTarget').then(target=>{if(target){_idbDel('pushTarget');_handlePushTarget(target)}})}
 _checkPushIDB();
 // Also check when PWA comes to foreground (user clicked notification while app was in background)
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(_checkPushIDB,100)});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(_checkPushIDB,500)});
 if ('serviceWorker' in navigator && navigator.serviceWorker) {
   try { navigator.serviceWorker.addEventListener('message', e => {
     // SW sends push-click when notification was tapped
