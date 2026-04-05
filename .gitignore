@@ -7,11 +7,4 @@ data/
 *.secret
 tests/e2e/node_modules/
 scripts/deploy.env
-
-# AI assistant config (local only, never commit)
-.claude/
-.cursor/
-.aider*
-.copilot/
-CLAUDE.md
-QWEN.md
+tests/e2e/test-results/
