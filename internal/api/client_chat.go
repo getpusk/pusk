@@ -38,13 +38,13 @@ func (a *ClientAPI) listBots(w http.ResponseWriter, r *http.Request) {
 		}
 		result[i] = bi
 	}
-	json.NewEncoder(w).Encode(result)
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 func (a *ClientAPI) listChats(w http.ResponseWriter, r *http.Request) {
 	claims := ClaimsFromCtx(r.Context())
 	if claims != nil && (claims.OrgID == "" || claims.OrgID == "default") {
-		json.NewEncoder(w).Encode([]interface{}{})
+		_ = json.NewEncoder(w).Encode([]interface{}{})
 		return
 	}
 	userID := UserIDFromCtx(r.Context())
@@ -53,7 +53,7 @@ func (a *ClientAPI) listChats(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "internal error", 500)
 		return
 	}
-	json.NewEncoder(w).Encode(chats)
+	_ = json.NewEncoder(w).Encode(chats)
 }
 
 func (a *ClientAPI) startChat(w http.ResponseWriter, r *http.Request) {
@@ -99,7 +99,7 @@ func (a *ClientAPI) startChat(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
-	json.NewEncoder(w).Encode(chat)
+	_ = json.NewEncoder(w).Encode(chat)
 }
 
 func (a *ClientAPI) chatMessages(w http.ResponseWriter, r *http.Request) {
@@ -123,7 +123,7 @@ func (a *ClientAPI) chatMessages(w http.ResponseWriter, r *http.Request) {
 	if msgs == nil {
 		msgs = []store.Message{}
 	}
-	json.NewEncoder(w).Encode(msgs)
+	_ = json.NewEncoder(w).Encode(msgs)
 }
 
 func (a *ClientAPI) sendToBot(w http.ResponseWriter, r *http.Request) {
@@ -136,7 +136,10 @@ func (a *ClientAPI) sendToBot(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Text string `json:"text"`
 	}
-	json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonErr(w, "invalid request body", 400)
+		return
+	}
 
 	// BUG-9: reject empty text
 	if req.Text == "" {
@@ -159,7 +162,7 @@ func (a *ClientAPI) sendToBot(w http.ResponseWriter, r *http.Request) {
 	a.pushToUpdateQueue(s, chatID, userID, msg)
 	go a.forwardToBot(s, chatID, userID, msg)
 
-	json.NewEncoder(w).Encode(msg)
+	_ = json.NewEncoder(w).Encode(msg)
 }
 
 func (a *ClientAPI) callback(w http.ResponseWriter, r *http.Request) {
@@ -173,13 +176,16 @@ func (a *ClientAPI) callback(w http.ResponseWriter, r *http.Request) {
 		Data      string `json:"data"`
 		MessageID int64  `json:"message_id"`
 	}
-	json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonErr(w, "invalid request body", 400)
+		return
+	}
 
 	s := a.db(r)
 	a.pushCallbackToQueue(s, chatID, userID, req.Data, req.MessageID)
 	go a.forwardCallback(s, chatID, userID, req.Data, req.MessageID)
 
-	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
 func (a *ClientAPI) deleteMessage(w http.ResponseWriter, r *http.Request) {
@@ -200,7 +206,7 @@ func (a *ClientAPI) deleteMessage(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "internal error", 500)
 		return
 	}
-	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
 func (a *ClientAPI) websocket(w http.ResponseWriter, r *http.Request) {
@@ -279,7 +285,7 @@ func (a *ClientAPI) health(w http.ResponseWriter, r *http.Request) {
 		status = "degraded"
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":  status,
 		"online":  a.hub.Online(),
 		"version": Version,

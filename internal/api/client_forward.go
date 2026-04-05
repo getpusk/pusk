@@ -204,6 +204,6 @@ func sendWebhook(url string, payload interface{}) {
 		slog.Error("webhook send failed", "url", url, "error", err)
 		return
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	slog.Info("webhook sent", "url", url, "status", resp.StatusCode)
 }

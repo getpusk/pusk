@@ -489,7 +489,7 @@ func (h *Handler) sendFile(fileType string) http.HandlerFunc {
 			jsonResp(w, 400, APIResponse{OK: false, Error: "missing file field: " + fileType})
 			return
 		}
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 
 		fileID := randID()
 		ext := filepath.Ext(header.Filename)

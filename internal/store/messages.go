@@ -56,7 +56,7 @@ func (s *Store) ChatMessages(chatID int64, limit int) ([]Message, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var msgs []Message
 	for rows.Next() {
 		var m Message

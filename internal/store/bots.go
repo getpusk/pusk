@@ -40,7 +40,7 @@ func (s *Store) ListBots() ([]Bot, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var bots []Bot
 	for rows.Next() {
 		var b Bot

@@ -46,7 +46,7 @@ func (a *ClientAPI) channelReaders(w http.ResponseWriter, r *http.Request) {
 	if readers == nil {
 		readers = []store.ChannelReader{}
 	}
-	json.NewEncoder(w).Encode(readers)
+	_ = json.NewEncoder(w).Encode(readers)
 }
 
 func (a *ClientAPI) ackChannelMessage(w http.ResponseWriter, r *http.Request) {
@@ -57,7 +57,10 @@ func (a *ClientAPI) ackChannelMessage(w http.ResponseWriter, r *http.Request) {
 		MessageID int64  `json:"message_id"`
 		Action    string `json:"action"`
 	}
-	json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonErr(w, "invalid request body", 400)
+		return
+	}
 
 	claims := ClaimsFromCtx(r.Context())
 	username := ""
@@ -80,7 +83,7 @@ func (a *ClientAPI) ackChannelMessage(w http.ResponseWriter, r *http.Request) {
 	}
 	// BUG-11: prevent re-ACK on already ACK'd messages
 	if strings.Contains(msg.Text, "**ACK**") || strings.Contains(msg.Text, "**Resolved**") || strings.Contains(msg.Text, "**Muted") {
-		json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "already": true})
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "already": true})
 		return
 	}
 	now := time.Now().Format("15:04")
@@ -102,7 +105,7 @@ func (a *ClientAPI) ackChannelMessage(w http.ResponseWriter, r *http.Request) {
 		go createAlertmanagerSilence(amURL, username, msg.Text)
 	}
 
-	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
 func (a *ClientAPI) listChannels(w http.ResponseWriter, r *http.Request) {
@@ -116,7 +119,7 @@ func (a *ClientAPI) listChannels(w http.ResponseWriter, r *http.Request) {
 	if result == nil {
 		result = []store.ChannelInfo{}
 	}
-	json.NewEncoder(w).Encode(result)
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 func (a *ClientAPI) subscribe(w http.ResponseWriter, r *http.Request) {
@@ -126,7 +129,7 @@ func (a *ClientAPI) subscribe(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "internal error", 500)
 		return
 	}
-	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
 func (a *ClientAPI) unsubscribe(w http.ResponseWriter, r *http.Request) {
@@ -136,7 +139,7 @@ func (a *ClientAPI) unsubscribe(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "internal error", 500)
 		return
 	}
-	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
 func (a *ClientAPI) channelMessages(w http.ResponseWriter, r *http.Request) {
@@ -161,7 +164,7 @@ func (a *ClientAPI) channelMessages(w http.ResponseWriter, r *http.Request) {
 	if len(msgs) > 0 {
 		s.MarkChannelRead(channelID, userID, msgs[0].ID)
 	}
-	json.NewEncoder(w).Encode(msgs)
+	_ = json.NewEncoder(w).Encode(msgs)
 }
 
 func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
@@ -178,7 +181,10 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 		Text    string `json:"text"`
 		ReplyTo int64  `json:"reply_to"`
 	}
-	json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonErr(w, "invalid request body", 400)
+		return
+	}
 	if req.Text == "" {
 		jsonErr(w, "text required", 400)
 		return
@@ -295,7 +301,7 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	json.NewEncoder(w).Encode(msg)
+	_ = json.NewEncoder(w).Encode(msg)
 }
 
 func (a *ClientAPI) pushUnsubscribe(w http.ResponseWriter, r *http.Request) {
@@ -303,14 +309,17 @@ func (a *ClientAPI) pushUnsubscribe(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Endpoint string `json:"endpoint"`
 	}
-	json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonErr(w, "invalid request body", 400)
+		return
+	}
 	if req.Endpoint == "" {
 		// Delete all push subscriptions for this user
 		_ = a.db(r).DeleteAllPushSubscriptions(userID)
 	} else {
 		_ = a.db(r).DeletePushSubscription(req.Endpoint)
 	}
-	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
 func (a *ClientAPI) pushSubscribe(w http.ResponseWriter, r *http.Request) {
@@ -327,16 +336,19 @@ func (a *ClientAPI) pushSubscribe(w http.ResponseWriter, r *http.Request) {
 			Auth   string `json:"auth"`
 		} `json:"keys"`
 	}
-	json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonErr(w, "invalid request body", 400)
+		return
+	}
 	if err := a.db(r).SavePushSubscription(userID, req.Endpoint, req.Keys.P256dh, req.Keys.Auth); err != nil {
 		jsonErr(w, "internal error", 500)
 		return
 	}
-	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
 func (a *ClientAPI) vapidKey(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(map[string]string{"key": a.vapidPub})
+	_ = json.NewEncoder(w).Encode(map[string]string{"key": a.vapidPub})
 }
 
 func (a *ClientAPI) testPush(w http.ResponseWriter, r *http.Request) {
@@ -347,14 +359,14 @@ func (a *ClientAPI) testPush(w http.ResponseWriter, r *http.Request) {
 		username = claims.Username
 	}
 	if claims == nil || claims.OrgID == "" || claims.OrgID == "default" {
-		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": "push not available in default org"})
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": "push not available in default org"})
 		return
 	}
 	s := a.db(r)
 	subs, _ := s.UserPushSubscriptions(userID)
 	if len(subs) == 0 {
 		slog.Info("push test: no subscriptions", "user_id", userID, "username", username)
-		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": "no push subscription", "subscriptions": 0})
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": "no push subscription", "subscriptions": 0})
 		return
 	}
 	slog.Info("push test", "user_id", userID, "username", username, "subscriptions", len(subs))
@@ -364,13 +376,13 @@ func (a *ClientAPI) testPush(w http.ResponseWriter, r *http.Request) {
 		Tag:   "test-push",
 		URL:   "/",
 	})
-	json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "subscriptions": len(subs)})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "subscriptions": len(subs)})
 }
 
 func (a *ClientAPI) listUsers(w http.ResponseWriter, r *http.Request) {
 	claims := ClaimsFromCtx(r.Context())
 	if claims != nil && (claims.OrgID == "" || claims.OrgID == "default") {
-		json.NewEncoder(w).Encode([]interface{}{})
+		_ = json.NewEncoder(w).Encode([]interface{}{})
 		return
 	}
 	users, err := a.db(r).ListUsers()
@@ -378,7 +390,7 @@ func (a *ClientAPI) listUsers(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "internal error", 500)
 		return
 	}
-	json.NewEncoder(w).Encode(users)
+	_ = json.NewEncoder(w).Encode(users)
 }
 
 func (a *ClientAPI) setUserRole(w http.ResponseWriter, r *http.Request) {
@@ -392,7 +404,10 @@ func (a *ClientAPI) setUserRole(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Role string `json:"role"`
 	}
-	json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonErr(w, "invalid request body", 400)
+		return
+	}
 	if req.Role != "admin" && req.Role != "member" {
 		jsonErr(w, "role must be admin or member", 400)
 		return
@@ -422,7 +437,7 @@ func (a *ClientAPI) setUserRole(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	_ = s.SetUserRole(targetID, req.Role)
-	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
 func (a *ClientAPI) deleteUser(w http.ResponseWriter, r *http.Request) {
@@ -451,7 +466,7 @@ func (a *ClientAPI) deleteUser(w http.ResponseWriter, r *http.Request) {
 	if claims != nil {
 		RevokeUser(claims.OrgID, targetID)
 	}
-	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
 func (a *ClientAPI) editChannelMessage(w http.ResponseWriter, r *http.Request) {
@@ -474,7 +489,10 @@ func (a *ClientAPI) editChannelMessage(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Text string `json:"text"`
 	}
-	json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonErr(w, "invalid request body", 400)
+		return
+	}
 	_ = s.UpdateChannelMessageText(msgID, req.Text, "")
 
 	updated, _ := s.GetChannelMessage(msgID)
@@ -487,7 +505,7 @@ func (a *ClientAPI) editChannelMessage(w http.ResponseWriter, r *http.Request) {
 		a.broadcastChannel(s, channelID, orgID, "channel_message_edit", payload)
 	}
 
-	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
 func (a *ClientAPI) deleteChannelMessage(w http.ResponseWriter, r *http.Request) {
@@ -517,7 +535,7 @@ func (a *ClientAPI) deleteChannelMessage(w http.ResponseWriter, r *http.Request)
 	a.broadcastChannel(s, msg.ChannelID, orgID, "channel_message_delete", payload)
 
 	_ = s.DeleteChannelMessage(msgID)
-	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
 func (a *ClientAPI) onlineUsers(w http.ResponseWriter, r *http.Request) {
@@ -549,7 +567,7 @@ func (a *ClientAPI) onlineUsers(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	json.NewEncoder(w).Encode(map[string]interface{}{"online": onlineCount, "total_connected": len(users), "users": users})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"online": onlineCount, "total_connected": len(users), "users": users})
 }
 
 func (a *ClientAPI) pinMessage(w http.ResponseWriter, r *http.Request) {
@@ -563,9 +581,12 @@ func (a *ClientAPI) pinMessage(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		MessageID int64 `json:"message_id"`
 	}
-	json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonErr(w, "invalid request body", 400)
+		return
+	}
 	_ = s.PinMessage(channelID, req.MessageID)
-	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
 func truncateText(s string, max int) string {
@@ -601,7 +622,7 @@ func createAlertmanagerSilence(amURL, username, alertText string) {
 		slog.Warn("alertmanager silence failed", "error", err)
 		return
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	slog.Info("alertmanager silence created", "alertname", alertname, "by", username, "status", resp.StatusCode)
 }
 
@@ -628,7 +649,7 @@ func (a *ClientAPI) uploadToChannel(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "file required", 400)
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Determine file type from content-type
 	ct := header.Header.Get("Content-Type")
@@ -719,7 +740,7 @@ func (a *ClientAPI) uploadToChannel(w http.ResponseWriter, r *http.Request) {
 		a.broadcastChannel(s, ch.ID, orgID, "channel_message", payload, userID)
 	}
 
-	json.NewEncoder(w).Encode(msg)
+	_ = json.NewEncoder(w).Encode(msg)
 }
 
 func (a *ClientAPI) createFileToken(w http.ResponseWriter, r *http.Request) {
@@ -732,5 +753,5 @@ func (a *ClientAPI) createFileToken(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "internal error", 500)
 		return
 	}
-	json.NewEncoder(w).Encode(map[string]string{"token": token})
+	_ = json.NewEncoder(w).Encode(map[string]string{"token": token})
 }
