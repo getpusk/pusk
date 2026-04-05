@@ -206,7 +206,8 @@ func main() {
 }
 
 func loadOrGenerateSecret(path string) string {
-	data, err := os.ReadFile(path)
+	//nolint:gosec // G304: fixed config path from CLI flag
+	data, err := os.ReadFile(path) // #nosec G304
 	if err == nil {
 		s := strings.TrimSpace(string(data))
 		if len(s) >= 32 {
