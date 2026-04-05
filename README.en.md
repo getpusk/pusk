@@ -2,7 +2,6 @@
 [![CI](https://github.com/getpusk/pusk/actions/workflows/ci.yml/badge.svg)](https://github.com/getpusk/pusk/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/devitway/54c1b0a766ce24cb97ac0134c59212c7/raw/pusk-coverage.json)](https://github.com/getpusk/pusk/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/getpusk/pusk)](https://goreportcard.com/report/github.com/getpusk/pusk)
-[![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-blue.svg)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go&logoColor=white)](https://go.dev)
 [![Bot API](https://img.shields.io/badge/Bot_API-13_methods-2CA5E0?logo=telegram)](https://core.telegram.org/bots/api)
 [![SQLite](https://img.shields.io/badge/SQLite-per_tenant-003B57?logo=sqlite)](https://www.sqlite.org)
