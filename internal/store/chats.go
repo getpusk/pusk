@@ -29,7 +29,7 @@ func (s *Store) UserChats(userID int64) ([]Chat, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var chats []Chat
 	for rows.Next() {
 		var c Chat

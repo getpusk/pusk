@@ -31,7 +31,7 @@ func (s *Store) UserPushSubscriptions(userID int64) ([]PushSubscription, error) 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var subs []PushSubscription
 	for rows.Next() {
 		var sub PushSubscription

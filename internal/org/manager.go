@@ -37,7 +37,7 @@ type Manager struct {
 
 func NewManager(dataDir string) (*Manager, error) {
 	dir := filepath.Join(dataDir, "orgs")
-	_ = os.MkdirAll(dir, 0750)
+	_ = os.MkdirAll(dir, 0o750)
 
 	// Global token registry
 	tokDB, err := sql.Open("sqlite", filepath.Join(dataDir, "tokens.db")+"?_journal_mode=WAL")
@@ -108,7 +108,7 @@ func (m *Manager) hasOrg(slug string) bool {
 
 func (m *Manager) save() error {
 	data, _ := json.MarshalIndent(m.orgs, "", "  ")
-	return os.WriteFile(m.masterFn, data, 0600)
+	return os.WriteFile(m.masterFn, data, 0o600)
 }
 
 // Get returns the Store for an org, creating it lazily
@@ -134,7 +134,7 @@ func (m *Manager) Get(slug string) (*store.Store, error) {
 	}
 
 	orgDir := filepath.Join(m.dir, filepath.Base(slug))
-	_ = os.MkdirAll(orgDir, 0750)
+	_ = os.MkdirAll(orgDir, 0o750)
 	dbPath := filepath.Join(orgDir, "pusk.db")
 
 	s, err := store.New(dbPath)
@@ -179,7 +179,7 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 
 	// Create org directory and database
 	orgDir := filepath.Join(m.dir, filepath.Base(slug))
-	_ = os.MkdirAll(orgDir, 0750)
+	_ = os.MkdirAll(orgDir, 0o750)
 	dbPath := filepath.Join(orgDir, "pusk.db")
 
 	s, err := store.New(dbPath)

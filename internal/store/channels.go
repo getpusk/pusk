@@ -59,7 +59,7 @@ func (s *Store) ListChannels() ([]Channel, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var chs []Channel
 	for rows.Next() {
 		var ch Channel
@@ -88,7 +88,7 @@ func (s *Store) ChannelSubscribers(channelID int64) ([]int64, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var ids []int64
 	for rows.Next() {
 		var id int64
@@ -107,7 +107,7 @@ func (s *Store) UserSubscriptions(userID int64) ([]Channel, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var chs []Channel
 	for rows.Next() {
 		var ch Channel
@@ -140,8 +140,10 @@ func (s *Store) SaveChannelMessageFrom(channelID int64, sender, senderName, text
 		return nil, err
 	}
 	id, _ := res.LastInsertId()
-	return &ChannelMessage{ID: id, ChannelID: channelID, Sender: sender, SenderName: senderName,
-		Text: text, ReplyMarkup: replyMarkup, FileID: fileID, FileType: fileType, CreatedAt: now}, nil
+	return &ChannelMessage{
+		ID: id, ChannelID: channelID, Sender: sender, SenderName: senderName,
+		Text: text, ReplyMarkup: replyMarkup, FileID: fileID, FileType: fileType, CreatedAt: now,
+	}, nil
 }
 
 func (s *Store) ChannelMessages(channelID int64, limit int) ([]ChannelMessage, error) {
@@ -151,7 +153,7 @@ func (s *Store) ChannelMessages(channelID int64, limit int) ([]ChannelMessage, e
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var msgs []ChannelMessage
 	for rows.Next() {
 		var m ChannelMessage
@@ -270,7 +272,7 @@ func (s *Store) ListChannelsForUser(userID int64) ([]ChannelInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var result []ChannelInfo
 	for rows.Next() {
 		var ci ChannelInfo
@@ -302,7 +304,7 @@ func (s *Store) ChannelReadersJoin(channelID int64) ([]ChannelReader, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var readers []ChannelReader
 	for rows.Next() {
 		var r ChannelReader

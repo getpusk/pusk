@@ -66,5 +66,6 @@ func main() {
 	})
 
 	log.Printf("Push receiver on :%s — POST /push-receive, GET /push-results", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	//nolint:gosec // G114: test helper, not production
+	log.Fatal(http.ListenAndServe(":"+port, nil)) // #nosec G114
 }

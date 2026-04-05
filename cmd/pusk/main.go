@@ -58,8 +58,8 @@ func main() {
 	if v := os.Getenv("PUSK_ADDR"); v != "" {
 		*addr = v
 	}
-	_ = os.MkdirAll("data", 0750)
-	_ = os.MkdirAll(*filesDir, 0750)
+	_ = os.MkdirAll("data", 0o750)
+	_ = os.MkdirAll(*filesDir, 0o750)
 
 	// Multi-tenant org manager
 	orgs, err := org.NewManager("data")
@@ -206,7 +206,8 @@ func main() {
 }
 
 func loadOrGenerateSecret(path string) string {
-	data, err := os.ReadFile(path)
+	//nolint:gosec // G304: fixed config path from CLI flag
+	data, err := os.ReadFile(path) // #nosec G304
 	if err == nil {
 		s := strings.TrimSpace(string(data))
 		if len(s) >= 32 {
@@ -219,7 +220,7 @@ func loadOrGenerateSecret(path string) string {
 		os.Exit(1)
 	}
 	secret := hex.EncodeToString(b)
-	_ = os.WriteFile(path, []byte(secret+"\n"), 0600)
+	_ = os.WriteFile(path, []byte(secret+"\n"), 0o600)
 	slog.Info("JWT secret generated", "path", path)
 	return secret
 }

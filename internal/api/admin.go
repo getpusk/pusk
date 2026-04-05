@@ -150,7 +150,7 @@ func (a *AdminAPI) createChannel(w http.ResponseWriter, r *http.Request) {
 			errMsg = err.Error()
 		}
 		w.WriteHeader(400)
-		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": errMsg})
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": errMsg})
 		return
 	}
 	// Auto-subscribe all org members to new channel (push ON by default)
@@ -160,7 +160,7 @@ func (a *AdminAPI) createChannel(w http.ResponseWriter, r *http.Request) {
 	}
 	slog.Info("channel created", "channel", ch.Name)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "result": ch})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "result": ch})
 }
 
 func (a *AdminAPI) deleteChannel(w http.ResponseWriter, r *http.Request) {
@@ -184,11 +184,11 @@ func (a *AdminAPI) deleteChannel(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if err := s.DeleteChannel(channelID); err != nil {
-		json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": err.Error()})
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": err.Error()})
 		return
 	}
 	slog.Info("channel deleted", "channel_id", channelID)
-	json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
 }
 
 func (a *AdminAPI) renameChannel(w http.ResponseWriter, r *http.Request) {
@@ -227,7 +227,7 @@ func (a *AdminAPI) renameChannel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slog.Info("channel renamed", "channel_id", channelID, "new_name", req.Name)
-	json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
 }
 
 func (a *AdminAPI) renameBot(w http.ResponseWriter, r *http.Request) {
@@ -257,7 +257,7 @@ func (a *AdminAPI) renameBot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slog.Info("bot renamed", "bot_id", botID, "new_name", req.Name)
-	json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
 }
 
 func (a *AdminAPI) registerOrg(w http.ResponseWriter, r *http.Request) {
@@ -288,7 +288,7 @@ func (a *AdminAPI) registerOrg(w http.ResponseWriter, r *http.Request) {
 	user, _ := s.AuthUser(req.Username, req.Pin)
 	tok, _ := a.jwt.Generate(user.ID, req.Slug, req.Username)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"ok":       true,
 		"org":      req.Slug,
 		"token":    tok,
@@ -310,7 +310,10 @@ func (a *AdminAPI) resetPassword(w http.ResponseWriter, r *http.Request) {
 		Username string `json:"username"`
 		NewPin   string `json:"new_pin"`
 	}
-	json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonErr(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
 	if req.Org == "" || req.Username == "" || req.NewPin == "" {
 		http.Error(w, `{"error":"org, username and new_pin required"}`, 400)
 		return
@@ -337,7 +340,7 @@ func (a *AdminAPI) resetPassword(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	slog.Info("password reset", "org", req.Org, "username", req.Username)
-	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
 func (a *AdminAPI) adminSetRole(w http.ResponseWriter, r *http.Request) {
@@ -351,7 +354,10 @@ func (a *AdminAPI) adminSetRole(w http.ResponseWriter, r *http.Request) {
 		UserID int64  `json:"user_id"`
 		Role   string `json:"role"`
 	}
-	json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonErr(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
 	if req.Org == "" || req.UserID == 0 || (req.Role != "admin" && req.Role != "member") {
 		http.Error(w, `{"error":"org, user_id and role (admin/member) required"}`, 400)
 		return
@@ -363,5 +369,5 @@ func (a *AdminAPI) adminSetRole(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = s.SetUserRole(req.UserID, req.Role)
 	slog.Info("admin role set", "org", req.Org, "user_id", req.UserID, "role", req.Role)
-	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
