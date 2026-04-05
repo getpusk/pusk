@@ -80,7 +80,12 @@ func (s *Store) Subscribe(channelID, userID int64) error {
 func (s *Store) Unsubscribe(channelID, userID int64) error {
 	_, err := s.db.Exec("DELETE FROM channel_subscribers WHERE channel_id=? AND user_id=?",
 		channelID, userID)
-	return err
+	if err != nil {
+		return err
+	}
+	//nolint:errcheck // best-effort cleanup of stale read markers
+	s.db.Exec("DELETE FROM channel_reads WHERE channel_id=? AND user_id=?", channelID, userID)
+	return nil
 }
 
 func (s *Store) ChannelSubscribers(channelID int64) ([]int64, error) {
