@@ -1498,6 +1498,41 @@ paths:
               schema:
                 $ref: '#/components/schemas/OkResponse'
 
+
+  /api/channels/{channelID}/mark-read:
+    post:
+      tags: [Client Channels]
+      operationId: clientChannelMarkRead
+      summary: Mark channel as read
+      description: |
+        Marks the channel as read up to the given message ID.
+        If last_read_id is omitted, marks up to the latest message.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: channelID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                last_read_id:
+                  type: integer
+                  format: int64
+                  description: Message ID to mark as read up to. Defaults to latest message.
+      responses:
+        '200':
+          description: Marked as read.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
   /api/channels/{channelID}/messages:
     get:
       tags: [Client Channels]
