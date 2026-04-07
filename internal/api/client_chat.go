@@ -42,11 +42,6 @@ func (a *ClientAPI) listBots(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) listChats(w http.ResponseWriter, r *http.Request) {
-	claims := ClaimsFromCtx(r.Context())
-	if claims != nil && (claims.OrgID == "" || claims.OrgID == "default") {
-		_ = json.NewEncoder(w).Encode([]interface{}{})
-		return
-	}
 	userID := UserIDFromCtx(r.Context())
 	chats, err := a.db(r).UserChats(userID)
 	if err != nil {
