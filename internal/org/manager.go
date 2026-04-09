@@ -154,7 +154,7 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 		return fmt.Errorf("slug must be 2-32 characters")
 	}
 	for _, c := range slug {
-		if !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-') {
+		if (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '-' {
 			return fmt.Errorf("slug must contain only lowercase letters, digits and hyphens")
 		}
 	}

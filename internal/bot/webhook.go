@@ -258,13 +258,13 @@ func formatZabbix(p map[string]interface{}) string {
 		icon = "Resolved"
 	}
 
-	sb.WriteString(fmt.Sprintf("**%s** %s", icon, subject))
+	fmt.Fprintf(&sb, "**%s** %s", icon, subject)
 	if severity != "" {
-		sb.WriteString(fmt.Sprintf(" [%s]", severity))
+		fmt.Fprintf(&sb, " [%s]", severity)
 	}
 	sb.WriteString("\n")
 	if host != "" {
-		sb.WriteString(fmt.Sprintf("Host: *%s*\n", host))
+		fmt.Fprintf(&sb, "Host: *%s*\n", host)
 	}
 	if message != "" {
 		sb.WriteString(message + "\n")
@@ -303,9 +303,9 @@ func formatGrafana(p map[string]interface{}) string {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("**%s** %s", icon, name))
+	fmt.Fprintf(&sb, "**%s** %s", icon, name)
 	if state != "" {
-		sb.WriteString(fmt.Sprintf(" [%s]", state))
+		fmt.Fprintf(&sb, " [%s]", state)
 	}
 	sb.WriteString("\n")
 	if message != "" {
