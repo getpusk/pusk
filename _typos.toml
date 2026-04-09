@@ -1,0 +1,13 @@
+[files]
+extend-exclude = ["vendor/", "go.sum", "*.lock"]
+
+[default.extend-words]
+# Minified JS variable names
+pn = "pn"
+# Test fixture slug
+nodel = "nodel"
+# Test bot name prefix
+ot = "ot"
+# Lint script: "ERRORs" and "WARNINGs" (typos splits plural forms)
+ERRO = "ERRO"
+WARNIN = "WARNIN"

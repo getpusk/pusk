@@ -1,0 +1,16 @@
+# Bulk format/lint commits — ignore in git blame
+
+# Lint: gofmt, staticcheck clean, use http status constants
+4104d4400363a3f15c93b89b8ff1ff153d7eb9e6
+
+# CI: add staticcheck + gofmt check
+1493f5c1977d615525fbef61f876777ea5000aaa
+
+# lint: add golangci-lint config, fix all errcheck and staticcheck issues
+36fa35e7322e5124a99e3ad355e1d71e35453130
+
+# fix: golangci-lint v2 config
+86449d55e868b16250097220caf7cbf0d3557312
+
+# Code review: fix all 12 issues (CSS cleanup, auth styles, dead code, Russian UI, security fixes)
+ec28ce8f2214c815abb1cc157b43f2a5fcde1207
