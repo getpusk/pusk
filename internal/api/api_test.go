@@ -32,6 +32,7 @@ type testEnv struct {
 var testIPCounter atomic.Uint64
 
 func newTestEnv(t *testing.T) *testEnv {
+	resetRevokedUsers()
 	t.Helper()
 	dir, err := os.MkdirTemp("", "pusk-api-test-*")
 	if err != nil {
@@ -466,12 +467,6 @@ func TestChangePassword_Success(t *testing.T) {
 
 func TestOrgStats_NonAdmin(t *testing.T) {
 	env := newTestEnv(t)
-	// Register a dummy user first so statsuser gets userID=2,
-	// avoiding collision with global revokedUsers from TestChangePassword_Success
-	// which revokes "default:1".
-	env.request("POST", "/api/register", map[string]string{
-		"username": "dummy", "pin": "pass123456",
-	})
 	regRec := env.request("POST", "/api/register", map[string]string{
 		"username": "statsuser", "pin": "pass123456",
 	})
