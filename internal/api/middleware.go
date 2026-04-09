@@ -43,6 +43,11 @@ func RevokeUser(orgID string, userID int64) {
 	revokedUsers.Store(orgID+":"+strconv.FormatInt(userID, 10), time.Now())
 }
 
+// resetRevokedUsers clears all revocation entries (test-only).
+func resetRevokedUsers() {
+	revokedUsers.Range(func(key, _ any) bool { revokedUsers.Delete(key); return true })
+}
+
 // AuthRequired validates JWT from Authorization header or ?token= query param,
 // stores userID and claims in context, and returns 401 if invalid.
 func (a *ClientAPI) AuthRequired(next http.HandlerFunc) http.HandlerFunc {
