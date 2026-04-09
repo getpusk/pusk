@@ -1,0 +1,5 @@
+[files]
+extend-exclude = ["vendor/", "go.sum", "*.lock"]
+
+[default.extend-words]
+# False positives common in Go projects
