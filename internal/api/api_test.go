@@ -580,3 +580,53 @@ func TestLimitBody(t *testing.T) {
 		t.Error("handler should be called")
 	}
 }
+
+// ── ListChats regression (bug #7877fbd) ──
+
+func TestListChats_DefaultOrg_ReturnsChats(t *testing.T) {
+	env := newTestEnv(t)
+	// Register user
+	env.request("POST", "/api/register", map[string]string{
+		"username": "chatuser", "pin": "pass123456",
+	})
+	// Auth to get token
+	rec := env.request("POST", "/api/auth", map[string]string{
+		"username": "chatuser", "pin": "pass123456",
+	})
+	data := decodeJSON(t, rec)
+	token := data["token"].(string)
+
+	// Create a bot
+	s, _ := env.orgs.Get("default")
+	bot, err := s.CreateBot("chat-test-bot", "ChatTestBot")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Start chat with the bot
+	rec = env.authedRequest("POST", fmt.Sprintf("/api/bots/%d/start", bot.ID), nil, token)
+	if rec.Code != 200 {
+		t.Fatalf("startChat: got %d, body: %s", rec.Code, rec.Body.String())
+	}
+
+	// List chats — must NOT be empty
+	rec = env.authedRequest("GET", "/api/chats", nil, token)
+	if rec.Code != 200 {
+		t.Fatalf("listChats: got %d", rec.Code)
+	}
+	var chats []interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &chats); err != nil {
+		t.Fatalf("decode chats: %v, body: %s", err, rec.Body.String())
+	}
+	if len(chats) == 0 {
+		t.Error("listChats returned empty — regression: default org guard blocks chats")
+	}
+}
+
+func TestListChats_Unauthed(t *testing.T) {
+	env := newTestEnv(t)
+	rec := env.request("GET", "/api/chats", nil)
+	if rec.Code != 401 {
+		t.Fatalf("unauth chats: got %d, want 401", rec.Code)
+	}
+}
