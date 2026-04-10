@@ -8,3 +8,4 @@ data/
 tests/e2e/node_modules/
 scripts/deploy.env
 tests/e2e/test-results/
+demo-bots/demobot.py
