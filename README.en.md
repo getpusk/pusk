@@ -52,6 +52,20 @@
 | **Multi-tenant** | Isolated organizations (separate SQLite per tenant) |
 | **Simple** | Single binary (23 MB), SQLite, ~2 MB RAM, 1-second startup |
 
+## Use Cases: connect monitoring in 5 minutes
+
+Ready-to-use docker-compose files — download, run, done:
+
+| Use case | What you get | Time |
+|----------|-------------|------|
+| [Alertmanager](docs/use-cases.en.md#-alertmanager) | Prometheus → Alertmanager → Pusk, ACK with auto-silence | 5 min |
+| [Grafana](docs/use-cases.en.md#-grafana) | Grafana Contact Point → Pusk | 5 min |
+| [Zabbix](docs/use-cases.en.md#-zabbix) | Zabbix Media Type → Pusk | 5 min |
+| [Uptime Kuma](docs/use-cases.en.md#-uptime-kuma) | Uptime Kuma → Pusk | 3 min |
+| [All-in-one](docs/use-cases.en.md#-all-in-one) | Full stack to try everything | 5 min |
+
+**[Go to use cases →](docs/use-cases.en.md)**
+
 ## FAQ
 
 <details>

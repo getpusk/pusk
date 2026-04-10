@@ -1,0 +1,34 @@
+# Pusk + Grafana
+# Запуск: docker compose up -d
+# Pusk: http://localhost:8443
+# Grafana: http://localhost:3000 (admin / admin)
+
+services:
+  pusk:
+    image: ghcr.io/getpusk/pusk:latest
+    ports:
+      - "8443:8443"
+    volumes:
+      - pusk-data:/app/data
+    restart: unless-stopped
+    networks:
+      - pusk-net
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    restart: unless-stopped
+    networks:
+      - pusk-net
+
+volumes:
+  pusk-data:
+  grafana-data:
+
+networks:
+  pusk-net:

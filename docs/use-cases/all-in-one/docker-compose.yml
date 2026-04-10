@@ -1,0 +1,124 @@
+# Pusk + Prometheus + Alertmanager + Grafana + Zabbix + Uptime Kuma
+# Полный стек для знакомства с Pusk
+#
+# Запуск: docker compose up -d
+# Pusk:          http://localhost:8443
+# Grafana:       http://localhost:3000 (admin / admin)
+# Prometheus:    http://localhost:9090
+# Alertmanager:  http://localhost:9093
+# Zabbix:        http://localhost:8080 (Admin / zabbix)
+# Uptime Kuma:   http://localhost:3001
+
+services:
+  pusk:
+    image: ghcr.io/getpusk/pusk:latest
+    ports:
+      - "8443:8443"
+    volumes:
+      - pusk-data:/app/data
+    environment:
+      - PUSK_ALERTMANAGER_URL=http://alertmanager:9093
+    restart: unless-stopped
+    networks:
+      - pusk-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./alert.rules.yml:/etc/prometheus/alert.rules.yml
+    restart: unless-stopped
+    networks:
+      - pusk-net
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    restart: unless-stopped
+    networks:
+      - pusk-net
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    restart: unless-stopped
+    networks:
+      - pusk-net
+
+  zabbix-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: zabbix
+      POSTGRES_USER: zabbix
+      POSTGRES_PASSWORD: zabbix
+    volumes:
+      - zabbix-db:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - pusk-net
+
+  zabbix-server:
+    image: zabbix/zabbix-server-pgsql:latest
+    environment:
+      DB_SERVER_HOST: zabbix-db
+      POSTGRES_USER: zabbix
+      POSTGRES_PASSWORD: zabbix
+    ports:
+      - "10051:10051"
+    depends_on:
+      - zabbix-db
+    restart: unless-stopped
+    networks:
+      - pusk-net
+
+  zabbix-web:
+    image: zabbix/zabbix-web-nginx-pgsql:latest
+    environment:
+      DB_SERVER_HOST: zabbix-db
+      POSTGRES_USER: zabbix
+      POSTGRES_PASSWORD: zabbix
+      ZBX_SERVER_HOST: zabbix-server
+    ports:
+      - "8080:8080"
+    depends_on:
+      - zabbix-server
+    restart: unless-stopped
+    networks:
+      - pusk-net
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:latest
+    ports:
+      - "3001:3001"
+    volumes:
+      - kuma-data:/app/data
+    restart: unless-stopped
+    networks:
+      - pusk-net
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    ports:
+      - "9100:9100"
+    restart: unless-stopped
+    networks:
+      - pusk-net
+
+volumes:
+  pusk-data:
+  grafana-data:
+  zabbix-db:
+  kuma-data:
+
+networks:
+  pusk-net:

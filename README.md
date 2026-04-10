@@ -52,6 +52,20 @@
 | **Мультитенант** | Изолированные организации (отдельная SQLite на каждую) |
 | **Простота** | Один бинарник (23 МБ), SQLite, ~2 МБ RAM, запуск за 1 секунду |
 
+## Кейсы: подключи мониторинг за 5 минут
+
+Готовые docker-compose файлы — скачай, запусти, работает:
+
+| Кейс | Что получите | Время |
+|------|-------------|-------|
+| [Alertmanager](docs/use-cases.md#-alertmanager) | Prometheus → Alertmanager → Pusk, ACK с auto-silence | 5 мин |
+| [Grafana](docs/use-cases.md#-grafana) | Grafana Contact Point → Pusk | 5 мин |
+| [Zabbix](docs/use-cases.md#-zabbix) | Zabbix Media Type → Pusk | 5 мин |
+| [Uptime Kuma](docs/use-cases.md#-uptime-kuma) | Uptime Kuma → Pusk | 3 мин |
+| [Всё сразу](docs/use-cases.md#-всё-сразу) | Полный стек для знакомства | 5 мин |
+
+**[Перейти к кейсам →](docs/use-cases.md)**
+
 ## Частые вопросы
 
 <details>

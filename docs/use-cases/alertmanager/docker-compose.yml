@@ -1,0 +1,52 @@
+# Pusk + Prometheus + Alertmanager
+# Запуск: docker compose up -d
+# Pusk: http://localhost:8443
+# Prometheus: http://localhost:9090
+
+services:
+  pusk:
+    image: ghcr.io/getpusk/pusk:latest
+    ports:
+      - "8443:8443"
+    volumes:
+      - pusk-data:/app/data
+    environment:
+      - PUSK_ALERTMANAGER_URL=http://alertmanager:9093
+    restart: unless-stopped
+    networks:
+      - pusk-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./alert.rules.yml:/etc/prometheus/alert.rules.yml
+    restart: unless-stopped
+    networks:
+      - pusk-net
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    restart: unless-stopped
+    networks:
+      - pusk-net
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    ports:
+      - "9100:9100"
+    restart: unless-stopped
+    networks:
+      - pusk-net
+
+volumes:
+  pusk-data:
+
+networks:
+  pusk-net:
