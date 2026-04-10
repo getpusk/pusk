@@ -1,0 +1,15 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: pusk
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 1h
+
+receivers:
+  - name: pusk
+    webhook_configs:
+      # Замените BOT-TOKEN на токен бота из Pusk
+      - url: 'http://pusk:8443/hook/BOT-TOKEN?format=alertmanager&channel=alerts'
+        send_resolved: true

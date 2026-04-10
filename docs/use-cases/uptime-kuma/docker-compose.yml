@@ -1,0 +1,32 @@
+# Pusk + Uptime Kuma
+# Запуск: docker compose up -d
+# Pusk: http://localhost:8443
+# Uptime Kuma: http://localhost:3001
+
+services:
+  pusk:
+    image: ghcr.io/getpusk/pusk:latest
+    ports:
+      - "8443:8443"
+    volumes:
+      - pusk-data:/app/data
+    restart: unless-stopped
+    networks:
+      - pusk-net
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:latest
+    ports:
+      - "3001:3001"
+    volumes:
+      - kuma-data:/app/data
+    restart: unless-stopped
+    networks:
+      - pusk-net
+
+volumes:
+  pusk-data:
+  kuma-data:
+
+networks:
+  pusk-net:

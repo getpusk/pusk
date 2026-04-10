@@ -1,0 +1,63 @@
+# Pusk + Zabbix
+# Запуск: docker compose up -d
+# Pusk: http://localhost:8443
+# Zabbix: http://localhost:8080 (Admin / zabbix)
+
+services:
+  pusk:
+    image: ghcr.io/getpusk/pusk:latest
+    ports:
+      - "8443:8443"
+    volumes:
+      - pusk-data:/app/data
+    restart: unless-stopped
+    networks:
+      - pusk-net
+
+  zabbix-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: zabbix
+      POSTGRES_USER: zabbix
+      POSTGRES_PASSWORD: zabbix
+    volumes:
+      - zabbix-db:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - pusk-net
+
+  zabbix-server:
+    image: zabbix/zabbix-server-pgsql:latest
+    environment:
+      DB_SERVER_HOST: zabbix-db
+      POSTGRES_USER: zabbix
+      POSTGRES_PASSWORD: zabbix
+    ports:
+      - "10051:10051"
+    depends_on:
+      - zabbix-db
+    restart: unless-stopped
+    networks:
+      - pusk-net
+
+  zabbix-web:
+    image: zabbix/zabbix-web-nginx-pgsql:latest
+    environment:
+      DB_SERVER_HOST: zabbix-db
+      POSTGRES_USER: zabbix
+      POSTGRES_PASSWORD: zabbix
+      ZBX_SERVER_HOST: zabbix-server
+    ports:
+      - "8080:8080"
+    depends_on:
+      - zabbix-server
+    restart: unless-stopped
+    networks:
+      - pusk-net
+
+volumes:
+  pusk-data:
+  zabbix-db:
+
+networks:
+  pusk-net:
