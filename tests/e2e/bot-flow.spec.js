@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 
 const BASE = 'https://getpusk.ru';
 
-test.describe('ARTAIS Deploy Bot — full button flow', () => {
+test.describe('Deploy Bot — full button flow', () => {
 
   test('login → open bot → /start → click Status → verify edit', async ({ page }) => {
     // 1. Go to landing, click Login
@@ -18,25 +18,25 @@ test.describe('ARTAIS Deploy Bot — full button flow', () => {
     await page.waitForSelector('#app', { state: 'visible', timeout: 10000 });
     console.log('Logged in');
 
-    // 3. Wait for bot list, find ARTAIS Deploy
+    // 3. Wait for bot list, find Deploy Bot
     await page.waitForSelector('.bot-row', { timeout: 10000 });
     const bots = await page.locator('.bot-row').all();
     console.log('Bots found:', bots.length);
 
-    // Find ARTAIS Deploy bot
-    let artaisBot = null;
+    // Find Deploy Bot bot
+    let deployBot = null;
     for (const bot of bots) {
       const name = await bot.locator('.bot-name').textContent();
       console.log('Bot:', name);
-      if (name.includes('ARTAIS')) {
-        artaisBot = bot;
+      if (name.includes('Deploy')) {
+        deployBot = bot;
         break;
       }
     }
-    expect(artaisBot).not.toBeNull();
+    expect(deployBot).not.toBeNull();
 
-    // 4. Click on ARTAIS Deploy
-    await artaisBot.click();
+    // 4. Click on Deploy Bot
+    await deployBot.click();
     await page.waitForSelector('#chat-view', { state: 'visible', timeout: 10000 });
     console.log('Chat opened');
 

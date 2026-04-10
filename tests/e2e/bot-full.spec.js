@@ -17,7 +17,7 @@ test.describe('Bot flow — Telegram-like behavior', () => {
     // Login
     const r = await api('POST', '/api/auth', { username: 'test1', pin: 'test1', org: 'test1' });
     token = r.token;
-    // Clean chat 5 (ARTAIS Deploy)
+    // Clean chat 5 (Deploy Bot)
     const msgs = await api('GET', '/api/chats/5/messages?limit=200', null, token);
     if (msgs && msgs.length) {
       for (const m of msgs) {
@@ -35,10 +35,10 @@ test.describe('Bot flow — Telegram-like behavior', () => {
     await page.click('#btn-login');
     await page.waitForSelector('#app', { state: 'visible', timeout: 10000 });
 
-    // Find ARTAIS Deploy bot
+    // Find Deploy Bot bot
     await page.waitForSelector('.bot-row', { timeout: 20000 });
-    const artais = page.locator('.bot-row', { hasText: 'ARTAIS' });
-    await artais.click();
+    const deployBot = page.locator('.bot-row', { hasText: 'Deploy' });
+    await deployBot.click();
     await page.waitForSelector('#chat-view', { state: 'visible', timeout: 10000 });
 
     // Send /start
@@ -62,8 +62,8 @@ test.describe('Bot flow — Telegram-like behavior', () => {
     await page.click('#btn-login');
     await page.waitForSelector('#app', { state: 'visible', timeout: 10000 });
 
-    const artais = page.locator('.bot-row', { hasText: 'ARTAIS' });
-    await artais.click();
+    const deployBot = page.locator('.bot-row', { hasText: 'Deploy' });
+    await deployBot.click();
     await page.waitForSelector('#chat-view', { state: 'visible', timeout: 10000 });
     await page.waitForSelector('#chat-view .m-kb-btn', { timeout: 20000 });
 
@@ -95,8 +95,8 @@ test.describe('Bot flow — Telegram-like behavior', () => {
     await page.click('#btn-login');
     await page.waitForSelector('#app', { state: 'visible', timeout: 10000 });
 
-    const artais = page.locator('.bot-row', { hasText: 'ARTAIS' });
-    await artais.click();
+    const deployBot = page.locator('.bot-row', { hasText: 'Deploy' });
+    await deployBot.click();
     await page.waitForSelector('#chat-view', { state: 'visible', timeout: 10000 });
     await page.waitForSelector('#chat-view .m-kb-btn', { timeout: 20000 });
 
@@ -124,8 +124,8 @@ test.describe('Bot flow — Telegram-like behavior', () => {
     await page.click('#btn-login');
     await page.waitForSelector('#app', { state: 'visible', timeout: 10000 });
 
-    const artais = page.locator('.bot-row', { hasText: 'ARTAIS' });
-    await artais.click();
+    const deployBot = page.locator('.bot-row', { hasText: 'Deploy' });
+    await deployBot.click();
     await page.waitForSelector('#chat-view', { state: 'visible', timeout: 10000 });
     await page.waitForSelector('#chat-view .m-kb-btn', { timeout: 20000 });
 
@@ -151,8 +151,8 @@ test.describe('Bot flow — Telegram-like behavior', () => {
     await page.click('#btn-login');
     await page.waitForSelector('#app', { state: 'visible', timeout: 10000 });
 
-    const artais = page.locator('.bot-row', { hasText: 'ARTAIS' });
-    await artais.click();
+    const deployBot = page.locator('.bot-row', { hasText: 'Deploy' });
+    await deployBot.click();
     await page.waitForSelector('#chat-view', { state: 'visible', timeout: 10000 });
     await page.waitForSelector('#chat-view .m-kb-btn', { timeout: 20000 });
 
