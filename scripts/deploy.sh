@@ -44,7 +44,7 @@ else
   echo "  All checks passed (remote)."
 fi
 
-# --- Build ---
+# --- Build (release, NO -tags demo — clean binary without demo code) ---
 echo "[1/6] Building..."
 if [ -f go.mod ]; then
   CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/pusk-platform/pusk/internal/api.Version=$VER" \

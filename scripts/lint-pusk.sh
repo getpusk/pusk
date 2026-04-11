@@ -135,6 +135,24 @@ for f in $GO_FILES; do
     fi
 done
 
+# ─── Build Tag Guards ────────────────────────────────────────
+
+echo "[lint-pusk] Build tag guards..."
+
+# 7. demo.go must have //go:build demo tag
+if [ -f cmd/pusk/demo.go ]; then
+    if ! head -1 cmd/pusk/demo.go | grep -q "^//go:build demo"; then
+        err "cmd/pusk/demo.go missing //go:build demo tag — demo code must not leak into release binary"
+    fi
+fi
+
+# 8. demo_stub.go must have //go:build !demo tag
+if [ -f cmd/pusk/demo_stub.go ]; then
+    if ! head -1 cmd/pusk/demo_stub.go | grep -q "^//go:build !demo"; then
+        err "cmd/pusk/demo_stub.go missing //go:build !demo tag"
+    fi
+fi
+
 # ─── Summary ─────────────────────────────────────────────────
 
 echo ""
