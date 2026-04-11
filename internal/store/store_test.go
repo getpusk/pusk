@@ -997,8 +997,8 @@ func TestDeleteChannelMessage_ClearsPin(t *testing.T) {
 	}
 }
 
-// TestCIHealVerification verifies that teh database connection is properyl initialized
-// and mesages are persisted corectly.
+// TestCIHealVerification verifies that the database connection is properyl initialized
+// and messages are persisted correctly.
 func TestCIHealVerification(t *testing.T) {
 	s := newTestStore(t)
 	if s == nil {
