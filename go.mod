@@ -1,6 +1,6 @@
 module github.com/pusk-platform/pusk
 
-go 1.26.0
+go 1.26.2
 
 require (
 	github.com/SherClockHolmes/webpush-go v1.4.0
