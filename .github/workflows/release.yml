@@ -52,6 +52,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+
       # ── Alpine ──────────────────────────────────────────────────────────────
       - name: Extract metadata (alpine)
         id: meta-alpine
@@ -64,6 +67,7 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push (alpine)
+        id: push-alpine
         uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
         with:
           context: .
@@ -72,6 +76,9 @@ jobs:
           build-args: VERSION=${{ github.ref_name }}
           tags: ${{ steps.meta-alpine.outputs.tags }}
           labels: ${{ steps.meta-alpine.outputs.labels }}
+
+      - name: Sign image (alpine)
+        run: cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push-alpine.outputs.digest }}
 
       # ── RED OS ──────────────────────────────────────────────────────────────
       - name: Extract metadata (redos)
@@ -86,6 +93,7 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push (redos)
+        id: push-redos
         uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
         with:
           context: .
@@ -93,6 +101,9 @@ jobs:
           push: true
           tags: ${{ steps.meta-redos.outputs.tags }}
           labels: ${{ steps.meta-redos.outputs.labels }}
+
+      - name: Sign image (redos)
+        run: cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push-redos.outputs.digest }}
 
       # ── Astra Linux SE ─────────────────────────────────────────────────────
       - name: Extract metadata (astra)
@@ -107,6 +118,7 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push (astra)
+        id: push-astra
         uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
         with:
           context: .
@@ -114,6 +126,9 @@ jobs:
           push: true
           tags: ${{ steps.meta-astra.outputs.tags }}
           labels: ${{ steps.meta-astra.outputs.labels }}
+
+      - name: Sign image (astra)
+        run: cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push-astra.outputs.digest }}
 
       # ── Smoke test ──────────────────────────────────────────────────────────
       - name: Smoke test
@@ -237,4 +252,21 @@ jobs:
             **Astra Linux SE (FSTEC):**
             ```bash
             docker pull ghcr.io/${{ github.repository }}:${{ github.ref_name }}-astra
+            ```
+
+            ## Verify
+
+            **Binary signature:**
+            ```bash
+            cosign verify-blob --bundle pusk-linux-amd64.bundle \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+              --certificate-identity-regexp 'github.com/getpusk/pusk' \
+              pusk-linux-amd64
+            ```
+
+            **Docker image signature:**
+            ```bash
+            cosign verify ghcr.io/${{ github.repository }}:${{ github.ref_name }} \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+              --certificate-identity-regexp 'github.com/getpusk/pusk'
             ```
