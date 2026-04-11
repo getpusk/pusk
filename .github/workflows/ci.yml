@@ -106,7 +106,7 @@ jobs:
       - name: Build Pusk
         run: |
           VER=$(git describe --tags --always 2>/dev/null || echo "ci")
-          go build -ldflags "-X github.com/pusk-platform/pusk/internal/api.Version=$VER" -o pusk ./cmd/pusk/
+          go build -tags demo -ldflags "-X github.com/pusk-platform/pusk/internal/api.Version=$VER" -o pusk ./cmd/pusk/
 
       - name: Start Pusk
         run: |
@@ -178,7 +178,7 @@ jobs:
       - name: Build Pusk
         run: |
           VER=$(git describe --tags --always 2>/dev/null || echo "ci")
-          go build -ldflags "-X github.com/pusk-platform/pusk/internal/api.Version=$VER" -o pusk ./cmd/pusk/
+          go build -tags demo -ldflags "-X github.com/pusk-platform/pusk/internal/api.Version=$VER" -o pusk ./cmd/pusk/
 
       - name: Start Pusk
         run: |
