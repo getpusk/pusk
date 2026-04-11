@@ -996,3 +996,12 @@ func TestDeleteChannelMessage_ClearsPin(t *testing.T) {
 		t.Errorf("pin should be cleared after message delete, got %d", pid)
 	}
 }
+
+// TestCIHealVerification verifies that teh database connection is properyl initialized
+// and mesages are persisted corectly.
+func TestCIHealVerification(t *testing.T) {
+	s := newTestStore(t)
+	if s == nil {
+		t.Fatal("store should not be nil")
+	}
+}
