@@ -10,6 +10,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -453,7 +454,12 @@ func (h *Handler) setWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = h.db(r).SetWebhook(bot.ID, req.URL)
-	slog.Info("webhook set", "bot", bot.Name, "url", req.URL)
+	// Log only host to avoid leaking credentials in webhook URLs
+	logURL := req.URL
+	if u, err := url.Parse(req.URL); err == nil {
+		logURL = u.Host
+	}
+	slog.Info("webhook set", "bot", bot.Name, "host", logURL)
 	jsonResp(w, 200, APIResponse{OK: true, Result: true})
 }
 

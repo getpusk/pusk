@@ -160,6 +160,9 @@ func (h *Handler) webhook(w http.ResponseWriter, r *http.Request) {
 	msg, err := s.SaveChannelMessage(ch.ID, text, markup, "", "")
 	if err != nil {
 		slog.Error("webhook save failed", "error", err)
+		w.WriteHeader(500)
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "error": "save failed"})
+		return
 	}
 
 	// Push to subscribers via WebSocket (reuse existing push logic)
