@@ -69,6 +69,16 @@ func main() {
 	}
 	defer orgs.Close()
 
+	// Org creation limit (default: 1 user-created org; 0 = unlimited)
+	maxOrgs := 1
+	if v := os.Getenv("PUSK_MAX_ORGS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			maxOrgs = n
+		}
+	}
+	orgs.MaxOrgs = maxOrgs
+	slog.Info("org limit configured", "max_orgs", maxOrgs)
+
 	// Default org store (backwards compatible)
 	db, err := orgs.Get("default")
 	if err != nil {
@@ -101,6 +111,9 @@ func main() {
 	jwtSvc := auth.NewJWTService(jwtSecret, 168) // 7 days
 
 	adminToken := os.Getenv("PUSK_ADMIN_TOKEN")
+	if adminToken == "" {
+		slog.Warn("PUSK_ADMIN_TOKEN not set — org creation is unprotected, set it for production use")
+	}
 
 	mux := http.NewServeMux()
 
@@ -110,6 +123,10 @@ func main() {
 
 	// Client API (for PWA)
 	clientAPI := api.NewClientAPI(orgs, db, hub, push, botHandler.Relay(), botHandler.Updates(), vapidPub, jwtSvc)
+	if os.Getenv("PUSK_OPEN_USER_REGISTRATION") == "false" {
+		clientAPI.OpenUserReg = false
+		slog.Info("user self-registration disabled, invite required")
+	}
 	clientAPI.Route(mux)
 
 	// Admin API (admin endpoints + org registration)

@@ -114,6 +114,11 @@ func (a *ClientAPI) auth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) register(w http.ResponseWriter, r *http.Request) {
+	if !a.OpenUserReg {
+		jsonErr(w, "registration disabled, ask admin for invite", http.StatusForbidden)
+		return
+	}
+
 	var req struct {
 		Username    string `json:"username"`
 		Pin         string `json:"pin"`
@@ -145,8 +150,8 @@ func (a *ClientAPI) register(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "username must be 2-32 characters (letters, digits, _ or -)", 400)
 		return
 	}
-	if len(req.Pin) < 6 {
-		jsonErr(w, "password must be at least 6 characters", 400)
+	if len(req.Pin) < 8 {
+		jsonErr(w, "password must be at least 8 characters", 400)
 		return
 	}
 
@@ -231,8 +236,8 @@ func (a *ClientAPI) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "username must be 2-32 characters (letters, digits, _ or -)", 400)
 		return
 	}
-	if len(req.Pin) < 6 {
-		jsonErr(w, "password must be at least 6 characters", 400)
+	if len(req.Pin) < 8 {
+		jsonErr(w, "password must be at least 8 characters", 400)
 		return
 	}
 
@@ -417,8 +422,8 @@ func (a *ClientAPI) changePassword(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "old_pin and new_pin required", 400)
 		return
 	}
-	if len(req.NewPin) < 6 {
-		jsonErr(w, "password must be at least 6 characters", 400)
+	if len(req.NewPin) < 8 {
+		jsonErr(w, "password must be at least 8 characters", 400)
 		return
 	}
 	claims := ClaimsFromCtx(r.Context())

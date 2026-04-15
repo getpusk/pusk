@@ -110,7 +110,7 @@ jobs:
 
       - name: Start Pusk
         run: |
-          PUSK_DEMO=1 PUSK_ADDR=:9999 ./pusk &
+          PUSK_DEMO=1 PUSK_MAX_ORGS=0 PUSK_ADDR=:9999 ./pusk &
           for i in $(seq 1 10); do
             curl -sf http://localhost:9999/api/health && break || sleep 1
           done
@@ -182,7 +182,7 @@ jobs:
 
       - name: Start Pusk
         run: |
-          PUSK_DEMO=1 PUSK_ADDR=:9999 ./pusk &
+          PUSK_DEMO=1 PUSK_MAX_ORGS=0 PUSK_ADDR=:9999 ./pusk &
           for i in $(seq 1 10); do
             curl -sf http://localhost:9999/api/health && break || sleep 1
           done
