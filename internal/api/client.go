@@ -27,18 +27,19 @@ var upgrader = websocket.Upgrader{
 
 // ClientAPI handles PWA client requests
 type ClientAPI struct {
-	orgs     *org.Manager
-	store    *store.Store
-	hub      *ws.Hub
-	push     *notify.PushService
-	relay    *bot.RelayHub
-	updates  *bot.UpdateQueue
-	vapidPub string
-	jwt      *auth.JWTService
+	orgs        *org.Manager
+	store       *store.Store
+	hub         *ws.Hub
+	push        *notify.PushService
+	relay       *bot.RelayHub
+	updates     *bot.UpdateQueue
+	vapidPub    string
+	jwt         *auth.JWTService
+	OpenUserReg bool // allow self-registration on default org (default true)
 }
 
 func NewClientAPI(orgs *org.Manager, s *store.Store, hub *ws.Hub, push *notify.PushService, relay *bot.RelayHub, updates *bot.UpdateQueue, vapidPub string, jwtSvc *auth.JWTService) *ClientAPI {
-	return &ClientAPI{orgs: orgs, store: s, hub: hub, push: push, relay: relay, updates: updates, vapidPub: vapidPub, jwt: jwtSvc}
+	return &ClientAPI{orgs: orgs, store: s, hub: hub, push: push, relay: relay, updates: updates, vapidPub: vapidPub, jwt: jwtSvc, OpenUserReg: true}
 }
 
 // db returns the Store for the org derived from JWT claims in context.
