@@ -41,6 +41,7 @@ func (a *AdminAPI) Route(mux *http.ServeMux) {
 	mux.HandleFunc("POST /admin/set-role", a.adminSetRole)
 
 	orgRL := NewRateLimiter(10, time.Minute)
+	mux.HandleFunc("GET /api/org/info", a.orgInfo)
 	mux.HandleFunc("POST /api/org/register", RateLimit(orgRL, a.registerOrg))
 }
 
@@ -260,7 +261,41 @@ func (a *AdminAPI) renameBot(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
 }
 
+func (a *AdminAPI) isGlobalAdmin(r *http.Request) bool {
+	if a.adminToken == "" {
+		return false
+	}
+	authHeader := r.Header.Get("Authorization")
+	return subtle.ConstantTimeCompare(
+		[]byte(strings.TrimPrefix(authHeader, "Bearer ")),
+		[]byte(a.adminToken),
+	) == 1
+}
+
+func (a *AdminAPI) orgInfo(w http.ResponseWriter, r *http.Request) {
+	orgs := a.orgs.List()
+	userOrgs := 0
+	for _, o := range orgs {
+		if o.Slug != "default" {
+			userOrgs++
+		}
+	}
+	canCreate := a.orgs.CanCreateOrg()
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"can_create_org": canCreate,
+		"count":          userOrgs,
+		"max":            a.orgs.MaxOrgs,
+	})
+}
+
 func (a *AdminAPI) registerOrg(w http.ResponseWriter, r *http.Request) {
+	// Enforce org limit unless caller has admin token
+	if !a.orgs.CanCreateOrg() && !a.isGlobalAdmin(r) {
+		jsonErr(w, "org registration disabled — limit reached", http.StatusForbidden)
+		return
+	}
+
 	var req struct {
 		Slug     string `json:"slug"`
 		Name     string `json:"name"`
@@ -275,8 +310,8 @@ func (a *AdminAPI) registerOrg(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"slug, username and pin required"}`, 400)
 		return
 	}
-	if len(req.Pin) < 6 {
-		http.Error(w, `{"error":"password must be at least 6 characters"}`, 400)
+	if len(req.Pin) < 8 {
+		http.Error(w, `{"error":"password must be at least 8 characters"}`, 400)
 		return
 	}
 	if err := a.orgs.Register(req.Slug, req.Name, req.Username, req.Pin); err != nil {
@@ -318,8 +353,8 @@ func (a *AdminAPI) resetPassword(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"org, username and new_pin required"}`, 400)
 		return
 	}
-	if len(req.NewPin) < 6 {
-		http.Error(w, `{"error":"password must be at least 6 characters"}`, 400)
+	if len(req.NewPin) < 8 {
+		http.Error(w, `{"error":"password must be at least 8 characters"}`, 400)
 		return
 	}
 	s, err := a.orgs.Get(req.Org)

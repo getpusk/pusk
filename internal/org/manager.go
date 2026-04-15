@@ -33,6 +33,7 @@ type Manager struct {
 	dir      string  // data/orgs/
 	masterFn string  // data/master.json
 	tokDB    *sql.DB // global token→org mapping
+	MaxOrgs  int     // 0 = unlimited, default 1
 }
 
 func NewManager(dataDir string) (*Manager, error) {
@@ -173,6 +174,11 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	// Enforce org limit (default org doesn't count toward the limit)
+	if m.MaxOrgs > 0 && m.userOrgCount() >= m.MaxOrgs {
+		return fmt.Errorf("max organizations limit reached (%d)", m.MaxOrgs)
+	}
+
 	if m.hasOrg(slug) {
 		return fmt.Errorf("org already exists: %s", slug)
 	}
@@ -262,6 +268,28 @@ func (m *Manager) List() []Org {
 	out := make([]Org, len(m.orgs))
 	copy(out, m.orgs)
 	return out
+}
+
+// userOrgCount returns the number of user-created orgs (excludes "default").
+// Must be called with mu held.
+func (m *Manager) userOrgCount() int {
+	count := 0
+	for _, o := range m.orgs {
+		if o.Slug != "default" {
+			count++
+		}
+	}
+	return count
+}
+
+// CanCreateOrg reports whether a new org can be created within the limit.
+func (m *Manager) CanCreateOrg() bool {
+	if m.MaxOrgs <= 0 {
+		return true
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.userOrgCount() < m.MaxOrgs
 }
 
 // Close closes all open stores

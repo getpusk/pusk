@@ -68,6 +68,12 @@ $('btn-reg').onclick=async()=>{const u=$('a-user').value.trim(),p=$('a-pin').val
 $('btn-demo').onclick=async()=>{let r=await api('POST','/api/auth',{username:'guest',pin:'guest'});if(!r.token)r=await api('POST','/api/register',{username:'guest',pin:'guest',display_name:'Guest'});if(!r.token){$('a-err').textContent=t('err_demo');return}S.token=r.token;S.isDemo=true;hideLanding();$('auth').style.display='none';showApp()};
 
 // ── Org creation ──
+// Hide "Create org" button when limit reached
+fetch('/api/org/info').then(r=>r.json()).then(d=>{
+  if(d&&d.can_create_org===false){
+    const btn=$('land-create-org');if(btn)btn.style.display='none';
+  }
+}).catch(()=>{});
 $('land-create-org').onclick=()=>{$('org-modal-bg').classList.add('open');$('org-slug').focus()};
 $('org-cancel').onclick=()=>$('org-modal-bg').classList.remove('open');
 $('org-to-login').onclick=(e)=>{e.preventDefault();$('org-modal-bg').classList.remove('open');hideLanding();$('auth').style.display='flex';const savedOrg=get('org');if(savedOrg)$('a-org').value=savedOrg};
