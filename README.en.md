@@ -205,6 +205,10 @@ ExecStart=/opt/pusk/pusk
 Restart=always
 Environment=PUSK_ADDR=:8443
 Environment=PUSK_ADMIN_TOKEN=your-secret
+# Environment=PUSK_JWT_SECRET=your-jwt-secret
+# Environment=VAPID_PUBLIC_KEY=...
+# Environment=VAPID_PRIVATE_KEY=...
+# Environment=VAPID_EMAIL=admin@example.com
 
 [Install]
 WantedBy=multi-user.target
@@ -254,6 +258,10 @@ server {
 | `VAPID_PUBLIC_KEY` | — | VAPID key for Web Push |
 | `VAPID_PRIVATE_KEY` | — | VAPID private key |
 | `VAPID_EMAIL` | — | Email for push service |
+| `PUSK_JWT_SECRET` | auto | JWT secret. Auto-generated and saved to `data/jwt.secret` if not set |
+| `PUSK_LOG_FORMAT` | `text` | `json` — JSON logs for production |
+| `PUSK_OPEN_USER_REGISTRATION` | `true` | `false` — disable self-registration (invite-only) |
+| `PUSK_WEBHOOK_RATE_LIMIT` | `60` | Webhook requests per minute per bot |
 
 ## Admin API
 
@@ -262,7 +270,7 @@ All endpoints require `Authorization: Bearer <PUSK_ADMIN_TOKEN>` or a JWT with a
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/admin/bots` | Register a bot (`token`, `name`) |
-| `POST` | `/admin/channel` | Create channel (`name`, `description`, optional `bot_id`) |
+| `POST` | `/admin/channel` | Create channel (`name`, `description`, `bot_id`) |
 | `DELETE` | `/admin/channel/{id}` | Delete channel (except #general) |
 | `PUT` | `/admin/channel/{id}` | Rename channel (`name`) |
 | `PUT` | `/admin/bots/{id}` | Rename bot (`name`) |

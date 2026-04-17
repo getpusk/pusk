@@ -205,6 +205,10 @@ ExecStart=/opt/pusk/pusk
 Restart=always
 Environment=PUSK_ADDR=:8443
 Environment=PUSK_ADMIN_TOKEN=your-secret
+# Environment=PUSK_JWT_SECRET=your-jwt-secret
+# Environment=VAPID_PUBLIC_KEY=...
+# Environment=VAPID_PRIVATE_KEY=...
+# Environment=VAPID_EMAIL=admin@example.com
 
 [Install]
 WantedBy=multi-user.target
@@ -254,6 +258,10 @@ server {
 | `VAPID_PUBLIC_KEY` | — | VAPID ключ для Web Push |
 | `VAPID_PRIVATE_KEY` | — | Приватный ключ VAPID |
 | `VAPID_EMAIL` | — | Email для push-сервиса |
+| `PUSK_JWT_SECRET` | авто | Секрет JWT. Если не задан — генерируется и сохраняется в `data/jwt.secret` |
+| `PUSK_LOG_FORMAT` | `text` | `json` — JSON-логи для production |
+| `PUSK_OPEN_USER_REGISTRATION` | `true` | `false` — отключить саморегистрацию (только инвайты) |
+| `PUSK_WEBHOOK_RATE_LIMIT` | `60` | Лимит webhook-запросов в минуту на бота |
 
 ## Admin API
 
@@ -262,7 +270,7 @@ server {
 | Метод | Путь | Описание |
 |-------|------|----------|
 | `POST` | `/admin/bots` | Зарегистрировать бота (`token`, `name`) |
-| `POST` | `/admin/channel` | Создать канал (`name`, `description`, опционально `bot_id`) |
+| `POST` | `/admin/channel` | Создать канал (`name`, `description`, `bot_id`) |
 | `DELETE` | `/admin/channel/{id}` | Удалить канал (кроме #general) |
 | `PUT` | `/admin/channel/{id}` | Переименовать канал (`name`) |
 | `PUT` | `/admin/bots/{id}` | Переименовать бота (`name`) |

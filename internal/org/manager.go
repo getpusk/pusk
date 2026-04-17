@@ -15,6 +15,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
+	"github.com/pusk-platform/pusk/internal/metrics"
 	"github.com/pusk-platform/pusk/internal/store"
 )
 
@@ -69,6 +70,7 @@ func NewManager(dataDir string) (*Manager, error) {
 	}
 
 	slog.Info("orgs loaded", "count", len(m.orgs))
+	metrics.OrgsTotal.Set(float64(len(m.orgs)))
 	return m, nil
 }
 
@@ -262,6 +264,7 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string, bypassLimit b
 
 	_ = m.save()
 	slog.Info("org registered", "slug", slug, "name", name)
+	metrics.OrgsTotal.Set(float64(len(m.orgs)))
 	return nil
 }
 
