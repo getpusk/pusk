@@ -245,6 +245,7 @@ server {
 |----------|---------|-------------|
 | `PUSK_ADDR` | `:8443` | Server address |
 | `PUSK_ADMIN_TOKEN` | — | Admin API token |
+| `PUSK_MAX_ORGS` | `1` | Max user-created organizations. `0` — unlimited. Admin token bypasses the limit |
 | `PUSK_DEMO` | — | `1` — enable demo mode |
 | `PUSK_MSG_RETENTION_DAYS` | `30` | Auto-delete messages older than N days. `0` — keep all |
 | `PUSK_FILE_QUOTA_MB` | `1024` | File storage limit per organization (MB) |
@@ -253,6 +254,22 @@ server {
 | `VAPID_PUBLIC_KEY` | — | VAPID key for Web Push |
 | `VAPID_PRIVATE_KEY` | — | VAPID private key |
 | `VAPID_EMAIL` | — | Email for push service |
+
+## Admin API
+
+All endpoints require `Authorization: Bearer <PUSK_ADMIN_TOKEN>` or a JWT with admin role.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/admin/bots` | Register a bot (`token`, `name`) |
+| `POST` | `/admin/channel` | Create channel (`name`, `description`, optional `bot_id`) |
+| `DELETE` | `/admin/channel/{id}` | Delete channel (except #general) |
+| `PUT` | `/admin/channel/{id}` | Rename channel (`name`) |
+| `PUT` | `/admin/bots/{id}` | Rename bot (`name`) |
+| `POST` | `/admin/reset-password` | Reset password (`org`, `username`, `new_pin`). ADMIN_TOKEN only |
+| `POST` | `/admin/set-role` | Set role (`org`, `user_id`, `role`: admin/member). ADMIN_TOKEN only |
+| `GET` | `/api/org/info` | Organization limit info |
+| `POST` | `/api/org/register` | Create organization (`slug`, `name`, `username`, `pin`) |
 
 ## Backup
 

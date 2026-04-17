@@ -245,6 +245,7 @@ server {
 |-----------|-------------|----------|
 | `PUSK_ADDR` | `:8443` | Адрес сервера |
 | `PUSK_ADMIN_TOKEN` | — | Токен для Admin API |
+| `PUSK_MAX_ORGS` | `1` | Макс. количество пользовательских организаций. `0` — без лимита. Админ-токен обходит лимит |
 | `PUSK_DEMO` | — | `1` — включить демо-режим |
 | `PUSK_MSG_RETENTION_DAYS` | `30` | Автоудаление сообщений старше N дней. `0` — не удалять |
 | `PUSK_FILE_QUOTA_MB` | `1024` | Лимит хранилища файлов на организацию (МБ) |
@@ -253,6 +254,22 @@ server {
 | `VAPID_PUBLIC_KEY` | — | VAPID ключ для Web Push |
 | `VAPID_PRIVATE_KEY` | — | Приватный ключ VAPID |
 | `VAPID_EMAIL` | — | Email для push-сервиса |
+
+## Admin API
+
+Все эндпоинты требуют `Authorization: Bearer <PUSK_ADMIN_TOKEN>` или JWT с ролью admin.
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| `POST` | `/admin/bots` | Зарегистрировать бота (`token`, `name`) |
+| `POST` | `/admin/channel` | Создать канал (`name`, `description`, опционально `bot_id`) |
+| `DELETE` | `/admin/channel/{id}` | Удалить канал (кроме #general) |
+| `PUT` | `/admin/channel/{id}` | Переименовать канал (`name`) |
+| `PUT` | `/admin/bots/{id}` | Переименовать бота (`name`) |
+| `POST` | `/admin/reset-password` | Сбросить пароль (`org`, `username`, `new_pin`). Только ADMIN_TOKEN |
+| `POST` | `/admin/set-role` | Назначить роль (`org`, `user_id`, `role`: admin/member). Только ADMIN_TOKEN |
+| `GET` | `/api/org/info` | Информация о лимитах организаций |
+| `POST` | `/api/org/register` | Создать организацию (`slug`, `name`, `username`, `pin`) |
 
 ## Резервное копирование
 

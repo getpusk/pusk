@@ -194,6 +194,7 @@ header h2{font-size:14px;font-weight:600;flex:1}
 #s-invite-result{font-size:12px;color:var(--accent);margin-top:4px;word-break:break-all}
 #s-about{font-size:11px;color:var(--text2);margin-top:12px;text-align:center}
 #s-install{display:none}
+#m-bot-row{display:none}
 #m-tok-row{display:none}
 .br-gap{margin-bottom:8px}
 /* ── JS inline style extractions ── */

@@ -148,8 +148,9 @@ func (m *Manager) Get(slug string) (*store.Store, error) {
 	return s, nil
 }
 
-// Register creates a new organization with admin user
-func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
+// Register creates a new organization with admin user.
+// If bypassLimit is true, the org limit check is skipped (admin token callers).
+func (m *Manager) Register(slug, name, adminUser, adminPin string, bypassLimit bool) error {
 	// Validate slug: alphanumeric + hyphens, 2-32 chars, no leading dot/slash
 	if len(slug) < 2 || len(slug) > 32 {
 		return fmt.Errorf("slug must be 2-32 characters")
@@ -175,8 +176,11 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string) error {
 	defer m.mu.Unlock()
 
 	// Enforce org limit (default org doesn't count toward the limit)
-	if m.MaxOrgs > 0 && m.userOrgCount() >= m.MaxOrgs {
+	if !bypassLimit && m.MaxOrgs > 0 && m.userOrgCount() >= m.MaxOrgs {
 		return fmt.Errorf("max organizations limit reached (%d)", m.MaxOrgs)
+	}
+	if bypassLimit && m.MaxOrgs > 0 && m.userOrgCount() >= m.MaxOrgs {
+		slog.Warn("org limit bypassed by admin token", "current", m.userOrgCount(), "max", m.MaxOrgs, "slug", slug)
 	}
 
 	if m.hasOrg(slug) {
