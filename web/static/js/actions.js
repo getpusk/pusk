@@ -146,12 +146,16 @@ async function onDel(mid){if(!await confirmDialog(S.lang==='ru'?'\u0423\u0434\u0
 setMsgHandlers({onCb,startReply,onDel,unpinMsg});
 
 // ── FAB / Create modal ──
-$('fab').onclick=()=>{$('modal-bg').classList.add('open');history.pushState(null,'',location.href);$('m-name').value='';$('m-desc').value='';$('m-msg').textContent='';updModal();$('m-name').focus()};
+let _modalBots=[];
+$('fab').onclick=async()=>{$('modal-bg').classList.add('open');history.pushState(null,'',location.href);$('m-name').value='';$('m-desc').value='';$('m-msg').textContent='';
+  const r=await api('GET','/api/bots');_modalBots=Array.isArray(r)?r:[];
+  const sel=$('m-bot');sel.innerHTML='';_modalBots.forEach(b=>{const o=document.createElement('option');o.value=b.id;o.textContent=b.name;sel.appendChild(o)});
+  updModal();$('m-name').focus()};
 $('m-cancel').onclick=()=>$('modal-bg').classList.remove('open');
 $('modal-bg').onclick=e=>{if(e.target===$('modal-bg'))$('modal-bg').classList.remove('open')};
 $('m-type').onchange=updModal;
-function updModal(){const ch=$('m-type').value==='channel';$('m-title').textContent=ch?t('new_ch'):t('new_bot');$('m-tok-row').style.display=ch?'none':'block';$('m-name').placeholder=ch?'alerts':'MonitorBot';$('m-desc').placeholder=ch?'Description':'Webhook URL'}
-$('m-ok').onclick=async()=>{const name=$('m-name').value.trim();if(!name){$('m-msg').textContent=t('name_req');$('m-msg').style.color='#e05d44';return}$('m-msg').textContent='';const type=$('m-type').value;if(type==='channel'){const r=await api('POST','/admin/channel',{name,description:$('m-desc').value.trim()});if(r&&r.ok){$('m-msg').textContent='# '+name+' \u2713';$('m-msg').style.color='#3db887';setTimeout(()=>{$('modal-bg').classList.remove('open');showList()},800)}else{$('m-msg').textContent=te(r.error||r.description||'Error');$('m-msg').style.color='#e05d44'}}else{const tok=$('m-tok').value.trim()||name.toLowerCase().replace(/[^a-z0-9]/g,'-')+'-'+Math.random().toString(36).substr(2,6);const r=await api('POST','/admin/bots',{token:tok,name});if(r&&r.id){$('m-msg').textContent=name+' \u2713 token: '+tok;$('m-msg').style.color='#3db887';setTimeout(()=>{$('modal-bg').classList.remove('open');showList()},1200)}else{$('m-msg').textContent=te(r.error||'Error');$('m-msg').style.color='#e05d44'}}};
+function updModal(){const ch=$('m-type').value==='channel';$('m-title').textContent=ch?t('new_ch'):t('new_bot');$('m-tok-row').style.display=ch?'none':'block';$('m-bot-row').style.display=(ch&&_modalBots.length>1)?'block':'none';$('m-name').placeholder=ch?'alerts':'MonitorBot';$('m-desc').placeholder=ch?'Description':'Webhook URL'}
+$('m-ok').onclick=async()=>{const name=$('m-name').value.trim();if(!name){$('m-msg').textContent=t('name_req');$('m-msg').style.color='#e05d44';return}$('m-msg').textContent='';const type=$('m-type').value;if(type==='channel'){const payload={name,description:$('m-desc').value.trim()};if(_modalBots.length>1)payload.bot_id=+$('m-bot').value;const r=await api('POST','/admin/channel',payload);if(r&&r.ok){$('m-msg').textContent='# '+name+' \u2713';$('m-msg').style.color='#3db887';setTimeout(()=>{$('modal-bg').classList.remove('open');showList()},800)}else{$('m-msg').textContent=te(r.error||r.description||'Error');$('m-msg').style.color='#e05d44'}}else{const tok=$('m-tok').value.trim()||name.toLowerCase().replace(/[^a-z0-9]/g,'-')+'-'+Math.random().toString(36).substr(2,6);const r=await api('POST','/admin/bots',{token:tok,name});if(r&&r.id){$('m-msg').textContent=name+' \u2713 token: '+tok;$('m-msg').style.color='#3db887';setTimeout(()=>{$('modal-bg').classList.remove('open');showList()},1200)}else{$('m-msg').textContent=te(r.error||'Error');$('m-msg').style.color='#e05d44'}}};
 
 // ── Alert filter ──
 function filterAlerts(type) {

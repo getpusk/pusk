@@ -205,7 +205,7 @@ func TestRegister_DuplicateUsername(t *testing.T) {
 
 func TestRegister_NonDefaultOrgBlocked(t *testing.T) {
 	env := newTestEnv(t)
-	_ = env.orgs.Register("custom-org", "Custom", "admin", "pass123456")
+	_ = env.orgs.Register("custom-org", "Custom", "admin", "pass123456", false)
 	rec := env.request("POST", "/api/register", map[string]interface{}{
 		"username": "user", "pin": "pass123456", "org": "custom-org",
 	})
