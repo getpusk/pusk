@@ -53,7 +53,27 @@ func main() {
 	addr := flag.String("addr", ":8443", "listen address")
 	filesDir := flag.String("files", "data/files", "uploaded files directory")
 	staticDir := flag.String("static", "web/static", "PWA static files")
+	healthcheck := flag.Bool("healthcheck", false, "run health check and exit")
 	flag.Parse()
+
+	if *healthcheck {
+		a := ":8443"
+		if v := os.Getenv("PUSK_ADDR"); v != "" {
+			a = v
+		}
+		host := "localhost"
+		port := strings.TrimPrefix(a, ":")
+		if strings.Contains(a, ":") && !strings.HasPrefix(a, ":") {
+			host = a[:strings.LastIndex(a, ":")]
+			port = a[strings.LastIndex(a, ":")+1:]
+		}
+		conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), 3*time.Second)
+		if err != nil {
+			os.Exit(1)
+		}
+		conn.Close()
+		os.Exit(0)
+	}
 
 	if v := os.Getenv("PUSK_ADDR"); v != "" {
 		*addr = v
@@ -146,7 +166,7 @@ func main() {
 
 	mux.HandleFunc("GET /metrics", func(w http.ResponseWriter, r *http.Request) {
 		host, _, _ := net.SplitHostPort(r.RemoteAddr)
-		if host != "127.0.0.1" && host != "::1" && !strings.HasPrefix(host, "10.") && !strings.HasPrefix(host, "192.168.") {
+		if host != "127.0.0.1" && host != "::1" && !strings.HasPrefix(host, "10.") && !strings.HasPrefix(host, "192.168.") && !strings.HasPrefix(host, "172.") && !strings.HasPrefix(host, "100.") {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
