@@ -36,7 +36,7 @@ func (s *Store) SetWebhook(botID int64, url string) error {
 }
 
 func (s *Store) ListBots() ([]Bot, error) {
-	rows, err := s.db.Query("SELECT id, token, name, COALESCE(webhook_url,''), COALESCE(icon_url,'') FROM bots")
+	rows, err := s.db.Query("SELECT id, token, name, COALESCE(webhook_url,''), COALESCE(icon_url,'') FROM bots ORDER BY id")
 	if err != nil {
 		return nil, err
 	}

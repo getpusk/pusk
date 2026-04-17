@@ -126,6 +126,7 @@ func (a *AdminAPI) createChannel(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Name        string `json:"name"`
 		Description string `json:"description"`
+		BotID       int64  `json:"bot_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(400)
@@ -144,7 +145,25 @@ func (a *AdminAPI) createChannel(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": "create a bot first"})
 		return
 	}
-	ch, err := s.CreateChannel(bots[0].ID, req.Name, req.Description)
+	var botID int64
+	if req.BotID > 0 {
+		found := false
+		for _, b := range bots {
+			if b.ID == req.BotID {
+				botID = b.ID
+				found = true
+				break
+			}
+		}
+		if !found {
+			w.WriteHeader(400)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": "bot not found"})
+			return
+		}
+	} else {
+		botID = bots[0].ID
+	}
+	ch, err := s.CreateChannel(botID, req.Name, req.Description)
 	if err != nil {
 		errMsg := "Channel already exists / Канал уже существует"
 		if !strings.Contains(err.Error(), "UNIQUE") {
@@ -314,7 +333,7 @@ func (a *AdminAPI) registerOrg(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"password must be at least 8 characters"}`, 400)
 		return
 	}
-	if err := a.orgs.Register(req.Slug, req.Name, req.Username, req.Pin); err != nil {
+	if err := a.orgs.Register(req.Slug, req.Name, req.Username, req.Pin, a.isGlobalAdmin(r)); err != nil {
 		http.Error(w, `{"error":"`+err.Error()+`"}`, 400)
 		return
 	}

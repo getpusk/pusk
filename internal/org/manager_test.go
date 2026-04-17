@@ -74,7 +74,7 @@ func TestGet_LazyInit(t *testing.T) {
 
 func TestRegister_Success(t *testing.T) {
 	m := tempManager(t)
-	err := m.Register("myteam", "My Team", "admin", "pass1234")
+	err := m.Register("myteam", "My Team", "admin", "pass1234", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func TestRegister_Success(t *testing.T) {
 
 func TestRegister_CreatesAdminAndBot(t *testing.T) {
 	m := tempManager(t)
-	err := m.Register("neworg", "New Org", "admin", "pass1234")
+	err := m.Register("neworg", "New Org", "admin", "pass1234", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,8 +110,8 @@ func TestRegister_CreatesAdminAndBot(t *testing.T) {
 
 func TestRegister_Duplicate(t *testing.T) {
 	m := tempManager(t)
-	_ = m.Register("dup", "Dup", "admin", "pass1234")
-	err := m.Register("dup", "Dup2", "admin2", "pass5678")
+	_ = m.Register("dup", "Dup", "admin", "pass1234", false)
+	err := m.Register("dup", "Dup2", "admin2", "pass5678", false)
 	if err == nil {
 		t.Fatal("expected error for duplicate slug")
 	}
@@ -128,7 +128,7 @@ func TestRegister_InvalidSlugs(t *testing.T) {
 		"../evil", // path traversal
 	}
 	for _, slug := range invalids {
-		err := m.Register(slug, "Test", "admin", "pass")
+		err := m.Register(slug, "Test", "admin", "pass", false)
 		if err == nil {
 			t.Errorf("expected error for slug %q", slug)
 		}
@@ -139,7 +139,7 @@ func TestRegister_ValidSlugs(t *testing.T) {
 	m := tempManager(t)
 	valids := []string{"ab", "my-team", "team-42", "a1"}
 	for _, slug := range valids {
-		err := m.Register(slug, "Test "+slug, "admin", "pass1234")
+		err := m.Register(slug, "Test "+slug, "admin", "pass1234", false)
 		if err != nil {
 			t.Errorf("unexpected error for slug %q: %v", slug, err)
 		}
@@ -148,7 +148,7 @@ func TestRegister_ValidSlugs(t *testing.T) {
 
 func TestTokenRegistry(t *testing.T) {
 	m := tempManager(t)
-	_ = m.Register("org1", "Org 1", "admin", "pass1234")
+	_ = m.Register("org1", "Org 1", "admin", "pass1234", false)
 	m.RegisterToken("tok123", "org1")
 	slug, err := m.OrgByToken("tok123")
 	if err != nil {
@@ -172,7 +172,7 @@ func TestOrgByToken_UnknownFallsToDefault(t *testing.T) {
 
 func TestGetByToken(t *testing.T) {
 	m := tempManager(t)
-	_ = m.Register("org2", "Org 2", "admin", "pass1234")
+	_ = m.Register("org2", "Org 2", "admin", "pass1234", false)
 	m.RegisterToken("tok456", "org2")
 	s, slug, err := m.GetByToken("tok456")
 	if err != nil {
@@ -203,15 +203,15 @@ func TestGetByToken_Unknown(t *testing.T) {
 
 func TestManagerClose(t *testing.T) {
 	m := tempManager(t)
-	_ = m.Register("close-test", "Close", "admin", "pass1234")
+	_ = m.Register("close-test", "Close", "admin", "pass1234", false)
 	_, _ = m.Get("close-test")
 	m.Close() // should not panic
 }
 
 func TestRegisterToken_Overwrite(t *testing.T) {
 	m := tempManager(t)
-	_ = m.Register("org-a", "A", "admin", "pass1234")
-	_ = m.Register("org-b", "B", "admin", "pass1234")
+	_ = m.Register("org-a", "A", "admin", "pass1234", false)
+	_ = m.Register("org-b", "B", "admin", "pass1234", false)
 	m.RegisterToken("shared-tok", "org-a")
 	m.RegisterToken("shared-tok", "org-b") // overwrite
 	slug, _ := m.OrgByToken("shared-tok")

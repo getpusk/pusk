@@ -270,6 +270,62 @@ func TestAdminCreateChannel_Duplicate(t *testing.T) {
 	}
 }
 
+func TestAdminCreateChannel_WithBotID(t *testing.T) {
+	env := newAdminEnv(t)
+	// Create two bots
+	env.doReq("POST", "/admin/bots", map[string]string{
+		"token": "bot1-1234567890", "name": "Bot1",
+	}, env.token)
+	rec := env.doReq("POST", "/admin/bots", map[string]string{
+		"token": "bot2-1234567890", "name": "Bot2",
+	}, env.token)
+	var botResp map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &botResp); err != nil {
+		t.Fatal(err)
+	}
+	bot2ID := int64(botResp["id"].(float64))
+
+	// Create channel with bot_id pointing to second bot
+	rec = env.doReq("POST", "/admin/channel", map[string]interface{}{
+		"name": "alerts", "description": "Alert channel", "bot_id": bot2ID,
+	}, env.token)
+	if rec.Code != 200 {
+		t.Fatalf("create channel with bot_id: got %d, body: %s", rec.Code, rec.Body.String())
+	}
+	var resp map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp["ok"] != true {
+		t.Errorf("expected ok=true, got %v", resp["ok"])
+	}
+	result := resp["result"].(map[string]interface{})
+	if int64(result["bot_id"].(float64)) != bot2ID {
+		t.Errorf("channel bot_id = %v, want %d", result["bot_id"], bot2ID)
+	}
+}
+
+func TestAdminCreateChannel_InvalidBotID(t *testing.T) {
+	env := newAdminEnv(t)
+	env.doReq("POST", "/admin/bots", map[string]string{
+		"token": "inv-bot-1234567", "name": "Bot",
+	}, env.token)
+
+	rec := env.doReq("POST", "/admin/channel", map[string]interface{}{
+		"name": "test-invalid-bot", "bot_id": 99999,
+	}, env.token)
+	if rec.Code != 400 {
+		t.Fatalf("create channel invalid bot_id: got %d, want 400, body: %s", rec.Code, rec.Body.String())
+	}
+	var resp map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp["error"] != "bot not found" {
+		t.Errorf("error = %v, want 'bot not found'", resp["error"])
+	}
+}
+
 // ── deleteChannel ──
 
 func TestAdminDeleteChannel_Success(t *testing.T) {
