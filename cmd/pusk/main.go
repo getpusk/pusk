@@ -67,7 +67,7 @@ func main() {
 			host = a[:strings.LastIndex(a, ":")]
 			port = a[strings.LastIndex(a, ":")+1:]
 		}
-		conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), 3*time.Second)
+		conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), 3*time.Second) // #nosec G704 -- healthcheck dials own server
 		if err != nil {
 			os.Exit(1)
 		}
