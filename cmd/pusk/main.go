@@ -71,7 +71,7 @@ func main() {
 		if err != nil {
 			os.Exit(1)
 		}
-		conn.Close()
+		_ = conn.Close()
 		os.Exit(0)
 	}
 

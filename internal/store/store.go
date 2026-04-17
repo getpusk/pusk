@@ -195,7 +195,8 @@ func (s *Store) migrate() error {
 		s.db.Exec("ALTER TABLE invites ADD COLUMN uses INTEGER DEFAULT 0")
 		//nolint:errcheck // same as above
 		s.db.Exec("ALTER TABLE invites ADD COLUMN max_uses INTEGER DEFAULT 50")
-		s.db.Exec("PRAGMA user_version = 3") //nolint:errcheck
+		//nolint:errcheck // same as above
+		s.db.Exec("PRAGMA user_version = 3")
 	}
 
 	// v4: file tokens
