@@ -36,6 +36,7 @@ type ClientAPI struct {
 	vapidPub    string
 	jwt         *auth.JWTService
 	OpenUserReg bool // allow self-registration on default org (default true)
+	DemoMode    bool // PUSK_DEMO=1 active
 }
 
 func NewClientAPI(orgs *org.Manager, s *store.Store, hub *ws.Hub, push *notify.PushService, relay *bot.RelayHub, updates *bot.UpdateQueue, vapidPub string, jwtSvc *auth.JWTService) *ClientAPI {
