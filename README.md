@@ -262,6 +262,10 @@ server {
 | `PUSK_LOG_FORMAT` | `text` | `json` — JSON-логи для production |
 | `PUSK_OPEN_USER_REGISTRATION` | `true` | `false` — отключить саморегистрацию (только инвайты) |
 | `PUSK_WEBHOOK_RATE_LIMIT` | `60` | Лимит webhook-запросов в минуту на бота |
+| `PUSK_TPL_ALERTMANAGER` | — | Путь к файлу кастомного Go-шаблона для Alertmanager webhook |
+| `PUSK_TPL_GRAFANA` | — | Путь к файлу кастомного Go-шаблона для Grafana webhook |
+| `PUSK_TPL_ZABBIX` | — | Путь к файлу кастомного Go-шаблона для Zabbix webhook |
+| `PUSK_TPL_RAW` | — | Путь к файлу кастомного Go-шаблона для raw webhook |
 
 ## Admin API
 

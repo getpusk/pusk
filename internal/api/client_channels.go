@@ -252,7 +252,7 @@ func (a *ClientAPI) sendToChannel(w http.ResponseWriter, r *http.Request) {
 			"channel_name": ch.Name,
 			"sender_name":  senderName,
 		})
-		a.broadcastChannel(s, ch.ID, orgID, "channel_message", payload, userID)
+		a.broadcastChannel(s, ch.ID, orgID, "channel_message", payload)
 
 		// Push notification to offline channel subscribers (skip sender + online users)
 		sentPush := map[int64]bool{}
@@ -761,7 +761,7 @@ func (a *ClientAPI) uploadToChannel(w http.ResponseWriter, r *http.Request) {
 			"channel_name": ch.Name,
 			"sender_name":  uploadSenderName,
 		})
-		a.broadcastChannel(s, ch.ID, orgID, "channel_message", payload, userID)
+		a.broadcastChannel(s, ch.ID, orgID, "channel_message", payload)
 	}
 
 	_ = json.NewEncoder(w).Encode(msg)
