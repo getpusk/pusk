@@ -300,6 +300,52 @@ func (m *Manager) CanCreateOrg() bool {
 }
 
 // Close closes all open stores
+
+// DeleteOrg removes an org: closes store, removes from registry, deletes data directory.
+// Protected: only "default" org cannot be deleted.
+func (m *Manager) DeleteOrg(slug string) error {
+	if slug == "default" {
+		return fmt.Errorf("cannot delete default org")
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Close store if loaded
+	if s, ok := m.stores[slug]; ok {
+		s.Close()
+		delete(m.stores, slug)
+	}
+
+	// Remove from orgs list
+	filtered := make([]Org, 0, len(m.orgs))
+	found := false
+	for _, o := range m.orgs {
+		if o.Slug == slug {
+			found = true
+			continue
+		}
+		filtered = append(filtered, o)
+	}
+	if !found {
+		return fmt.Errorf("org not found: %s", slug)
+	}
+	m.orgs = filtered
+	_ = m.save()
+
+	// Remove tokens for this org
+	_, _ = m.tokDB.Exec("DELETE FROM tokens WHERE org = ?", slug)
+
+	// Remove data directory
+	orgDir := filepath.Join(m.dir, slug)
+	if err := os.RemoveAll(orgDir); err != nil {
+		slog.Warn("failed to remove org dir", "slug", slug, "err", err)
+	}
+
+	metrics.OrgsTotal.Set(float64(len(m.orgs)))
+	slog.Info("org deleted", "slug", slug)
+	return nil
+}
+
 func (m *Manager) Close() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
