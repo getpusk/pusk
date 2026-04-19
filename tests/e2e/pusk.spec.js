@@ -13,6 +13,10 @@ async function api(method, path, body, token) {
   return { status: r.status, data: await r.json().catch(() => null) };
 }
 
+
+// Track created orgs for cleanup
+const createdSlugs = [];
+function trackSlug(slug) { createdSlugs.push(slug); return slug; }
 // ══════════════════════════════════════════
 // 1. LANDING & DEMO FLOW
 // ══════════════════════════════════════════
@@ -67,7 +71,7 @@ test.describe('Landing & Demo', () => {
 // 2. ORG REGISTRATION FLOW
 // ══════════════════════════════════════════
 test.describe('Org Registration', () => {
-  const slug = 'e2e-' + Date.now();
+  const slug = trackSlug('e2e-' + Date.now());
 
   test('create org via API', async () => {
     const r = await api('POST', '/api/org/register', {
@@ -95,7 +99,7 @@ test.describe('Org Registration', () => {
   });
 
   test('new org has system bot + #general', async () => {
-    const slug2 = 'e2ebot-' + Date.now();
+    const slug2 = trackSlug('e2ebot-' + Date.now());
     const reg = await api('POST', '/api/org/register', {
       slug: slug2, name: 'E2E Bot', username: 'admin', pin: 'test1234'
     });
@@ -113,7 +117,7 @@ test.describe('Org Registration', () => {
   });
 
   test('new org welcome message exists', async () => {
-    const slug3 = 'e2ewelc-' + Date.now();
+    const slug3 = trackSlug('e2ewelc-' + Date.now());
     const reg = await api('POST', '/api/org/register', {
       slug: slug3, name: 'E2E Welcome', username: 'admin', pin: 'test1234'
     });
@@ -163,7 +167,7 @@ test.describe('Auth & Security', () => {
 
   test('IDOR: same org, different users cannot read each others chats', async () => {
     // In same org: create 2 users, verify user2 cant read user1's chat
-    const slug = 'idor-' + Date.now();
+    const slug = trackSlug('idor-' + Date.now());
     const reg = await api('POST', '/api/org/register', {
       slug, name: 'IDOR', username: 'user1', pin: 'test1234'
     });
@@ -203,13 +207,13 @@ test.describe('SSRF Protection', () => {
 test.describe('Multi-tenant Isolation', () => {
   test('org1 data not visible from org2', async () => {
     const org1 = await api('POST', '/api/org/register', {
-      slug: 'iso1-' + Date.now(), name: 'ISO1', username: 'admin', pin: 'test1234'
+      slug: trackSlug('iso1-' + Date.now()), name: 'ISO1', username: 'admin', pin: 'test1234'
     });
     if (org1.status === 429) { test.skip(); return; }
     // wait for rate limit to reset slightly
     await new Promise(r => setTimeout(r, 1000));
     const org2 = await api('POST', '/api/org/register', {
-      slug: 'iso2-' + Date.now(), name: 'ISO2', username: 'admin', pin: 'test1234'
+      slug: trackSlug('iso2-' + Date.now()), name: 'ISO2', username: 'admin', pin: 'test1234'
     });
     if (org2.status === 429) { test.skip(); return; }
 
@@ -231,7 +235,7 @@ test.describe('Multi-tenant Isolation', () => {
     expect(defaultBots.data.length).toBe(2); // DemoBot + MonitorBot
 
     const newOrg = await api('POST', '/api/org/register', {
-      slug: 'clnorg-' + Date.now(), name: 'Clean', username: 'admin', pin: 'test1234'
+      slug: trackSlug('clnorg-' + Date.now()), name: 'Clean', username: 'admin', pin: 'test1234'
     });
     if (newOrg.status === 429) { test.skip(); return; }
     const newBots = await api('GET', '/api/bots', null, newOrg.data.token);
@@ -245,7 +249,7 @@ test.describe('Multi-tenant Isolation', () => {
 test.describe('Bot API', () => {
   test('sendMessage via Bot API', async () => {
     // Use isolated org so E2E tests don't pollute default demo data
-    const slug = 'e2e-botapi-' + Date.now();
+    const slug = trackSlug('e2e-botapi-' + Date.now());
     const reg = await api('POST', '/api/org/register', { slug, name: slug, username: 'admin', pin: 'admin123' });
     const token = reg.data.token;
     const bots = await api('GET', '/api/bots', null, token);
@@ -367,7 +371,7 @@ test.describe('Webhook Endpoints', () => {
 // ══════════════════════════════════════════
 test.describe('Rate Limiting', () => {
   test('rate limiting after 20 auth attempts', async () => {
-    const user = 'ratelimit-' + Date.now();
+    const user = trackSlug('ratelimit-' + Date.now());
     for (let i = 0; i < 20; i++) {
       await api('POST', '/api/auth', { username: user, pin: 'wrong123' });
     }
@@ -375,3 +379,22 @@ test.describe('Rate Limiting', () => {
     expect(r.status).toBe(429);
   });
 });
+
+// ══════════════════════════════════════════
+// CLEANUP — delete test orgs after all tests
+// ══════════════════════════════════════════
+test.afterAll(async () => {
+  if (createdSlugs.length === 0) return;
+  const adminToken = process.env.PUSK_ADMIN_TOKEN;
+  if (!adminToken) {
+    console.log(`[cleanup] PUSK_ADMIN_TOKEN not set, skipping cleanup of ${createdSlugs.length} test orgs`);
+    return;
+  }
+  let deleted = 0;
+  for (const slug of createdSlugs) {
+    const r = await api('DELETE', `/admin/org/${slug}`, null, `Bearer ${adminToken}`);
+    if (r.status === 200) deleted++;
+  }
+  console.log(`[cleanup] deleted ${deleted}/${createdSlugs.length} test orgs`);
+});
+

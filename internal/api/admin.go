@@ -37,6 +37,7 @@ func (a *AdminAPI) Route(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /admin/channel/{channelID}", a.renameChannel)
 	mux.HandleFunc("PUT /admin/bots/{botID}", a.renameBot)
 
+	mux.HandleFunc("DELETE /admin/org/{slug}", a.deleteOrg)
 	mux.HandleFunc("POST /admin/reset-password", a.resetPassword)
 	mux.HandleFunc("POST /admin/set-role", a.adminSetRole)
 
@@ -436,4 +437,34 @@ func (a *AdminAPI) adminSetRole(w http.ResponseWriter, r *http.Request) {
 	_ = s.SetUserRole(req.UserID, req.Role)
 	slog.Info("admin role set", "org", req.Org, "user_id", req.UserID, "role", req.Role)
 	_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+}
+
+func (a *AdminAPI) deleteOrg(w http.ResponseWriter, r *http.Request) {
+	// Requires ADMIN_TOKEN (global admin only)
+	authHeader := r.Header.Get("Authorization")
+	if a.adminToken == "" || subtle.ConstantTimeCompare(
+		[]byte(strings.TrimPrefix(authHeader, "Bearer ")),
+		[]byte(a.adminToken),
+	) != 1 {
+		http.Error(w, `{"error":"admin token required"}`, http.StatusForbidden)
+		return
+	}
+
+	slug := r.PathValue("slug")
+	if slug == "" {
+		jsonErr(w, "slug required", 400)
+		return
+	}
+	if slug == "default" {
+		jsonErr(w, "cannot delete default org", 400)
+		return
+	}
+
+	if err := a.orgs.DeleteOrg(slug); err != nil {
+		jsonErr(w, err.Error(), 404)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "deleted": slug})
 }
