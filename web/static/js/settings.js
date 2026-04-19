@@ -3,6 +3,7 @@ import {get,set,remove,getJSON,setJSON} from './storage.js';
 import {$,esc,escJs,t,api,toast,setLang,confirmDialog} from './util.js';
 import {showApp,showList,logout} from './views.js';
 import {registerPush,disconnectWS} from './ws.js';
+function copyText(t){if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).catch(()=>fallbackCopy(t))}else{fallbackCopy(t)}}function fallbackCopy(t){const a=document.createElement('textarea');a.value=t;a.style.cssText='position:fixed;left:-9999px';document.body.appendChild(a);a.select();try{document.execCommand('copy')}catch{}document.body.removeChild(a)}
 
 // ── Settings panel ──
 $('hdr-ava').onclick=$('hdr-name').onclick=()=>{const ob=$('onboard-bg');if(ob)ob.classList.remove('open');const v=$('settings').style.display==='block';$('settings').style.display=v?'none':'flex';$('settings-bg').style.display=v?'none':'block';if(!v){history.pushState(null,'',location.href);renderOrgSwitch();renderSettings();renderUsers()}};
@@ -128,8 +129,8 @@ $('s-lang-btn').onclick=()=>{S.lang=S.lang==='ru'?'en':'ru';set('lang',S.lang);s
 $('s-invite').onclick=async()=>{
   // Check for active invite first
   if(!S.inviteUrl){const active=await api('GET','/api/invite/active');if(active&&active.code){S.inviteUrl=location.origin+active.url;S.inviteCode=active.code}}
-  if(S.inviteUrl){navigator.clipboard.writeText(S.inviteUrl);$('s-invite').textContent=t('invited');$('s-invite-result').textContent=S.inviteUrl;setTimeout(()=>{$('s-invite').textContent=t('invite')},2000);showRevokeBtn();return}
-  const r=await api('POST','/api/invite');if(r.code){const o=get('org')||'default';S.inviteUrl=location.origin+r.url+'?org='+o;S.inviteCode=r.code;$('s-invite-result').textContent=S.inviteUrl;navigator.clipboard.writeText(S.inviteUrl);$('s-invite').textContent=t('invited');setTimeout(()=>{$('s-invite').textContent=t('invite')},2000);showRevokeBtn()}};
+  if(S.inviteUrl){copyText(S.inviteUrl);$('s-invite').textContent=t('invited');$('s-invite-result').textContent=S.inviteUrl;setTimeout(()=>{$('s-invite').textContent=t('invite')},2000);showRevokeBtn();return}
+  const r=await api('POST','/api/invite');if(r.code){const o=get('org')||'default';S.inviteUrl=location.origin+r.url+'?org='+o;S.inviteCode=r.code;$('s-invite-result').textContent=S.inviteUrl;copyText(S.inviteUrl);$('s-invite').textContent=t('invited');setTimeout(()=>{$('s-invite').textContent=t('invite')},2000);showRevokeBtn()}};
 function showRevokeBtn(){let rb=$('s-revoke');if(!rb){rb=document.createElement('button');rb.id='s-revoke';rb.className='s-btn';rb.style.cssText='font-size:11px;color:#e05d44;padding:4px 8px;margin-top:4px';$('s-invite').after(rb)}rb.textContent=S.lang==='ru'?'Отозвать ссылку':'Revoke link';rb.onclick=async()=>{if(!S.inviteCode)return;await api('DELETE','/api/invite',{code:S.inviteCode});S.inviteUrl='';S.inviteCode='';$('s-invite-result').textContent='';rb.remove();toast(S.lang==='ru'?'Ссылка отозвана':'Link revoked')}}
 $('s-out').onclick=()=>{$('settings').style.display='none';$('settings-bg').style.display='none';logout()};
 
