@@ -27,7 +27,8 @@ type authFail struct {
 func init() {
 	// Cleanup stale entries every 5 min
 	go func() {
-		for range time.Tick(5 * time.Minute) {
+		ticker := time.NewTicker(5 * time.Minute)
+		for range ticker.C {
 			botAuthFail.mu.Lock()
 			cutoff := time.Now().Add(-5 * time.Minute)
 			for k, v := range botAuthFail.fails {

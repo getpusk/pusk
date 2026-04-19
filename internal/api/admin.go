@@ -93,12 +93,12 @@ func (a *AdminAPI) registerBot(w http.ResponseWriter, r *http.Request) {
 		Name  string `json:"name"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), 400)
+		jsonErr(w, "invalid request body", 400)
 		return
 	}
 	b, err := s.CreateBot(req.Token, req.Name)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		jsonErr(w, "failed to create bot", 500)
 		return
 	}
 	// Register token globally for Bot API routing
@@ -322,7 +322,7 @@ func (a *AdminAPI) registerOrg(w http.ResponseWriter, r *http.Request) {
 		Pin      string `json:"pin"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"`+err.Error()+`"}`, 400)
+		jsonErr(w, err.Error(), 400)
 		return
 	}
 	if req.Slug == "" || req.Username == "" || req.Pin == "" {
@@ -334,13 +334,25 @@ func (a *AdminAPI) registerOrg(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := a.orgs.Register(req.Slug, req.Name, req.Username, req.Pin, a.isGlobalAdmin(r)); err != nil {
-		http.Error(w, `{"error":"`+err.Error()+`"}`, 400)
+		jsonErr(w, err.Error(), 400)
 		return
 	}
 	// Generate JWT for the new admin
-	s, _ := a.orgs.Get(req.Slug)
-	user, _ := s.AuthUser(req.Username, req.Pin)
-	tok, _ := a.jwt.Generate(user.ID, req.Slug, req.Username)
+	s, err := a.orgs.Get(req.Slug)
+	if err != nil || s == nil {
+		jsonErr(w, "org created but store unavailable", 500)
+		return
+	}
+	user, err := s.AuthUser(req.Username, req.Pin)
+	if err != nil || user == nil {
+		jsonErr(w, "org created but auth failed", 500)
+		return
+	}
+	tok, err := a.jwt.Generate(user.ID, req.Slug, req.Username)
+	if err != nil {
+		jsonErr(w, "org created but token generation failed", 500)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"ok":       true,
