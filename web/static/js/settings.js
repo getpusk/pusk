@@ -28,13 +28,17 @@ async function togglePush(){if((get('org')||'default')==='default'){toast(S.lang
     toast(S.lang==='ru'?'Push заблокирован в браузере. Разрешите в настройках сайта.':'Push blocked by browser. Allow in site settings.');
     return;
   }
-  // Check if already subscribed
+  // Request permission IMMEDIATELY on click (Firefox requires user gesture)
+  if(Notification.permission!=='granted'){
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted'){$('s-push-btn').textContent=S.lang==='ru'?'Push: Выкл':'Push: Off';return}
+  }
+  // Permission granted — check subscription state
   if('serviceWorker' in navigator&&'PushManager' in window){
     try{
       const reg=await navigator.serviceWorker.ready;
       const sub=await reg.pushManager.getSubscription();
       if(sub){
-        // Currently subscribed -> unsubscribe
         const ep=sub.endpoint;
         await sub.unsubscribe();
         await api('DELETE','/api/push/subscribe',{endpoint:ep});
@@ -44,13 +48,10 @@ async function togglePush(){if((get('org')||'default')==='default'){toast(S.lang
       }
     }catch(e){console.warn('push unsub check error',e)}
   }
-  // Not subscribed -> subscribe
-  if(Notification.permission==='granted'){
-    registerPush();
-    toast(S.lang==='ru'?'Подписан на push уведомления':'Subscribed to push');
-    $('s-push-btn').textContent=S.lang==='ru'?'Push: Вкл ✓':'Push: On ✓';
-    {const hint=$('s-push-hint');if(hint)hint.remove()}
-  }else{Notification.requestPermission().then(p=>{if(p==='granted'){registerPush();$('s-push-btn').textContent=S.lang==='ru'?'Push: Вкл ✓':'Push: On ✓'}else{$('s-push-btn').textContent=S.lang==='ru'?'Push: Выкл':'Push: Off'}})}}
+  registerPush();
+  toast(S.lang==='ru'?'Подписан на push уведомления':'Subscribed to push');
+  $('s-push-btn').textContent=S.lang==='ru'?'Push: Вкл ✓':'Push: On ✓';
+  {const hint=$('s-push-hint');if(hint)hint.remove()}}
 
 function testPush(){if((get('org')||'default')==='default'){toast(S.lang==='ru'?'Push доступен только в организации. Создайте организацию в настройках.':'Push available only in organizations. Create one in settings.');return}api('POST','/api/push/test').then(r=>{if(r.ok){toast(S.lang==='ru'?'Push отправлен! Если не получили — проверьте: 1) Разрешения Chrome 2) Оптимизация батареи 3) Установите как приложение':'Push sent! Check: 1) Chrome permissions 2) Battery optimization 3) Install as app')}else{toast(r.error||(S.lang==='ru'?'Нет подписки на push. Включите Push в настройках.':'No push subscription. Enable Push first.'))}})}
 
