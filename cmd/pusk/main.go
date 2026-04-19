@@ -147,6 +147,9 @@ func main() {
 		clientAPI.OpenUserReg = false
 		slog.Info("user self-registration disabled, invite required")
 	}
+	if os.Getenv("PUSK_DEMO") == "1" {
+		clientAPI.DemoMode = true
+	}
 	clientAPI.Route(mux)
 
 	// Admin API (admin endpoints + org registration)
