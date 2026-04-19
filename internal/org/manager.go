@@ -312,7 +312,7 @@ func (m *Manager) DeleteOrg(slug string) error {
 
 	// Close store if loaded
 	if s, ok := m.stores[slug]; ok {
-		s.Close()
+		_ = s.Close()
 		delete(m.stores, slug)
 	}
 
