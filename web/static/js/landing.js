@@ -73,6 +73,9 @@ fetch('/api/org/info').then(r=>r.json()).then(d=>{
   if(d&&d.can_create_org===false){
     const btn=$('land-create-org');if(btn)btn.style.display='none';
   }
+  if(d&&d.count===0){
+    const lnk=$('org-to-login');if(lnk)lnk.style.display='none';
+  }
 }).catch(()=>{});
 $('land-create-org').onclick=()=>{$('org-modal-bg').classList.add('open');$('org-slug').focus()};
 $('org-cancel').onclick=()=>$('org-modal-bg').classList.remove('open');

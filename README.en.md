@@ -262,6 +262,10 @@ server {
 | `PUSK_LOG_FORMAT` | `text` | `json` — JSON logs for production |
 | `PUSK_OPEN_USER_REGISTRATION` | `true` | `false` — disable self-registration (invite-only) |
 | `PUSK_WEBHOOK_RATE_LIMIT` | `60` | Webhook requests per minute per bot |
+| `PUSK_TPL_ALERTMANAGER` | — | Path to custom Go template file for Alertmanager webhook |
+| `PUSK_TPL_GRAFANA` | — | Path to custom Go template file for Grafana webhook |
+| `PUSK_TPL_ZABBIX` | — | Path to custom Go template file for Zabbix webhook |
+| `PUSK_TPL_RAW` | — | Path to custom Go template file for raw webhook |
 
 ## Admin API
 
