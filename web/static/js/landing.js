@@ -80,9 +80,9 @@ fetch('/api/org/info').then(r=>r.json()).then(d=>{
 fetch('/api/health').then(r=>r.json()).then(d=>{if(!d||!d.demo){const db=$('land-demo');if(db)db.style.display='none';const rp=document.querySelector('.land-right');if(rp)rp.style.display='none'}}).catch(()=>{});
 if(get('token')){const lnk=$('org-to-login');if(lnk)lnk.style.display='none'}
 $('land-create-org').onclick=()=>{$('org-slug').value='';$('org-name').value='';$('org-user').value='';$('org-pin').value='';$('org-msg').textContent='';$('org-modal-bg').classList.add('open');$('org-slug').focus()};
-$('org-cancel').onclick=()=>$('org-modal-bg').classList.remove('open');
+$('org-cancel').onclick=()=>{$('org-slug').value='';$('org-name').value='';$('org-user').value='';$('org-pin').value='';$('org-msg').textContent='';$('org-modal-bg').classList.remove('open')};
 $('org-to-login').onclick=(e)=>{e.preventDefault();$('org-modal-bg').classList.remove('open');hideLanding();$('auth').style.display='flex';const savedOrg=get('org');if(savedOrg)$('a-org').value=savedOrg};
-$('org-modal-bg').onclick=e=>{if(e.target===$('org-modal-bg'))$('org-modal-bg').classList.remove('open')};
+$('org-modal-bg').onclick=e=>{if(e.target===$('org-modal-bg')){$('org-slug').value='';$('org-name').value='';$('org-user').value='';$('org-pin').value='';$('org-msg').textContent='';$('org-modal-bg').classList.remove('open')}};
 $('org-ok').onclick=async()=>{
   const slug=$('org-slug').value.trim().toLowerCase().replace(/[^a-z0-9-]/g,'');
   const name=$('org-name').value.trim()||slug;const user=$('org-user').value.trim();const pin=$('org-pin').value.trim();const msg=$('org-msg');
