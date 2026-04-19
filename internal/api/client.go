@@ -78,7 +78,7 @@ func (a *ClientAPI) Route(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/auth", RateLimit(authRL, limitBody(a.auth)))
 	mux.HandleFunc("POST /api/register", RateLimit(regRL, limitBody(a.register)))
 	mux.HandleFunc("GET /api/health", a.health)
-	mux.HandleFunc("GET /api/my-orgs", a.findMyOrgs)
+	mux.HandleFunc("GET /api/my-orgs", RateLimit(authRL, a.findMyOrgs))
 	mux.HandleFunc("GET /api/push/vapid", a.vapidKey)
 	mux.HandleFunc("POST /api/invite/accept", RateLimit(regRL, limitBody(a.acceptInvite)))
 	mux.HandleFunc("GET /api/invite/check-user", a.checkInviteUser)

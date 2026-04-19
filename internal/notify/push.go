@@ -79,6 +79,9 @@ func (p *PushService) SendToUser(s *store.Store, userID int64, payload PushPaylo
 			Urgency:         webpush.UrgencyHigh,
 		})
 		if err != nil {
+			if resp != nil && resp.Body != nil {
+				_ = resp.Body.Close()
+			}
 			failed++
 			slog.Error("push send failed",
 				"user_id", userID,

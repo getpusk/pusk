@@ -82,7 +82,12 @@ func (a *ClientAPI) ackChannelMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// BUG-11: prevent re-ACK on already ACK'd messages
-	if strings.Contains(msg.Text, "**ACK**") || strings.Contains(msg.Text, "**Resolved**") || strings.Contains(msg.Text, "**Muted") {
+	// Check last 80 chars only — ACK status is always appended at the end
+	tail := msg.Text
+	if len(tail) > 80 {
+		tail = tail[len(tail)-80:]
+	}
+	if strings.Contains(tail, "**ACK**") || strings.Contains(tail, "**Resolved**") || strings.Contains(tail, "**Muted") {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "already": true})
 		return
 	}
