@@ -8,7 +8,7 @@
 
 🌐 [Русский](README.md)
 
-<img src=".github/assets/landing.png" alt="Pusk — interface" width="960" />
+<img src=".github/assets/pusk-demo.gif" alt="Pusk — demo" width="960" />
 
 # Pusk — self-hosted alerts for ops teams
 
