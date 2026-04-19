@@ -1,5 +1,70 @@
 # Changelog
 
+## v0.7.8 (2026-04-19)
+
+### Security
+- **P0**: Remove username enumeration oracle — `/api/my-orgs` no longer called from landing page, rate-limited on server
+- **P1**: Fix JSON injection in admin error responses — use `jsonErr()` helper instead of raw string concatenation
+- **P1**: Fix nil-pointer panic in org registration — proper error checks after store/auth/token operations
+- **P1**: Fix ACK matching on long messages — check only last 80 chars for ACK/Resolved/Muted markers
+
+### Cleanup
+- Remove 142 lines of dead format functions from `webhook.go` (replaced by template engine)
+- Fix `time.Tick` goroutine leak in `route.go` — use `time.NewTicker`
+- Close HTTP response body in push notification error path
+- Rewrite `templates_test.go` to test via template engine API
+
+### Docs
+- Replace landing screenshot with real workflow GIF (create org → login → alerts → ACK → settings)
+- Add screencast recording spec for reproducible README assets
+
+## v0.7.7 (2026-04-19)
+
+### Fixes
+- Fix org modal reset and cross-org isolation (#82)
+- Push HTTPS check for secure contexts (#82)
+- Clipboard copy fallback for HTTP contexts (#81)
+- Push notifications in Firefox — permission flow fix (#80)
+- Demo visibility, org modal reset, auth UX improvements (#79)
+
+## v0.7.6 (2026-04-18)
+
+### Fixes
+- Multi-device message delivery reliability (#78)
+- Login UX cleanup — consistent error messages (#78)
+
+## v0.7.5 (2026-04-17)
+
+### Fixes
+- Healthcheck flag, migration versioning, metrics endpoint (#77)
+
+## v0.7.4 (2026-04-16)
+
+### Features
+- Bot selector for channels, admin bypass fix (#76)
+- Admin API documentation (#76)
+
+## v0.7.3 (2026-04-15)
+
+### Security
+- Self-hosted security hardening (#75)
+
+## v0.7.2 (2026-04-14)
+
+### Fixes
+- Scrub webhook URL from logs (#68)
+- Return 500 on save failure (#68)
+
+## v0.7.1 (2026-04-10)
+
+### Features
+- Sign Docker images with cosign (keyless Sigstore) (#65)
+- Exclude demo code from release binary via build tags (#62)
+
+### CI
+- Bump Go 1.26.0 → 1.26.2 (security fixes) (#64)
+- Patch Alpine CVEs (#63)
+
 ## v0.7.0 (2026-04-03)
 
 ### Features
