@@ -43,8 +43,7 @@ export async function registerPush(){
   if(!('serviceWorker' in navigator)||!('PushManager' in window)||!S.token)return;
   if((get('org')||'default')==='default')return;
   try{
-    const perm=await Notification.requestPermission();
-    if(perm!=='granted')return;
+    if(Notification.permission!=='granted')return;
     const reg=await navigator.serviceWorker.register('/sw.js');
     await navigator.serviceWorker.ready;
     const r=await fetch('/api/push/vapid');const{key}=await r.json();if(!key)return;
