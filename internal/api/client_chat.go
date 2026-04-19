@@ -287,5 +287,6 @@ func (a *ClientAPI) health(w http.ResponseWriter, r *http.Request) {
 		"db":      dbOK,
 		"uptime":  time.Since(startTime).Truncate(time.Second).String(),
 		"orgs":    len(a.orgs.List()),
+		"demo":    a.DemoMode,
 	})
 }
