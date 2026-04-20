@@ -354,7 +354,12 @@ func (a *ClientAPI) orgStats(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) findMyOrgs(w http.ResponseWriter, r *http.Request) {
-	username := r.URL.Query().Get("username")
+	claims := ClaimsFromCtx(r.Context())
+	if claims == nil {
+		jsonErr(w, "unauthorized", 401)
+		return
+	}
+	username := claims.Username
 	if username == "" {
 		jsonErr(w, "username required", 400)
 		return

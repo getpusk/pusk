@@ -326,3 +326,9 @@ func (s *Store) RenameChannel(channelID int64, name string) error {
 	_, err := s.db.Exec("UPDATE channels SET name=? WHERE id=?", name, channelID)
 	return err
 }
+
+// UpdateChannelBot changes the bot associated with a channel.
+func (s *Store) UpdateChannelBot(channelID, botID int64) error {
+	_, err := s.db.Exec("UPDATE channels SET bot_id=? WHERE id=?", botID, channelID)
+	return err
+}

@@ -362,23 +362,24 @@ func TestOrgRegister_Success(t *testing.T) {
 
 // ── FindMyOrgs ──
 
-func TestFindMyOrgs_NoUsername(t *testing.T) {
+func TestFindMyOrgs_NoAuth(t *testing.T) {
 	env := newTestEnv(t)
 	rec := env.request("GET", "/api/my-orgs", nil)
-	if rec.Code != 400 {
-		t.Fatalf("my-orgs no username: got %d, want 400", rec.Code)
+	if rec.Code != 401 {
+		t.Fatalf("my-orgs no auth: got %d, want 401", rec.Code)
 	}
 }
 
-func TestFindMyOrgs_WithUsername(t *testing.T) {
+func TestFindMyOrgs_WithAuth(t *testing.T) {
 	env := newTestEnv(t)
 	// Register a user first
-	env.request("POST", "/api/register", map[string]string{
+	regRec := env.request("POST", "/api/register", map[string]string{
 		"username": "findme", "pin": "pass123456",
 	})
-	rec := env.request("GET", "/api/my-orgs?username=findme", nil)
+	token := decodeJSON(t, regRec)["token"].(string)
+	rec := env.authedRequest("GET", "/api/my-orgs", nil, token)
 	if rec.Code != 200 {
-		t.Fatalf("my-orgs: got %d", rec.Code)
+		t.Fatalf("my-orgs: got %d, body: %s", rec.Code, rec.Body.String())
 	}
 	var orgs []interface{}
 	_ = json.Unmarshal(rec.Body.Bytes(), &orgs)
