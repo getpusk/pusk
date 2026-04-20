@@ -49,14 +49,13 @@ async function togglePush(){if(!window.isSecureContext){$('s-push-btn').textCont
       }
     }catch(e){console.warn('push unsub check error',e)}
   }
-  registerPush();
-  toast(S.lang==='ru'?'Подписан на push уведомления':'Subscribed to push');
-  $('s-push-btn').textContent=S.lang==='ru'?'Push: Вкл ✓':'Push: On ✓';
-  {const hint=$('s-push-hint');if(hint)hint.remove()}}
+  const ok=await registerPush();
+  if(ok){toast(S.lang==='ru'?'Подписан на push уведомления':'Subscribed to push');$('s-push-btn').textContent=S.lang==='ru'?'Push: Вкл ✓':'Push: On ✓';{const hint=$('s-push-hint');if(hint)hint.remove()}}
+  else{$('s-push-btn').textContent=S.lang==='ru'?'Push: Выкл':'Push: Off'}}
 
 function testPush(){if((get('org')||'default')==='default'){toast(S.lang==='ru'?'Push доступен только в организации. Создайте организацию в настройках.':'Push available only in organizations. Create one in settings.');return}api('POST','/api/push/test').then(r=>{if(r.ok){toast(S.lang==='ru'?'Push отправлен! Если не получили — проверьте: 1) Разрешения Chrome 2) Оптимизация батареи 3) Установите как приложение':'Push sent! Check: 1) Chrome permissions 2) Battery optimization 3) Install as app')}else{toast(r.error||(S.lang==='ru'?'Нет подписки на push. Включите Push в настройках.':'No push subscription. Enable Push first.'))}})}
 
-function renderOrgSwitch(){const el=$('s-org-switch');const orgs=getJSON('orgs')||{};const cur=get('org')||'default';const keys=Object.keys(orgs).filter(k=>k!=='default');
+function renderOrgSwitch(){const el=$('s-org-switch');const orgs=getJSON('orgs')||{};const cur=get('org')||'default';const curUser=get('uname')||'';const keys=Object.keys(orgs).filter(k=>k!=='default'&&orgs[k].user===curUser);
   el.innerHTML='';
   if(keys.length>=1){
     const label=document.createElement('div');label.className='s-label';label.textContent=t('orgs_title');el.appendChild(label);

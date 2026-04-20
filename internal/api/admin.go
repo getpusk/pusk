@@ -35,6 +35,7 @@ func (a *AdminAPI) Route(mux *http.ServeMux) {
 	mux.HandleFunc("POST /admin/channel", a.createChannel)
 	mux.HandleFunc("DELETE /admin/channel/{channelID}", a.deleteChannel)
 	mux.HandleFunc("PUT /admin/channel/{channelID}", a.renameChannel)
+	mux.HandleFunc("PUT /admin/channel/{channelID}/bot", a.updateChannelBot)
 	mux.HandleFunc("PUT /admin/bots/{botID}", a.renameBot)
 
 	mux.HandleFunc("DELETE /admin/org/{slug}", a.deleteOrg)
@@ -248,6 +249,48 @@ func (a *AdminAPI) renameChannel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slog.Info("channel renamed", "channel_id", channelID, "new_name", req.Name)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
+}
+
+func (a *AdminAPI) updateChannelBot(w http.ResponseWriter, r *http.Request) {
+	s, ok := a.getOrgStore(r)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if !a.requireAdmin(r, s) {
+		http.Error(w, `{"error":"admin only"}`, http.StatusForbidden)
+		return
+	}
+	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
+	var req struct {
+		BotID int64 `json:"bot_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonErr(w, "invalid request", 400)
+		return
+	}
+	if req.BotID <= 0 {
+		jsonErr(w, "bot_id required", 400)
+		return
+	}
+	bots, _ := s.ListBots()
+	found := false
+	for _, b := range bots {
+		if b.ID == req.BotID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		jsonErr(w, "bot not found", 404)
+		return
+	}
+	if err := s.UpdateChannelBot(channelID, req.BotID); err != nil {
+		jsonErr(w, "update failed", 500)
+		return
+	}
+	slog.Info("channel bot updated", "channel_id", channelID, "bot_id", req.BotID)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
 }
 

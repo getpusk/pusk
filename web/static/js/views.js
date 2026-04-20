@@ -106,9 +106,9 @@ export function setMsgHandlers(handlers){
 }
 
 // ── Auth ──
-export function auth(r){S.token=r.token;set('token',S.token);set('uid',r.user_id);set('uname',r.username||'');if(r.display_name)set('display_name',r.display_name);if(r.role)set('role',r.role);if(r.org){set('org',r.org);const orgs=getJSON('orgs')||{};orgs[r.org]={token:r.token,user:r.username,display_name:r.display_name||r.username,name:r.org,role:r.role||'member'};setJSON('orgs',orgs)}showApp()}
+export function auth(r){S.token=r.token;set('token',S.token);set('uid',r.user_id);set('uname',r.username||'');if(r.display_name)set('display_name',r.display_name);if(r.role)set('role',r.role);if(r.org){set('org',r.org);const orgs=getJSON('orgs')||{};orgs[r.org]={token:r.token,user:r.username,display_name:r.display_name||r.username,name:r.org,role:r.role||'member'};const cleaned={};Object.keys(orgs).forEach(k=>{if(orgs[k].user===r.username)cleaned[k]=orgs[k]});setJSON('orgs',cleaned)}showApp()}
 
-export function logout(){S.token=null;S.curChat=null;S.curChan=null;remove('token');remove('uid');remove('uname');remove('display_name');remove('view');remove('role');remove('org');disconnectWS();$('a-pin').value='';$('a-err').textContent='';$('landing').style.display='flex';$('auth').style.display='none';$('app').style.display='none';$('fab').style.display='none';$('settings').style.display='none';$('settings-bg').style.display='none';window.initLandingChat()}
+export function logout(){S.token=null;S.curChat=null;S.curChan=null;remove('token');remove('uid');remove('uname');remove('display_name');remove('view');remove('role');remove('org');remove('orgs');disconnectWS();$('a-pin').value='';$('a-err').textContent='';$('landing').style.display='flex';$('auth').style.display='none';$('app').style.display='none';$('fab').style.display='none';$('settings').style.display='none';$('settings-bg').style.display='none';window.initLandingChat()}
 
 // ── App views ──
 export async function showApp(){$('auth').style.display='none';$('app').style.display='flex';const u=S.isDemo?'Demo':(get('display_name')||get('uname')||'?');$('hdr-ava').textContent=u[0].toUpperCase();$('hdr-ava').style.background=nameColor(u);$('hdr-name').textContent=u;if(S.isDemo){$('hdr-ava').onclick=null;$('hdr-name').onclick=null}connectWS();if(!S.isDemo)registerPush();await showList();

@@ -373,7 +373,7 @@ func (a *ClientAPI) pushSubscribe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ClientAPI) vapidKey(w http.ResponseWriter, r *http.Request) {
-	_ = json.NewEncoder(w).Encode(map[string]string{"key": a.vapidPub})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"key": a.vapidPub, "configured": a.vapidPub != ""})
 }
 
 func (a *ClientAPI) testPush(w http.ResponseWriter, r *http.Request) {
