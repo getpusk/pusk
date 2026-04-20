@@ -6,3 +6,9 @@ pusk.bak
 pusk-old*
 demo-bots
 *.tar.gz
+*.md
+!README.md
+!docs/*.md
+!docs/**/*.md
+scripts/deploy.env
+*.secret
