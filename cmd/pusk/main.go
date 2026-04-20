@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	webpush "github.com/SherClockHolmes/webpush-go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/pusk-platform/pusk/internal/api"
 	"github.com/pusk-platform/pusk/internal/auth"
@@ -114,10 +115,16 @@ func main() {
 
 	hub := ws.NewHub()
 
-	// Push notifications (optional — set VAPID env vars to enable)
+	// Push notifications (optional — set VAPID env vars or auto-generate)
 	vapidPub := os.Getenv("VAPID_PUBLIC_KEY")
 	vapidPriv := os.Getenv("VAPID_PRIVATE_KEY")
 	vapidEmail := os.Getenv("VAPID_EMAIL")
+	if vapidPub == "" || vapidPriv == "" {
+		vapidPub, vapidPriv = loadOrGenerateVAPID("data/vapid.pub", "data/vapid.key")
+	}
+	if vapidEmail == "" {
+		vapidEmail = "admin@localhost"
+	}
 	push := notify.NewPushService(vapidPub, vapidPriv, vapidEmail)
 	if vapidPub != "" {
 		slog.Info("push notifications configured", "provider", "VAPID")
@@ -243,6 +250,30 @@ func main() {
 		os.Exit(1)
 	}
 	slog.Info("server stopped gracefully")
+}
+
+func loadOrGenerateVAPID(pubPath, keyPath string) (string, string) {
+	//nolint:gosec // G304: fixed config paths
+	pubData, err1 := os.ReadFile(pubPath) // #nosec G304
+	//nolint:gosec // G304: fixed config paths
+	keyData, err2 := os.ReadFile(keyPath) // #nosec G304
+	if err1 == nil && err2 == nil {
+		pub := strings.TrimSpace(string(pubData))
+		key := strings.TrimSpace(string(keyData))
+		if pub != "" && key != "" {
+			slog.Info("VAPID keys loaded from disk", "pub_path", pubPath)
+			return pub, key
+		}
+	}
+	priv, pub, err := webpush.GenerateVAPIDKeys()
+	if err != nil {
+		slog.Warn("failed to generate VAPID keys, push disabled", "error", err)
+		return "", ""
+	}
+	_ = os.WriteFile(pubPath, []byte(pub+"\n"), 0o600)
+	_ = os.WriteFile(keyPath, []byte(priv+"\n"), 0o600)
+	slog.Info("VAPID keys auto-generated", "pub_path", pubPath, "key_path", keyPath)
+	return pub, priv
 }
 
 func loadOrGenerateSecret(path string) string {

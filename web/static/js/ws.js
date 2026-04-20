@@ -40,13 +40,15 @@ document.addEventListener('visibilitychange',()=>{
 
 // ── Push ──
 export async function registerPush(){
-  if(!('serviceWorker' in navigator)||!('PushManager' in window)||!S.token)return;
-  if((get('org')||'default')==='default')return;
+  if(!('serviceWorker' in navigator)||!('PushManager' in window)||!S.token){return false}
+  if((get('org')||'default')==='default'){return false}
   try{
-    if(Notification.permission!=='granted')return;
+    if(Notification.permission!=='granted'){return false}
     const reg=await navigator.serviceWorker.register('/sw.js');
     await navigator.serviceWorker.ready;
-    const r=await fetch('/api/push/vapid');const{key}=await r.json();if(!key)return;
+    const r=await fetch('/api/push/vapid');const data=await r.json();
+    if(!data.key){const{toast:t2}=await import('./util.js');const ru=get('lang')!=='en';t2(ru?'Push не настроен на сервере. Попросите администратора добавить VAPID-ключи.':'Push not configured on server. Ask admin to add VAPID keys.');return false}
+    const key=data.key;
     const appKey=Uint8Array.from(atob(key.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-key.length%4)%4)),c=>c.charCodeAt(0));
     let sub=await reg.pushManager.getSubscription();
     if(sub){try{const old=await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json',Authorization:S.token},body:JSON.stringify(sub.toJSON())});if(!old.ok){await sub.unsubscribe();sub=null}}catch{await sub.unsubscribe();sub=null}}
@@ -56,7 +58,8 @@ export async function registerPush(){
     const ep=sub.endpoint||'';const ua=navigator.userAgent;
     const bName=(()=>{if(ua.includes('YaBrowser'))return'Яндекс Браузер';if(ua.includes('Edg/'))return'Edge';if(ua.includes('OPR/')||ua.includes('Opera'))return'Opera';if(ua.includes('Vivaldi'))return'Vivaldi';if(ua.includes('Brave'))return'Brave';if(ua.includes('Firefox'))return'Firefox';if(ua.includes('Safari')&&!ua.includes('Chrome'))return'Safari';if(ua.includes('Chrome'))return'Chrome';return''})();
     const epName=ep.includes('mozilla')?'Firefox':ep.includes('fcm.googleapis')?'Chrome/Chromium':ep.includes('windows.com')?'Edge':ep.includes('apple.com')?'Safari':'';
-    const isFF=bName==='Firefox';const isMoz=ep.includes('mozilla');const isChromium=!isFF&&!ep.includes('apple')&&!ep.includes('windows');
+    const isFF=bName==='Firefox';const isMoz=ep.includes('mozilla');
     if((isFF&&!isMoz)||(!isFF&&isMoz)){const{toast:t2}=await import('./util.js');const ru=get('lang')!=='en';t2(ru?'Push подписка от '+epName+'. Вы в '+bName+'. Нажмите Push Вкл для подписки '+bName+'.':'Push subscription from '+epName+'. You are in '+bName+'. Click Push On to subscribe.')}
-  }catch(e){}
+    return true;
+  }catch(e){const{toast:t2}=await import('./util.js');const ru=get('lang')!=='en';t2(ru?'Ошибка подписки на push: '+e.message:'Push subscription error: '+e.message);return false}
 }
