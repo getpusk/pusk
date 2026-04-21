@@ -64,7 +64,7 @@
 | [Uptime Kuma](docs/use-cases.md#-uptime-kuma) | Uptime Kuma → Pusk | 3 мин |
 | [Всё сразу](docs/use-cases.md#-всё-сразу) | Полный стек для знакомства | 5 мин |
 
-**[Перейти к кейсам →](docs/use-cases.md)**
+**[Перейти к кейсам →](docs/use-cases.md)** · [Push-уведомления](docs/push-setup.md)
 
 ## Частые вопросы
 
