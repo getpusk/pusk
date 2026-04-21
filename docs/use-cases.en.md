@@ -14,6 +14,7 @@
 | [Grafana](#-grafana) | Grafana with alerts | 5 min |
 | [Zabbix](#-zabbix) | Zabbix | 5 min |
 | [Uptime Kuma](#-uptime-kuma) | Uptime Kuma | 3 min |
+| [Telegram Bot API](#-telegram-bot-api) | Telegram bot on Python/Node.js/Go | 2 min |
 | [All-in-one](#-all-in-one) | Nothing, want to try everything | 5 min |
 
 ## How it works
@@ -341,6 +342,112 @@ docker compose up -d
 When a site goes down — alert in Pusk + push to phone. When it comes back — resolve.
 
 > **Connecting to an existing Uptime Kuma:** just add a Webhook notification. Enable it on the monitors you need.
+
+---
+
+## 🤖 Telegram Bot API
+
+**Scenario:** you already have a Telegram bot (Python, Node.js, Go, curl). You want to move it to self-hosted without depending on Telegram.
+
+Pusk implements the Telegram Bot API — same request format, responses, and webhooks. Your existing bot keeps working if you replace `base_url` from `api.telegram.org` to your Pusk address.
+
+### How it works
+
+```mermaid
+graph LR
+    BOT[Your bot] -->|sendMessage, getUpdates| PUSK[Pusk /bot/TOKEN/]
+    PUSK --> WS[WebSocket → PWA]
+    PUSK --> PUSH[Push to phone]
+    USER[User] -->|callback_query| PUSK
+    PUSK -->|webhook / getUpdates| BOT
+```
+
+### Migration: aiogram 3.x (Python)
+
+```diff
+- bot = Bot(token="YOUR_TOKEN")
++ bot = Bot(token="YOUR_TOKEN", base_url="https://your-pusk:8443/bot")
+```
+
+One line. Everything else stays the same — handlers, filters, FSM.
+
+### Migration: python-telegram-bot 21.x
+
+```diff
+  app = (
+      Application.builder()
+      .token(TOKEN)
++     .base_url("https://your-pusk:8443/bot")
++     .base_file_url("https://your-pusk:8443/bot")
+      .build()
+  )
+```
+
+Two lines. `base_file_url` is needed for downloading files through Pusk.
+
+### Migration: Telegraf 4.x (Node.js)
+
+```diff
+  const bot = new Telegraf(TOKEN);
++ bot.telegram.options.apiRoot = 'https://your-pusk:8443';
+```
+
+One line.
+
+### Migration: curl / any HTTP client
+
+Request format is identical to Telegram Bot API:
+
+```bash
+# Send a message
+curl -X POST 'https://your-pusk:8443/bot/BOT-TOKEN/sendMessage' \
+  -H 'Content-Type: application/json' \
+  -d '{"chat_id": 1, "text": "Server db-01 is not responding"}'
+
+# Send to a channel by name (Pusk-exclusive)
+curl -X POST 'https://your-pusk:8443/bot/BOT-TOKEN/sendChannel' \
+  -H 'Content-Type: application/json' \
+  -d '{"channel": "alerts", "text": "Disk 95% full"}'
+
+# Long polling
+curl 'https://your-pusk:8443/bot/BOT-TOKEN/getUpdates?timeout=30&offset=0'
+```
+
+### What is supported
+
+| Method | Status | Notes |
+|--------|--------|-------|
+| getUpdates | Full | Long polling, offset |
+| setWebhook / deleteWebhook | Full | secret_token |
+| sendMessage | Full | HTML, Markdown, reply_to |
+| editMessageText | Full | Real-time via WebSocket |
+| deleteMessage | Full | |
+| sendPhoto / sendDocument / sendVoice / sendVideo | Full | Multipart upload |
+| answerCallbackQuery | Full | |
+| getMe | Full | |
+
+Full method table — in [COMPAT.md](../COMPAT.md).
+
+### Differences from Telegram
+
+| | Telegram | Pusk |
+|-|----------|------|
+| update_id | Sequential per bot | Monotonic (UnixMilli), shared across org |
+| Files | Telegram CDN | Local filesystem |
+| Chat ID | Negative for groups | Positive integers (channel IDs) |
+| Bot creation | @BotFather | Pusk admin panel |
+| Rate limits | 30 msg/sec | Configurable |
+
+### Pusk-exclusive features
+
+Methods that do not exist in Telegram:
+
+- **sendChannel** — send a message to a channel by name, no chat_id needed
+- **relay** — WebSocket relay for real-time bot communication
+- **createChannel** — create a channel via Bot API
+- Incoming webhooks (`/hook/TOKEN`) — Alertmanager, Zabbix, Grafana out of the box
+
+> **Full compatibility:** if your bot uses `sendMessage`, `getUpdates`, inline buttons and files — it will work with Pusk with no changes besides `base_url`. Details — [COMPAT.md](../COMPAT.md).
 
 ---
 
