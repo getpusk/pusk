@@ -211,6 +211,7 @@ This is the "delivery method" — how Zabbix will send alerts to Pusk.
 7. In the **Script** field paste this code (copy it entirely):
 
    ```javascript
+   var params = JSON.parse(value);
    var req = new HttpRequest();
    req.addHeader('Content-Type: application/json');
    var data = JSON.stringify({

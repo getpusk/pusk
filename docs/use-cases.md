@@ -211,6 +211,7 @@ docker compose ps
 7. В поле **Script** вставьте этот код (скопируйте целиком):
 
    ```javascript
+   var params = JSON.parse(value);
    var req = new HttpRequest();
    req.addHeader('Content-Type: application/json');
    var data = JSON.stringify({
