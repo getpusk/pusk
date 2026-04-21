@@ -1,5 +1,5 @@
 // Pusk Service Worker — App Shell cache + Push notifications
-const CACHE = 'pusk-v94';
+const CACHE = 'pusk-v96';
 const SHELL = [
   '/',
   '/css/pusk.css',
@@ -86,6 +86,10 @@ self.addEventListener('push', e => {
     vibrate: [200, 100, 200],
     renotify: true,
     requireInteraction: true,
+    actions: [
+      { action: 'open', title: 'Open' },
+      { action: 'dismiss_all', title: 'Dismiss All' },
+    ],
     data: { url: data.url || '/' },
   }));
 });
@@ -93,9 +97,16 @@ self.addEventListener('push', e => {
 // 5. Notification click → store target in IDB, then focus or open
 self.addEventListener('notificationclick', e => {
   e.notification.close();
+  // Dismiss All: close all Pusk notifications, no navigation
+  if (e.action === 'dismiss_all') {
+    e.waitUntil(
+      self.registration.getNotifications().then(ns => ns.forEach(n => n.close()))
+    );
+    return;
+  }
+  // Open (default click or "open" action): navigate to channel
   const target = e.notification.data?.url || '/';
   e.waitUntil(
-    // Store push target in IDB (accessible from both SW and page)
     idbSet('pushTarget', target).then(() =>
       clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
         for (const c of list) {
