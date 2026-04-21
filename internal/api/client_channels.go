@@ -462,6 +462,13 @@ func (a *ClientAPI) setUserRole(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	_ = s.SetUserRole(targetID, req.Role)
+	// K14: notify target user about role change via WS
+	claims := ClaimsFromCtx(r.Context())
+	if claims != nil {
+		key := claims.OrgID + ":" + strconv.FormatInt(targetID, 10)
+		payload, _ := json.Marshal(map[string]string{"role": req.Role})
+		a.hub.SendToUser(key, ws.Event{Type: "role_update", Payload: payload})
+	}
 	_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
