@@ -278,6 +278,7 @@ All endpoints require `Authorization: Bearer <PUSK_ADMIN_TOKEN>` or a JWT with a
 | `DELETE` | `/admin/channel/{id}` | Delete channel (except #general) |
 | `PUT` | `/admin/channel/{id}` | Rename channel (`name`) |
 | `PUT` | `/admin/bots/{id}` | Rename bot (`name`) |
+| `DELETE` | `/admin/bots/{id}` | Delete bot (if no channels assigned) |
 | `POST` | `/admin/reset-password` | Reset password (`org`, `username`, `new_pin`). ADMIN_TOKEN only |
 | `POST` | `/admin/set-role` | Set role (`org`, `user_id`, `role`: admin/member). ADMIN_TOKEN only |
 | `GET` | `/api/org/info` | Organization limit info |

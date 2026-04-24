@@ -79,6 +79,11 @@ func (m *Manager) RegisterToken(token, orgSlug string) {
 	_, _ = m.tokDB.Exec("INSERT OR REPLACE INTO tokens (token, org) VALUES (?, ?)", token, orgSlug)
 }
 
+// UnregisterToken removes a bot token from the global registry.
+func (m *Manager) UnregisterToken(token string) {
+	_, _ = m.tokDB.Exec("DELETE FROM tokens WHERE token=?", token)
+}
+
 func (m *Manager) registerTokenLocked(token, orgSlug string) {
 	_, _ = m.tokDB.Exec("INSERT OR REPLACE INTO tokens (token, org) VALUES (?, ?)", token, orgSlug)
 }
