@@ -3,6 +3,7 @@ import {get} from './storage.js';
 const S = {
   token: get('token'),
   curChat: null,
+  curBotId: null,
   curChan: null,
   ws: null,
   replyToId: 0,
