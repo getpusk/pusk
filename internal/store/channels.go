@@ -148,7 +148,7 @@ func (s *Store) SaveChannelMessageFrom(channelID int64, sender, senderName, text
 
 func (s *Store) ChannelMessages(channelID int64, limit int) ([]ChannelMessage, error) {
 	rows, err := s.db.Query(
-		"SELECT id, channel_id, COALESCE(sender,'bot'), COALESCE(sender_name,''), COALESCE(text,''), COALESCE(reply_markup,''), COALESCE(reply_to,0), COALESCE(file_id,''), COALESCE(file_type,''), created_at, COALESCE(edited_at,'') FROM channel_messages WHERE channel_id=? ORDER BY created_at DESC LIMIT ?",
+		"SELECT id, channel_id, COALESCE(sender,'bot'), COALESCE(sender_name,''), COALESCE(text,''), COALESCE(reply_markup,''), COALESCE(reply_to,0), COALESCE(file_id,''), COALESCE(file_type,''), created_at, COALESCE(edited_at,'') FROM channel_messages WHERE channel_id=? ORDER BY id DESC LIMIT ?",
 		channelID, limit)
 	if err != nil {
 		return nil, err
