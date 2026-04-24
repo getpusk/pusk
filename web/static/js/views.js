@@ -213,6 +213,8 @@ export async function showList(){try{S.curChat=null;S.curChan=null;S.mentionUser
 
       if(isAdmin){const tokDiv=document.createElement('div');tokDiv.className='bot-token';tokDiv.dataset.token=b.token;tokDiv.textContent=t('show_tok');info.appendChild(tokDiv)}
 
+      if(isAdmin){const delBtn=document.createElement('button');delBtn.className='bot-del';delBtn.dataset.botId=b.id;delBtn.dataset.botName=b.name;delBtn.textContent='✕';delBtn.title=S.lang==='ru'?'Удалить бота':'Delete bot';info.appendChild(delBtn)}
+
       row.appendChild(info);
       el.appendChild(row);
     }
@@ -232,6 +234,9 @@ $('main-list').addEventListener('click',e=>{
   // Channel row
   const chRow=e.target.closest('.ch-row');
   if(chRow){openChan(+chRow.dataset.chanId,chRow.dataset.chanName);return}
+  // Bot delete button
+  const botDel=e.target.closest('.bot-del');
+  if(botDel){e.stopPropagation();const bid=+botDel.dataset.botId;const bname=botDel.dataset.botName;if(!confirm((S.lang==='ru'?'Удалить бота "'+bname+'"?':'Delete bot "'+bname+'"?')))return;api('DELETE','/admin/bots/'+bid).then(r=>{if(r&&r.ok){toast(S.lang==='ru'?'Бот удалён':'Bot deleted');showList()}else{toast(r&&r.error||'Error')}});return}
   // Bot row
   const botRow=e.target.closest('.bot-row');
   if(botRow){openChat(+botRow.dataset.botId,botRow.dataset.botName);return}
@@ -262,4 +267,9 @@ export function updateAvatarDots(users){if(!users)return;const map={};users.forE
 $('hdr-back').onclick=showList;
 async function renameCurrentChan(){if(!S.curChan||get('role')!=='admin')return;const ch=S.channels.find(c=>c.id===S.curChan);if(!ch||ch.name==='general')return;const name=prompt(S.lang==='ru'?'Новое имя канала:':'New channel name:',ch.name);if(!name||name===ch.name)return;const r=await api('PUT','/admin/channel/'+S.curChan,{name});if(r&&r.ok){ch.name=name;$('hdr-title').textContent='# '+name;toast(S.lang==='ru'?'Переименовано':'Renamed')}else{toast(r.error||'Error')}}
 $('hdr-title').addEventListener('dblclick',renameCurrentChan);
+$('main-list').addEventListener('dblclick',e=>{const botName=e.target.closest('.bot-name');if(!botName||get('role')!=='admin')return;const row=botName.closest('.bot-row');if(!row)return;const bid=+row.dataset.botId;const oldName=row.dataset.botName;const name=prompt(S.lang==='ru'?'Новое имя бота:':'New bot name:',oldName);if(!name||name===oldName)return;api('PUT','/admin/bots/'+bid,{name}).then(r=>{if(r&&r.ok){toast(S.lang==='ru'?'Переименовано':'Renamed');showList()}else{toast(r&&r.error||'Error')}})});
+let _botLong=null;
+$('main-list').addEventListener('touchstart',e=>{const bn=e.target.closest('.bot-name');if(!bn||get('role')!=='admin')return;const row=bn.closest('.bot-row');if(!row)return;_botLong=setTimeout(()=>{const bid=+row.dataset.botId;const oldName=row.dataset.botName;const name=prompt(S.lang==='ru'?'\u041d\u043e\u0432\u043e\u0435 \u0438\u043c\u044f \u0431\u043e\u0442\u0430:':'New bot name:',oldName);if(!name||name===oldName)return;api('PUT','/admin/bots/'+bid,{name}).then(r=>{if(r&&r.ok){toast(S.lang==='ru'?'\u041f\u0435\u0440\u0435\u0438\u043c\u0435\u043d\u043e\u0432\u0430\u043d\u043e':'Renamed');showList()}else{toast(r&&r.error||'Error')}})},800)},{passive:true});
+$('main-list').addEventListener('touchend',e=>{if(_botLong){clearTimeout(_botLong);_botLong=null}},{passive:true});
+$('main-list').addEventListener('touchmove',e=>{if(_botLong){clearTimeout(_botLong);_botLong=null}},{passive:true});
 let _hdrLong=null;$('hdr-title').addEventListener('touchstart',()=>{_hdrLong=setTimeout(renameCurrentChan,800)},{passive:true});$('hdr-title').addEventListener('touchend',()=>{if(_hdrLong){clearTimeout(_hdrLong);_hdrLong=null}},{passive:true});$('hdr-title').addEventListener('touchmove',()=>{if(_hdrLong){clearTimeout(_hdrLong);_hdrLong=null}},{passive:true});

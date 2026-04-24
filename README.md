@@ -278,6 +278,7 @@ server {
 | `DELETE` | `/admin/channel/{id}` | Удалить канал (кроме #general) |
 | `PUT` | `/admin/channel/{id}` | Переименовать канал (`name`) |
 | `PUT` | `/admin/bots/{id}` | Переименовать бота (`name`) |
+| `DELETE` | `/admin/bots/{id}` | Удалить бота (если нет каналов) |
 | `POST` | `/admin/reset-password` | Сбросить пароль (`org`, `username`, `new_pin`). Только ADMIN_TOKEN |
 | `POST` | `/admin/set-role` | Назначить роль (`org`, `user_id`, `role`: admin/member). Только ADMIN_TOKEN |
 | `GET` | `/api/org/info` | Информация о лимитах организаций |
