@@ -619,6 +619,103 @@ func TestListChats_DefaultOrg_ReturnsChats(t *testing.T) {
 	}
 }
 
+// ── Channel Unread after Unsubscribe (Issue #101) ──
+
+func TestAPI_ChannelUnread_AfterUnsubscribe(t *testing.T) {
+	env := newTestEnv(t)
+
+	// Register user
+	regRec := env.request("POST", "/api/register", map[string]string{
+		"username": "unsubuser", "pin": "pass123456",
+	})
+	token := decodeJSON(t, regRec)["token"].(string)
+
+	// Create channel and messages directly via store
+	s, _ := env.orgs.Get("default")
+	bot, err := s.CreateBot("tok-unsub-api", "TestBot")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ch, err := s.CreateChannel(bot.ID, "test-alerts", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Get user ID
+	u, _ := s.AuthUser("unsubuser", "pass123456")
+
+	// Subscribe
+	if err := s.Subscribe(ch.ID, u.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	// Send 3 messages
+	msg1, _ := s.SaveChannelMessage(ch.ID, "alert1", "", "", "")
+	msg2, _ := s.SaveChannelMessage(ch.ID, "alert2", "", "", "")
+	_, _ = s.SaveChannelMessage(ch.ID, "alert3", "", "", "")
+	_ = msg1
+
+	// Mark read up to msg2
+	s.MarkChannelRead(ch.ID, u.ID, msg2.ID)
+
+	// Unsubscribe via API
+	rec := env.authedRequest("POST", fmt.Sprintf("/api/channels/%d/unsubscribe", ch.ID), nil, token)
+	if rec.Code != 200 {
+		t.Fatalf("unsubscribe: got %d, body: %s", rec.Code, rec.Body.String())
+	}
+
+	// GET /api/channels should show unread=1 for the unsubscribed channel
+	rec = env.authedRequest("GET", "/api/channels", nil, token)
+	if rec.Code != 200 {
+		t.Fatalf("list channels: got %d", rec.Code)
+	}
+	var channels []map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &channels); err != nil {
+		t.Fatalf("decode channels: %v", err)
+	}
+
+	found := false
+	for _, c := range channels {
+		if int64(c["id"].(float64)) == ch.ID {
+			found = true
+			unread := int(c["unread"].(float64))
+			subscribed := c["subscribed"].(bool)
+			if subscribed {
+				t.Error("expected subscribed=false after unsubscribe")
+			}
+			if unread != 1 {
+				t.Errorf("expected unread=1, got %d", unread)
+			}
+			break
+		}
+	}
+	if !found {
+		t.Error("channel not found in response")
+	}
+
+	// Send 2 more messages
+	_, _ = s.SaveChannelMessage(ch.ID, "alert4", "", "", "")
+	_, _ = s.SaveChannelMessage(ch.ID, "alert5", "", "", "")
+
+	// Unread should now be 3
+	rec = env.authedRequest("GET", "/api/channels", nil, token)
+	if rec.Code != 200 {
+		t.Fatalf("list channels 2: got %d", rec.Code)
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &channels); err != nil {
+		t.Fatalf("decode channels 2: %v", err)
+	}
+	for _, c := range channels {
+		if int64(c["id"].(float64)) == ch.ID {
+			unread := int(c["unread"].(float64))
+			if unread != 3 {
+				t.Errorf("expected unread=3 after 2 more msgs, got %d", unread)
+			}
+			break
+		}
+	}
+}
+
 func TestListChats_Unauthed(t *testing.T) {
 	env := newTestEnv(t)
 	rec := env.request("GET", "/api/chats", nil)
