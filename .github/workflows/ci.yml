@@ -38,6 +38,11 @@ jobs:
         run: go install mvdan.cc/gofumpt@latest
       - name: gofumpt
         run: test -z "$(gofumpt -l .)"
+      - name: JS syntax check
+        run: |
+          for f in web/static/js/*.js; do
+            node --check "$f" || { echo "SYNTAX ERROR in $f"; exit 1; }
+          done
       - name: JS function integrity
         run: |
           for fn in addMsg sendMsg showList openChat openChan connectWS onCb onDel toggleSub showApp logout auth setLang beep scrollDown; do
@@ -198,7 +203,7 @@ jobs:
         env:
           PUSK_URL: http://localhost:9999
           BASE_URL: http://localhost:9999
-        run: npx playwright test pusk.spec.js
+        run: npx playwright test
 
       - name: Stop Pusk
         if: always()
