@@ -80,12 +80,7 @@ func (s *Store) Subscribe(channelID, userID int64) error {
 func (s *Store) Unsubscribe(channelID, userID int64) error {
 	_, err := s.db.Exec("DELETE FROM channel_subscribers WHERE channel_id=? AND user_id=?",
 		channelID, userID)
-	if err != nil {
-		return err
-	}
-	//nolint:errcheck // best-effort cleanup of stale read markers
-	s.db.Exec("DELETE FROM channel_reads WHERE channel_id=? AND user_id=?", channelID, userID)
-	return nil
+	return err
 }
 
 func (s *Store) ChannelSubscribers(channelID int64) ([]int64, error) {
@@ -265,12 +260,11 @@ func (s *Store) ListChannelsForUser(userID int64) ([]ChannelInfo, error) {
 		SELECT c.id, c.bot_id, c.name, COALESCE(c.description,''),
 		       COALESCE(c.pinned_message_id, 0),
 		       CASE WHEN cs.user_id IS NOT NULL THEN 1 ELSE 0 END AS subscribed,
-		       CASE WHEN cs.user_id IS NOT NULL THEN
-		         (SELECT COUNT(*) FROM channel_messages cm
-		          WHERE cm.channel_id = c.id
-		          AND cm.id > COALESCE((SELECT last_read_id FROM channel_reads cr
-		              WHERE cr.channel_id = c.id AND cr.user_id = ?), 0))
-		       ELSE 0 END AS unread
+		       (SELECT COUNT(*) FROM channel_messages cm
+		        WHERE cm.channel_id = c.id
+		        AND cm.id > COALESCE((SELECT last_read_id FROM channel_reads cr
+		            WHERE cr.channel_id = c.id AND cr.user_id = ?), 0))
+		       AS unread
 		FROM channels c
 		LEFT JOIN channel_subscribers cs ON c.id = cs.channel_id AND cs.user_id = ?
 		ORDER BY CASE WHEN c.name='general' THEN 0 ELSE 1 END, c.name`, userID, userID)
