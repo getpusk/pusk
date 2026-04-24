@@ -2,6 +2,8 @@
 // Licensed under the Business Source License 1.1. See LICENSE file for details.
 package store
 
+import "fmt"
+
 // Bot represents a registered bot.
 type Bot struct {
 	ID         int64  `json:"id"`
@@ -65,5 +67,23 @@ func (s *Store) BotByID(id int64) (*Bot, error) {
 // RenameBot updates the name of a bot.
 func (s *Store) RenameBot(botID int64, name string) error {
 	_, err := s.db.Exec("UPDATE bots SET name=? WHERE id=?", name, botID)
+	return err
+}
+
+// DeleteBot removes a bot if it has no channels assigned.
+func (s *Store) DeleteBot(botID int64) error {
+	var count int
+	if err := s.db.QueryRow("SELECT COUNT(*) FROM channels WHERE bot_id=?", botID).Scan(&count); err != nil {
+		return err
+	}
+	if count > 0 {
+		return fmt.Errorf("bot has %d channel(s) — reassign them first", count)
+	}
+	// Clean up chats, messages, files, callbacks referencing this bot
+	s.db.Exec("DELETE FROM callback_queue WHERE bot_id=?", botID)
+	s.db.Exec("DELETE FROM files WHERE bot_id=?", botID)
+	s.db.Exec("DELETE FROM messages WHERE chat_id IN (SELECT id FROM chats WHERE bot_id=?)", botID)
+	s.db.Exec("DELETE FROM chats WHERE bot_id=?", botID)
+	_, err := s.db.Exec("DELETE FROM bots WHERE id=?", botID)
 	return err
 }
