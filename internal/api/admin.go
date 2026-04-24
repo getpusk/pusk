@@ -37,6 +37,7 @@ func (a *AdminAPI) Route(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /admin/channel/{channelID}", a.renameChannel)
 	mux.HandleFunc("PUT /admin/channel/{channelID}/bot", a.updateChannelBot)
 	mux.HandleFunc("PUT /admin/bots/{botID}", a.renameBot)
+	mux.HandleFunc("DELETE /admin/bots/{botID}", a.deleteBot)
 
 	mux.HandleFunc("DELETE /admin/org/{slug}", a.deleteOrg)
 	mux.HandleFunc("POST /admin/reset-password", a.resetPassword)
@@ -510,4 +511,27 @@ func (a *AdminAPI) deleteOrg(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "deleted": slug})
+}
+
+func (a *AdminAPI) deleteBot(w http.ResponseWriter, r *http.Request) {
+	s, ok := a.getOrgStore(r)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if !a.requireAdmin(r, s) {
+		http.Error(w, `{"error":"admin only"}`, http.StatusForbidden)
+		return
+	}
+	botID, _ := strconv.ParseInt(r.PathValue("botID"), 10, 64)
+	bot, _ := s.BotByID(botID)
+	if err := s.DeleteBot(botID); err != nil {
+		jsonErr(w, err.Error(), 400)
+		return
+	}
+	if bot != nil {
+		a.orgs.UnregisterToken(bot.Token)
+	}
+	slog.Info("bot deleted", "bot_id", botID)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
 }
