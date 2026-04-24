@@ -5,6 +5,7 @@ package ws
 import (
 	"encoding/json"
 	"log/slog"
+	"strings"
 	"sync"
 
 	"github.com/pusk-platform/pusk/internal/metrics"
@@ -103,6 +104,27 @@ func (h *Hub) SendToUser(key string, evt Event) {
 	}
 	for _, c := range h.conns[key] {
 		c.Send(data)
+	}
+}
+
+// SendToOrg broadcasts an event to all connected users in an org, optionally excluding one key.
+func (h *Hub) SendToOrg(orgID string, evt Event, excludeKey string) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	data, err := json.Marshal(evt)
+	if err != nil {
+		return
+	}
+	prefix := orgID + ":"
+	for key, conns := range h.conns {
+		if key == excludeKey {
+			continue
+		}
+		if strings.HasPrefix(key, prefix) {
+			for _, c := range conns {
+				c.Send(data)
+			}
+		}
 	}
 }
 

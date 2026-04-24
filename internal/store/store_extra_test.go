@@ -404,3 +404,116 @@ func TestCleanExpiredFileTokens(t *testing.T) {
 	// Should not panic — cleans expired tokens (ours is fresh, won't be deleted)
 	s.CleanExpiredFileTokens()
 }
+
+// ── Unread for unsubscribed channels (Issue #101) ──
+
+func TestListChannelsForUser_UnsubscribedUnread(t *testing.T) {
+	s := newTestStore(t)
+	if _, err := s.CreateUser("unreaduser", "pass1234", "UnreadUser"); err != nil {
+		t.Fatal(err)
+	}
+	bot, err := s.CreateBot("tok-unread", "TestBot")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ch, err := s.CreateChannel(bot.ID, "alerts", "Alert channel")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Subscribe, send 3 messages, mark-read up to msg2
+	if err := s.Subscribe(ch.ID, 1); err != nil {
+		t.Fatal(err)
+	}
+	msg1, _ := s.SaveChannelMessage(ch.ID, "msg1", "", "", "")
+	msg2, _ := s.SaveChannelMessage(ch.ID, "msg2", "", "", "")
+	_, _ = s.SaveChannelMessage(ch.ID, "msg3", "", "", "")
+	_ = msg1 // used implicitly
+	s.MarkChannelRead(ch.ID, 1, msg2.ID)
+
+	// Unsubscribe
+	if err := s.Unsubscribe(ch.ID, 1); err != nil {
+		t.Fatal(err)
+	}
+
+	// ListChannelsForUser should show unread=1, subscribed=false
+	channels, err := s.ListChannelsForUser(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(channels) != 1 {
+		t.Fatalf("expected 1 channel, got %d", len(channels))
+	}
+	if channels[0].Subscribed {
+		t.Error("expected subscribed=false")
+	}
+	if channels[0].Unread != 1 {
+		t.Errorf("expected unread=1, got %d", channels[0].Unread)
+	}
+}
+
+func TestUnsubscribe_KeepsReadState(t *testing.T) {
+	s := newTestStore(t)
+	if _, err := s.CreateUser("keepread", "pass1234", "KeepRead"); err != nil {
+		t.Fatal(err)
+	}
+	bot, err := s.CreateBot("tok-keepread", "TestBot")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ch, err := s.CreateChannel(bot.ID, "general", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.Subscribe(ch.ID, 1); err != nil {
+		t.Fatal(err)
+	}
+	msg, _ := s.SaveChannelMessage(ch.ID, "hello", "", "", "")
+	s.MarkChannelRead(ch.ID, 1, msg.ID)
+
+	// Unsubscribe should preserve read state
+	if err := s.Unsubscribe(ch.ID, 1); err != nil {
+		t.Fatal(err)
+	}
+
+	lastRead := s.GetLastRead(ch.ID, 1)
+	if lastRead != msg.ID {
+		t.Errorf("GetLastRead = %d, want %d (read state lost after unsubscribe)", lastRead, msg.ID)
+	}
+}
+
+func TestUnreadCount_NoReadHistory(t *testing.T) {
+	s := newTestStore(t)
+	if _, err := s.CreateUser("nohistory", "pass1234", "NoHistory"); err != nil {
+		t.Fatal(err)
+	}
+	bot, err := s.CreateBot("tok-nohistory", "TestBot")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ch, err := s.CreateChannel(bot.ID, "alerts", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// User never read the channel, 3 messages exist
+	_, _ = s.SaveChannelMessage(ch.ID, "msg1", "", "", "")
+	_, _ = s.SaveChannelMessage(ch.ID, "msg2", "", "", "")
+	_, _ = s.SaveChannelMessage(ch.ID, "msg3", "", "", "")
+
+	// ListChannelsForUser: user is not subscribed, never read → all 3 unread
+	channels, err := s.ListChannelsForUser(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(channels) != 1 {
+		t.Fatalf("expected 1 channel, got %d", len(channels))
+	}
+	if channels[0].Subscribed {
+		t.Error("expected subscribed=false")
+	}
+	if channels[0].Unread != 3 {
+		t.Errorf("expected unread=3, got %d", channels[0].Unread)
+	}
+}

@@ -643,15 +643,17 @@ func (h *Handler) pushEditToChat(s *store.Store, chatID int64, bot *store.Bot, m
 }
 
 func (h *Handler) pushChannelMessage(s *store.Store, ch *store.Channel, bot *store.Bot, msg *store.ChannelMessage) {
-	subs, _ := s.ChannelSubscribers(ch.ID)
 	payload, _ := json.Marshal(map[string]interface{}{
 		"message":      msg,
 		"channel_name": ch.Name,
 		"bot_name":     bot.Name,
 	})
+	// WS broadcast to all org users (so unsubscribed users get badge updates)
+	h.hub.SendToOrg(s.OrgID, ws.Event{Type: "channel_message", ChatID: ch.ID, Payload: payload}, "")
+	// Push notifications only to offline subscribers
+	subs, _ := s.ChannelSubscribers(ch.ID)
 	for _, userID := range subs {
 		key := s.OrgID + ":" + fmt.Sprintf("%d", userID)
-		h.hub.SendToUser(key, ws.Event{Type: "channel_message", ChatID: ch.ID, Payload: payload})
 		if !h.hub.IsConnected(key) {
 			h.push.SendToUser(s, userID, notify.PushPayload{
 				Title: "#" + ch.Name,

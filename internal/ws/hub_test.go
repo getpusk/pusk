@@ -202,6 +202,51 @@ func TestHubUnregister_WrongConn(t *testing.T) {
 	}
 }
 
+func TestHub_SendToOrg(t *testing.T) {
+	h := NewHub()
+	c1 := mockConn(1, "orgA:1")
+	c2 := mockConn(2, "orgA:2")
+	c3 := mockConn(3, "orgB:3")
+	h.Register("orgA:1", c1)
+	h.Register("orgA:2", c2)
+	h.Register("orgB:3", c3)
+
+	evt := Event{Type: "test_org", Payload: json.RawMessage(`{"ok":true}`)}
+	h.SendToOrg("orgA", evt, "")
+
+	// orgA users should receive
+	if len(c1.send) != 1 {
+		t.Fatalf("c1 (orgA:1) should have received, got %d", len(c1.send))
+	}
+	if len(c2.send) != 1 {
+		t.Fatalf("c2 (orgA:2) should have received, got %d", len(c2.send))
+	}
+	// orgB user should NOT receive
+	if len(c3.send) != 0 {
+		t.Fatalf("c3 (orgB:3) should NOT have received, got %d", len(c3.send))
+	}
+}
+
+func TestHub_SendToOrg_ExcludeKey(t *testing.T) {
+	h := NewHub()
+	c1 := mockConn(1, "orgA:1")
+	c2 := mockConn(2, "orgA:2")
+	h.Register("orgA:1", c1)
+	h.Register("orgA:2", c2)
+
+	evt := Event{Type: "test_exclude", Payload: json.RawMessage(`{}`)}
+	h.SendToOrg("orgA", evt, "orgA:1")
+
+	// c1 excluded
+	if len(c1.send) != 0 {
+		t.Fatalf("c1 should be excluded, got %d", len(c1.send))
+	}
+	// c2 should receive
+	if len(c2.send) != 1 {
+		t.Fatalf("c2 should have received, got %d", len(c2.send))
+	}
+}
+
 func TestHubSetStatus_UnregisteredKey(t *testing.T) {
 	h := NewHub()
 	// Should not panic on unregistered key

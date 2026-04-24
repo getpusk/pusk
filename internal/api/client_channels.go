@@ -23,16 +23,13 @@ import (
 	"github.com/pusk-platform/pusk/internal/ws"
 )
 
-// broadcastChannel sends a WS event to all subscribers of a channel.
-func (a *ClientAPI) broadcastChannel(s *store.Store, channelID int64, orgID, evType string, payload []byte, excludeUserID ...int64) {
-	subs, _ := s.ChannelSubscribers(channelID)
-	for _, uid := range subs {
-		if len(excludeUserID) > 0 && uid == excludeUserID[0] {
-			continue
-		}
-		key := orgID + ":" + fmt.Sprintf("%d", uid)
-		a.hub.SendToUser(key, ws.Event{Type: evType, ChatID: channelID, Payload: payload})
+// broadcastChannel sends a WS event to all users in the org (so unsubscribed users get badge updates too).
+func (a *ClientAPI) broadcastChannel(_ *store.Store, channelID int64, orgID, evType string, payload []byte, excludeUserID ...int64) {
+	excludeKey := ""
+	if len(excludeUserID) > 0 {
+		excludeKey = orgID + ":" + fmt.Sprintf("%d", excludeUserID[0])
 	}
+	a.hub.SendToOrg(orgID, ws.Event{Type: evType, ChatID: channelID, Payload: payload}, excludeKey)
 }
 
 func (a *ClientAPI) channelReaders(w http.ResponseWriter, r *http.Request) {
