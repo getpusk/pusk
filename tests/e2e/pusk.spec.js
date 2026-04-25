@@ -2,7 +2,7 @@
 // Run: cd /tmp/pusk-e2e && npx playwright test
 const { test, expect } = require('@playwright/test');
 
-const BASE = process.env.PUSK_URL || 'https://getpusk.ru';
+const BASE = process.env.PUSK_URL || process.env.BASE_URL || 'http://localhost:8443';
 
 // Helper: API call
 async function api(method, path, body, token) {
@@ -140,6 +140,7 @@ test.describe('Auth & Security', () => {
   });
 
   test('correct guest login → token', async () => {
+    test.skip(!process.env.PUSK_DEMO, 'requires demo data');
     const r = await api('POST', '/api/auth', { username: 'guest', pin: 'guest' });
     expect(r.status).toBe(200);
     expect(r.data.token).toBeTruthy();
@@ -191,6 +192,7 @@ test.describe('Auth & Security', () => {
 // ══════════════════════════════════════════
 test.describe('SSRF Protection', () => {
   test('bot can be created, SSRF blocked at webhook delivery', async () => {
+    test.skip(!process.env.PUSK_DEMO, 'requires demo data');
     // SSRF protection is in IsLocalURL() during webhook delivery, not bot creation
     // Bot creation should succeed; webhook to localhost is silently dropped at delivery time
     const guest = await api('POST', '/api/auth', { username: 'guest', pin: 'guest' });
@@ -229,6 +231,7 @@ test.describe('Multi-tenant Isolation', () => {
   });
 
   test('default org has demo data, new org does not', async () => {
+    test.skip(!process.env.PUSK_DEMO, 'requires demo data');
     const guest = await api('POST', '/api/auth', { username: 'guest', pin: 'guest' });
     if (guest.status === 429) { test.skip(); return; }
     const defaultBots = await api('GET', '/api/bots', null, guest.data.token);
@@ -267,6 +270,7 @@ test.describe('Bot API', () => {
   });
 
   test('getMe returns bot info', async () => {
+    test.skip(!process.env.PUSK_DEMO, 'requires demo data');
     const r = await fetch(`${BASE}/bot/demo-bot-token/getMe`);
     expect(r.status).toBe(200);
     const data = await r.json();
@@ -307,6 +311,7 @@ test.describe('Health & Infra', () => {
 // ══════════════════════════════════════════
 test.describe('Webhook Endpoints', () => {
   test('Alertmanager webhook → channel message', async () => {
+    test.skip(!process.env.PUSK_DEMO, 'requires demo data');
     const r = await fetch(`${BASE}/hook/demo-bot-token?format=alertmanager`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -324,6 +329,7 @@ test.describe('Webhook Endpoints', () => {
   });
 
   test('Zabbix webhook → channel message', async () => {
+    test.skip(!process.env.PUSK_DEMO, 'requires demo data');
     const r = await fetch(`${BASE}/hook/demo-bot-token?format=zabbix`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ subject: 'E2E Zabbix Test', message: 'Test alert from E2E', severity: 'High', host: 'test-host' })
@@ -332,6 +338,7 @@ test.describe('Webhook Endpoints', () => {
   });
 
   test('Grafana webhook → channel message', async () => {
+    test.skip(!process.env.PUSK_DEMO, 'requires demo data');
     const r = await fetch(`${BASE}/hook/demo-bot-token?format=grafana`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: 'E2E Grafana', state: 'alerting', message: 'Test from E2E' })
@@ -340,6 +347,7 @@ test.describe('Webhook Endpoints', () => {
   });
 
   test('Raw webhook → JSON code block', async () => {
+    test.skip(!process.env.PUSK_DEMO, 'requires demo data');
     const r = await fetch(`${BASE}/hook/demo-bot-token?format=raw`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ system: 'e2e-test', status: 'ok' })
@@ -356,6 +364,7 @@ test.describe('Webhook Endpoints', () => {
   });
 
   test('Webhook messages appear in channel', async () => {
+    test.skip(!process.env.PUSK_DEMO, 'requires demo data');
     const guest = await api('POST', '/api/auth', { username: 'guest', pin: 'guest' });
     if (guest.status === 429) { test.skip(); return; }
     const chs = await api('GET', '/api/channels', null, guest.data.token);

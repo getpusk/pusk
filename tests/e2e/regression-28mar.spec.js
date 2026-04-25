@@ -159,7 +159,7 @@ test.describe('28-29 Mar 2026 — API security', () => {
       slug, name: slug, username: 'finduser', pin: 'test123456'
     });
 
-    const r = await api('GET', '/api/my-orgs?username=finduser');
+    const r = await api('GET', '/api/my-orgs?username=finduser', null, reg.data.token);
     expect(r.status).toBe(200);
     expect(Array.isArray(r.data || [])).toBe(true);
   });

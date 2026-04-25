@@ -1,8 +1,10 @@
 const { test, expect } = require('@playwright/test');
 
-const BASE = 'https://getpusk.ru';
+const BASE = process.env.PUSK_URL || process.env.BASE_URL || 'http://localhost:8443';
 
 test.describe('Deploy Bot — full button flow', () => {
+
+  test.skip(!process.env.PUSK_DEPLOY_BOT, 'requires Deploy Bot (production only)');
 
   test('login → open bot → /start → click Status → verify edit', async ({ page }) => {
     // 1. Go to landing, click Login
@@ -11,9 +13,9 @@ test.describe('Deploy Bot — full button flow', () => {
     await page.waitForSelector('#auth', { state: 'visible' });
 
     // 2. Login as test1
-    await page.fill('#a-user', 'test1');
-    await page.fill('#a-pin', 'test1');
-    await page.fill('#a-org', 'test1');
+    await page.fill('#a-user', 'guest');
+    await page.fill('#a-pin', 'guest');
+    await page.fill('#a-org', 'default');
     await page.click('#btn-login');
     await page.waitForSelector('#app', { state: 'visible', timeout: 10000 });
     console.log('Logged in');
