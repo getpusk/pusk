@@ -161,6 +161,9 @@ func main() {
 
 	// Admin API (admin endpoints + org registration)
 	adminAPI := api.NewAdminAPI(orgs, db, jwtSvc, adminToken)
+	if os.Getenv("PUSK_DEMO") == "1" {
+		adminAPI.DemoMode = true
+	}
 	adminAPI.Route(mux)
 
 	// Invite redirect → PWA with invite param

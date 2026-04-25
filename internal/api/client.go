@@ -69,10 +69,14 @@ func (a *ClientAPI) db(r *http.Request) *store.Store {
 }
 
 func (a *ClientAPI) Route(mux *http.ServeMux) {
-	authRL := NewRateLimiter(10, time.Minute) // 10 auth/min per IP
-	regRL := NewRateLimiter(10, time.Minute)
-	sendRL := NewRateLimiter(30, time.Minute)   // 30 msgs/min per IP
-	uploadRL := NewRateLimiter(10, time.Minute) // 10 uploads/min per IP
+	authRate, regRate, sendRate, uploadRate := 10, 10, 30, 10
+	if a.DemoMode {
+		authRate, regRate, sendRate, uploadRate = 600, 600, 600, 600
+	}
+	authRL := NewRateLimiter(authRate, time.Minute)
+	regRL := NewRateLimiter(regRate, time.Minute)
+	sendRL := NewRateLimiter(sendRate, time.Minute)
+	uploadRL := NewRateLimiter(uploadRate, time.Minute)
 
 	// Public routes (no auth required)
 	mux.HandleFunc("POST /api/auth", RateLimit(authRL, limitBody(a.auth)))

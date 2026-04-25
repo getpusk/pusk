@@ -175,13 +175,13 @@ test.describe('Security — Auth edge cases', () => {
     expect(r.status).toBe(401);
   });
 
-  test('password min length enforced (6 chars)', async () => {
+  test('password min length enforced (8 chars)', async () => {
     const slug = 'pw-' + Date.now();
     const r = await api('POST', '/api/org/register', {
       slug, name: slug, username: 'admin1', pin: '123'
     });
     expect(r.status).toBe(400);
-    expect(r.data.error).toContain('6');
+    expect(r.data.error).toContain('8');
   });
 
   test('username validation rejects special chars', async () => {

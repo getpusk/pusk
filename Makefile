@@ -2,7 +2,7 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev
 LDFLAGS = -X github.com/pusk-platform/pusk/internal/api.Version=$(VERSION)
 BINARY = pusk
 
-.PHONY: build run test lint build-demo deploy
+.PHONY: build run test lint build-demo deploy init check coherence
 
 build:
 	go build -o $(BINARY) -ldflags "$(LDFLAGS)" ./cmd/pusk/
@@ -24,3 +24,14 @@ lint:
 
 deploy:
 	@bash scripts/deploy.sh
+
+init:
+	git config core.hooksPath .githooks
+	@echo "Git hooks installed from .githooks/"
+
+coherence:
+	@bash scripts/coherence-check.sh
+
+check: lint coherence test
+	@bash scripts/lint-pusk.sh
+	@echo "All checks passed"

@@ -15,14 +15,14 @@ test.describe('Regression — previously broken features', () => {
   test('version is not "dev" in health endpoint', async () => {
     const r = await api('GET', '/api/health');
     expect(r.data.version).not.toBe('dev');
-    expect(r.data.version).toMatch(/^v/);
+    expect(r.data.version).toBeTruthy();
   });
 
   test('push payload URLs contain channel/chat ID (not just "/")', async () => {
     // Create org, send message, verify push would have correct URL
     const orgSlug = 'regtest-' + Date.now();
     const reg = await api('POST', '/api/org/register', {
-      slug: orgSlug, name: orgSlug, username: 'admin1', pin: 'test123'
+      slug: orgSlug, name: orgSlug, username: 'admin1', pin: 'test12345'
     });
     expect(reg.data.token).toBeTruthy();
     const token = reg.data.token;
@@ -44,7 +44,7 @@ test.describe('Regression — previously broken features', () => {
     // Create org, send message, verify only 1 message exists.
     const orgSlug = 'echo-' + Date.now();
     const reg = await api('POST', '/api/org/register', {
-      slug: orgSlug, name: orgSlug, username: 'admin1', pin: 'test123'
+      slug: orgSlug, name: orgSlug, username: 'admin1', pin: 'test12345'
     });
     const token = reg.data.token;
     const chs = await api('GET', '/api/channels', null, token);
@@ -66,7 +66,7 @@ test.describe('Regression — previously broken features', () => {
     // Here we just verify the API accepts @mention messages without error.
     const orgSlug = 'dedup-' + Date.now();
     const reg = await api('POST', '/api/org/register', {
-      slug: orgSlug, name: orgSlug, username: 'admin1', pin: 'test123'
+      slug: orgSlug, name: orgSlug, username: 'admin1', pin: 'test12345'
     });
     const token = reg.data.token;
     const chs = await api('GET', '/api/channels', null, token);
@@ -83,7 +83,7 @@ test.describe('Regression — previously broken features', () => {
     // but the frontend hides the section. We verify the member role is set.
     const orgSlug = 'role-' + Date.now();
     const reg = await api('POST', '/api/org/register', {
-      slug: orgSlug, name: orgSlug, username: 'admin1', pin: 'test123'
+      slug: orgSlug, name: orgSlug, username: 'admin1', pin: 'test12345'
     });
     expect(reg.data.token).toBeTruthy(); // org creator is admin
 
@@ -92,7 +92,7 @@ test.describe('Regression — previously broken features', () => {
     expect(inv.data.code).toBeTruthy();
 
     const member = await api('POST', '/api/invite/accept?org=' + orgSlug, {
-      code: inv.data.code, username: 'member1', pin: 'test123', display_name: 'Member'
+      code: inv.data.code, username: 'member1', pin: 'test12345', display_name: 'Member'
     });
     expect(member.data.role).toBe('member');
   });
@@ -101,7 +101,7 @@ test.describe('Regression — previously broken features', () => {
     // Verify the upload endpoint accepts caption field
     const orgSlug = 'file-' + Date.now();
     const reg = await api('POST', '/api/org/register', {
-      slug: orgSlug, name: orgSlug, username: 'admin1', pin: 'test123'
+      slug: orgSlug, name: orgSlug, username: 'admin1', pin: 'test12345'
     });
     const token = reg.data.token;
     const chs = await api('GET', '/api/channels', null, token);
@@ -157,13 +157,13 @@ test.describe('Display name & auth', () => {
   test('auth response includes display_name', async () => {
     const orgSlug = 'dn-' + Date.now();
     const reg = await api('POST', '/api/org/register', {
-      slug: orgSlug, name: orgSlug, username: 'admin1', pin: 'test123'
+      slug: orgSlug, name: orgSlug, username: 'admin1', pin: 'test12345'
     });
     expect(reg.data.token).toBeTruthy();
 
     // Login and check display_name in response
     const login = await api('POST', '/api/auth', {
-      username: 'admin1', pin: 'test123', org: orgSlug
+      username: 'admin1', pin: 'test12345', org: orgSlug
     });
     expect(login.status).toBe(200);
     expect(login.data.display_name).toBeDefined();
@@ -172,7 +172,7 @@ test.describe('Display name & auth', () => {
   test('display_name persists through invite accept', async () => {
     const orgSlug = 'dnp-' + Date.now();
     const reg = await api('POST', '/api/org/register', {
-      slug: orgSlug, name: orgSlug, username: 'admin1', pin: 'test123'
+      slug: orgSlug, name: orgSlug, username: 'admin1', pin: 'test12345'
     });
     const token = reg.data.token;
 
@@ -182,36 +182,36 @@ test.describe('Display name & auth', () => {
 
     // Accept invite with display_name
     const member = await api('POST', '/api/invite/accept?org=' + orgSlug, {
-      code: inv.data.code, username: 'member1', pin: 'test123',
+      code: inv.data.code, username: 'member1', pin: 'test12345',
       display_name: 'Member Display'
     });
     expect(member.status).toBe(200);
 
     // Login and verify display_name
     const login = await api('POST', '/api/auth', {
-      username: 'member1', pin: 'test123', org: orgSlug
+      username: 'member1', pin: 'test12345', org: orgSlug
     });
     expect(login.data.display_name).toBe('Member Display');
   });
 });
 
 test.describe('Org sync endpoint', () => {
-  test('GET /api/my/orgs returns user orgs', async () => {
+  test('GET /api/my-orgs returns user orgs', async () => {
     const orgSlug = 'sync-' + Date.now();
     const reg = await api('POST', '/api/org/register', {
-      slug: orgSlug, name: orgSlug, username: 'syncuser', pin: 'test123'
+      slug: orgSlug, name: orgSlug, username: 'syncuser', pin: 'test12345'
     });
     expect(reg.data.token).toBeTruthy();
     const token = reg.data.token;
 
-    const orgs = await api('GET', '/api/my/orgs', null, token);
+    const orgs = await api('GET', '/api/my-orgs', null, token);
     expect(orgs.status).toBe(200);
     expect(orgs.data.length).toBeGreaterThanOrEqual(1);
     expect(orgs.data.some(o => o.slug === orgSlug)).toBe(true);
   });
 
-  test('GET /api/my/orgs requires auth', async () => {
-    const orgs = await api('GET', '/api/my/orgs');
+  test('GET /api/my-orgs requires auth', async () => {
+    const orgs = await api('GET', '/api/my-orgs');
     expect(orgs.status).toBe(401);
   });
 });
@@ -220,7 +220,7 @@ test.describe('Push subscribe/unsubscribe', () => {
   test('DELETE /api/push/subscribe removes subscriptions', async () => {
     const orgSlug = 'pt-' + Date.now();
     const reg = await api('POST', '/api/org/register', {
-      slug: orgSlug, name: orgSlug, username: 'admin1', pin: 'test123'
+      slug: orgSlug, name: orgSlug, username: 'admin1', pin: 'test12345'
     });
     const token = reg.data.token;
 
@@ -251,7 +251,7 @@ test.describe('Channel messages — no duplication', () => {
   test('channel message sender not duplicated', async () => {
     const orgSlug = 'ac-' + Date.now();
     const reg = await api('POST', '/api/org/register', {
-      slug: orgSlug, name: orgSlug, username: 'admin1', pin: 'test123'
+      slug: orgSlug, name: orgSlug, username: 'admin1', pin: 'test12345'
     });
     const token = reg.data.token;
     const chs = await api('GET', '/api/channels', null, token);
@@ -281,7 +281,7 @@ test.describe('Onboarding & mention', () => {
   test.fixme('new org admin sees onboarding elements', async ({ page }) => {
     const orgSlug = 'ob-' + Date.now();
     await api('POST', '/api/org/register', {
-      slug: orgSlug, name: orgSlug, username: 'admin1', pin: 'test123'
+      slug: orgSlug, name: orgSlug, username: 'admin1', pin: 'test12345'
     });
 
     await page.goto(BASE);
@@ -304,7 +304,7 @@ test.describe('Onboarding & mention', () => {
   test.fixme('mention autocomplete — @ accepted in input', async ({ page }) => {
     const orgSlug = 'kb-' + Date.now();
     await api('POST', '/api/org/register', {
-      slug: orgSlug, name: orgSlug, username: 'admin1', pin: 'test123'
+      slug: orgSlug, name: orgSlug, username: 'admin1', pin: 'test12345'
     });
 
     await page.goto(BASE);

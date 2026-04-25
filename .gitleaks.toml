@@ -1,0 +1,8 @@
+title = "Pusk gitleaks rules"
+
+[allowlist]
+  description = "False positives"
+  paths = [
+    '''\.gitleaks\.toml$''',
+    '''tests/e2e/.*\.spec\.js$''',
+  ]

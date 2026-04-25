@@ -22,6 +22,7 @@ type AdminAPI struct {
 	store      *store.Store
 	jwt        *auth.JWTService
 	adminToken string
+	DemoMode   bool
 }
 
 // NewAdminAPI creates a new AdminAPI.
@@ -43,7 +44,11 @@ func (a *AdminAPI) Route(mux *http.ServeMux) {
 	mux.HandleFunc("POST /admin/reset-password", a.resetPassword)
 	mux.HandleFunc("POST /admin/set-role", a.adminSetRole)
 
-	orgRL := NewRateLimiter(10, time.Minute)
+	orgRate := 10
+	if a.DemoMode {
+		orgRate = 600
+	}
+	orgRL := NewRateLimiter(orgRate, time.Minute)
 	mux.HandleFunc("GET /api/org/info", a.orgInfo)
 	mux.HandleFunc("POST /api/org/register", RateLimit(orgRL, a.registerOrg))
 }

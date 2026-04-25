@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const BASE = process.env.PUSK_URL || 'https://getpusk.ru';
+const BASE = process.env.PUSK_URL || process.env.BASE_URL || 'http://localhost:8443';
 
 // API helper
 async function api(method, path, body, token) {
@@ -11,11 +11,13 @@ async function api(method, path, body, token) {
 }
 
 test.describe('Bot flow — Telegram-like behavior', () => {
+  test.skip(!process.env.PUSK_DEPLOY_BOT, 'requires Deploy Bot (production only)');
+
   let token;
 
   test.beforeAll(async () => {
     // Login
-    const r = await api('POST', '/api/auth', { username: 'test1', pin: 'test1', org: 'test1' });
+    const r = await api('POST', '/api/auth', { username: 'guest', pin: 'guest', org: 'default' });
     token = r.token;
     // Clean chat 5 (Deploy Bot)
     const msgs = await api('GET', '/api/chats/5/messages?limit=200', null, token);
@@ -29,9 +31,9 @@ test.describe('Bot flow — Telegram-like behavior', () => {
   test('1. /start → bot replies with inline keyboard', async ({ page }) => {
     await page.goto(BASE);
     await page.click('#land-login');
-    await page.fill('#a-user', 'test1');
-    await page.fill('#a-pin', 'test1');
-    await page.fill('#a-org', 'test1');
+    await page.fill('#a-user', 'guest');
+    await page.fill('#a-pin', 'guest');
+    await page.fill('#a-org', 'default');
     await page.click('#btn-login');
     await page.waitForSelector('#app', { state: 'visible', timeout: 10000 });
 
@@ -56,9 +58,9 @@ test.describe('Bot flow — Telegram-like behavior', () => {
   test('2. Click Status → message updates in-place (editMessageText)', async ({ page }) => {
     await page.goto(BASE);
     await page.click('#land-login');
-    await page.fill('#a-user', 'test1');
-    await page.fill('#a-pin', 'test1');
-    await page.fill('#a-org', 'test1');
+    await page.fill('#a-user', 'guest');
+    await page.fill('#a-pin', 'guest');
+    await page.fill('#a-org', 'default');
     await page.click('#btn-login');
     await page.waitForSelector('#app', { state: 'visible', timeout: 10000 });
 
@@ -89,9 +91,9 @@ test.describe('Bot flow — Telegram-like behavior', () => {
   test('3. Click Back → returns to menu with all buttons', async ({ page }) => {
     await page.goto(BASE);
     await page.click('#land-login');
-    await page.fill('#a-user', 'test1');
-    await page.fill('#a-pin', 'test1');
-    await page.fill('#a-org', 'test1');
+    await page.fill('#a-user', 'guest');
+    await page.fill('#a-pin', 'guest');
+    await page.fill('#a-org', 'default');
     await page.click('#btn-login');
     await page.waitForSelector('#app', { state: 'visible', timeout: 10000 });
 
@@ -118,9 +120,9 @@ test.describe('Bot flow — Telegram-like behavior', () => {
   test('4. Click Logs → shows log output', async ({ page }) => {
     await page.goto(BASE);
     await page.click('#land-login');
-    await page.fill('#a-user', 'test1');
-    await page.fill('#a-pin', 'test1');
-    await page.fill('#a-org', 'test1');
+    await page.fill('#a-user', 'guest');
+    await page.fill('#a-pin', 'guest');
+    await page.fill('#a-org', 'default');
     await page.click('#btn-login');
     await page.waitForSelector('#app', { state: 'visible', timeout: 10000 });
 
@@ -145,9 +147,9 @@ test.describe('Bot flow — Telegram-like behavior', () => {
   test('5. Click Demo Catalog → Deploy Portfolio → shows deploy result', async ({ page }) => {
     await page.goto(BASE);
     await page.click('#land-login');
-    await page.fill('#a-user', 'test1');
-    await page.fill('#a-pin', 'test1');
-    await page.fill('#a-org', 'test1');
+    await page.fill('#a-user', 'guest');
+    await page.fill('#a-pin', 'guest');
+    await page.fill('#a-org', 'default');
     await page.click('#btn-login');
     await page.waitForSelector('#app', { state: 'visible', timeout: 10000 });
 
@@ -214,9 +216,9 @@ test.describe('Bot flow — Telegram-like behavior', () => {
     // Load channel and check
     await page.goto(BASE);
     await page.click('#land-login');
-    await page.fill('#a-user', 'test1');
-    await page.fill('#a-pin', 'test1');
-    await page.fill('#a-org', 'test1');
+    await page.fill('#a-user', 'guest');
+    await page.fill('#a-pin', 'guest');
+    await page.fill('#a-org', 'default');
     await page.click('#btn-login');
     await page.waitForSelector('#app', { state: 'visible', timeout: 10000 });
 
