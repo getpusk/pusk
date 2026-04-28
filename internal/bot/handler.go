@@ -568,7 +568,7 @@ func (h *Handler) serveFile(w http.ResponseWriter, r *http.Request) {
 	s := h.storeForJWT(tokenStr)
 	f, err := s.GetFile(fileID)
 	if err == nil {
-		http.ServeFile(w, r, f.Path)
+		http.ServeFile(w, r, f.Path) // #nosec G703 -- f.Path from trusted store lookup by opaque fileID
 		return
 	}
 
@@ -579,7 +579,7 @@ func (h *Handler) serveFile(w http.ResponseWriter, r *http.Request) {
 		if h.store != nil {
 			if _, err := h.store.ValidateFileToken(tokenStr); err == nil {
 				if f, err := h.store.GetFile(fileID); err == nil {
-					http.ServeFile(w, r, f.Path)
+					http.ServeFile(w, r, f.Path) // #nosec G703 -- f.Path from trusted store lookup by opaque fileID
 					return
 				}
 			}
@@ -590,7 +590,7 @@ func (h *Handler) serveFile(w http.ResponseWriter, r *http.Request) {
 				if os, err := h.orgs.Get(o.Slug); err == nil {
 					if _, err := os.ValidateFileToken(tokenStr); err == nil {
 						if f, err := os.GetFile(fileID); err == nil {
-							http.ServeFile(w, r, f.Path)
+							http.ServeFile(w, r, f.Path) // #nosec G703 -- f.Path from trusted store lookup by opaque fileID
 							return
 						}
 					}
