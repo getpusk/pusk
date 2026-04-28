@@ -160,7 +160,7 @@ func main() {
 	clientAPI.Route(mux)
 
 	// Admin API (admin endpoints + org registration)
-	adminAPI := api.NewAdminAPI(orgs, db, jwtSvc, adminToken)
+	adminAPI := api.NewAdminAPI(orgs, db, hub, jwtSvc, adminToken)
 	if os.Getenv("PUSK_DEMO") == "1" {
 		adminAPI.DemoMode = true
 	}

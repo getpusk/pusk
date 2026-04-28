@@ -996,3 +996,64 @@ func TestDeleteChannelMessage_ClearsPin(t *testing.T) {
 		t.Errorf("pin should be cleared after message delete, got %d", pid)
 	}
 }
+
+// ── ChannelSubscribersJoin ──
+
+func TestChannelSubscribersJoin(t *testing.T) {
+	s := newTestStore(t)
+	bot, _ := s.CreateBot("csjb", "CSJBot")
+	u1, _ := s.CreateUser("alice", "p", "")
+	u2, _ := s.CreateUser("bob", "p", "")
+	ch, _ := s.CreateChannel(bot.ID, "subjoin", "")
+
+	_ = s.Subscribe(ch.ID, u1.ID)
+	_ = s.Subscribe(ch.ID, u2.ID)
+
+	subs, err := s.ChannelSubscribersJoin(ch.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(subs) != 2 {
+		t.Fatalf("expected 2 subscribers, got %d", len(subs))
+	}
+	// Sorted by username: alice < bob
+	if subs[0].Username != "alice" {
+		t.Errorf("expected alice first, got %s", subs[0].Username)
+	}
+	if subs[1].Username != "bob" {
+		t.Errorf("expected bob second, got %s", subs[1].Username)
+	}
+}
+
+func TestChannelSubscribersJoin_Empty(t *testing.T) {
+	s := newTestStore(t)
+	bot, _ := s.CreateBot("csje", "CSJEBot")
+	ch, _ := s.CreateChannel(bot.ID, "emptysub", "")
+
+	subs, err := s.ChannelSubscribersJoin(ch.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(subs) != 0 {
+		t.Fatalf("expected 0 subscribers, got %d", len(subs))
+	}
+}
+
+// ── Channel CreatedAt ──
+
+func TestChannelByID_CreatedAt(t *testing.T) {
+	s := newTestStore(t)
+	bot, _ := s.CreateBot("ccab", "CCABot")
+	created, _ := s.CreateChannel(bot.ID, "tschan", "test channel")
+
+	ch, err := s.ChannelByID(created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ch.CreatedAt == "" {
+		t.Error("expected non-empty created_at from ChannelByID")
+	}
+	if ch.Name != "tschan" {
+		t.Errorf("expected name tschan, got %s", ch.Name)
+	}
+}

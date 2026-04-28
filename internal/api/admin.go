@@ -14,20 +14,22 @@ import (
 	"github.com/pusk-platform/pusk/internal/auth"
 	"github.com/pusk-platform/pusk/internal/org"
 	"github.com/pusk-platform/pusk/internal/store"
+	"github.com/pusk-platform/pusk/internal/ws"
 )
 
 // AdminAPI handles admin and org-registration endpoints.
 type AdminAPI struct {
 	orgs       *org.Manager
 	store      *store.Store
+	hub        *ws.Hub
 	jwt        *auth.JWTService
 	adminToken string
 	DemoMode   bool
 }
 
 // NewAdminAPI creates a new AdminAPI.
-func NewAdminAPI(orgs *org.Manager, s *store.Store, jwt *auth.JWTService, adminToken string) *AdminAPI {
-	return &AdminAPI{orgs: orgs, store: s, jwt: jwt, adminToken: adminToken}
+func NewAdminAPI(orgs *org.Manager, s *store.Store, hub *ws.Hub, jwt *auth.JWTService, adminToken string) *AdminAPI {
+	return &AdminAPI{orgs: orgs, store: s, hub: hub, jwt: jwt, adminToken: adminToken}
 }
 
 // Route registers admin routes on the given mux.
@@ -255,6 +257,23 @@ func (a *AdminAPI) renameChannel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slog.Info("channel renamed", "channel_id", channelID, "new_name", req.Name)
+
+	// Broadcast rename to connected clients
+	if a.hub != nil {
+		orgID := "default"
+		authHeader := r.Header.Get("Authorization")
+		if a.jwt != nil && authHeader != "" {
+			if claims, err := a.jwt.Validate(authHeader); err == nil {
+				orgID = claims.OrgID
+			}
+		}
+		payload, _ := json.Marshal(map[string]interface{}{
+			"channel_id": channelID,
+			"name":       req.Name,
+		})
+		a.hub.SendToOrg(orgID, ws.Event{Type: "channel_rename", ChatID: channelID, Payload: payload}, "")
+	}
+
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
 }
 

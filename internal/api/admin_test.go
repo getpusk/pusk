@@ -47,7 +47,7 @@ func newAdminEnv(t *testing.T) *adminEnv {
 	}
 
 	adminToken := "super-secret-admin-token"
-	api := NewAdminAPI(mgr, s, jwtSvc, adminToken)
+	api := NewAdminAPI(mgr, s, nil, jwtSvc, adminToken)
 
 	mux := http.NewServeMux()
 	api.Route(mux)

@@ -723,3 +723,76 @@ func TestListChats_Unauthed(t *testing.T) {
 		t.Fatalf("unauth chats: got %d, want 401", rec.Code)
 	}
 }
+
+// ── Channel Info ──
+
+func TestChannelInfo(t *testing.T) {
+	env := newTestEnv(t)
+
+	// Register user
+	regRec := env.request("POST", "/api/register", map[string]string{
+		"username": "infouser", "pin": "pass123456",
+	})
+	token := decodeJSON(t, regRec)["token"].(string)
+
+	// Create channel via store
+	s, _ := env.orgs.Get("default")
+	bot, _ := s.CreateBot("tok-info-api", "InfoBot")
+	ch, _ := s.CreateChannel(bot.ID, "info-chan", "channel for info test")
+
+	// Subscribe user
+	u, _ := s.AuthUser("infouser", "pass123456")
+	_ = s.Subscribe(ch.ID, u.ID)
+
+	// GET /api/channels/{id}/info
+	rec := env.authedRequest("GET", fmt.Sprintf("/api/channels/%d/info", ch.ID), nil, token)
+	if rec.Code != 200 {
+		t.Fatalf("channel info: got %d, body: %s", rec.Code, rec.Body.String())
+	}
+
+	data := decodeJSON(t, rec)
+	if data["name"] != "info-chan" {
+		t.Errorf("expected name info-chan, got %v", data["name"])
+	}
+	if data["description"] != "channel for info test" {
+		t.Errorf("expected description, got %v", data["description"])
+	}
+	if data["bot_name"] != "InfoBot" {
+		t.Errorf("expected bot_name InfoBot, got %v", data["bot_name"])
+	}
+	if data["created_at"] == nil || data["created_at"] == "" {
+		t.Error("expected non-empty created_at")
+	}
+	subs, ok := data["subscribers"].([]interface{})
+	if !ok {
+		t.Fatalf("expected subscribers array, got %T", data["subscribers"])
+	}
+	if len(subs) != 1 {
+		t.Errorf("expected 1 subscriber, got %d", len(subs))
+	}
+	subCount := int(data["subscriber_count"].(float64))
+	if subCount != 1 {
+		t.Errorf("expected subscriber_count 1, got %d", subCount)
+	}
+}
+
+func TestChannelInfo_NotFound(t *testing.T) {
+	env := newTestEnv(t)
+	regRec := env.request("POST", "/api/register", map[string]string{
+		"username": "infonf", "pin": "pass123456",
+	})
+	token := decodeJSON(t, regRec)["token"].(string)
+
+	rec := env.authedRequest("GET", "/api/channels/99999/info", nil, token)
+	if rec.Code != 404 {
+		t.Fatalf("channel info not found: got %d, want 404", rec.Code)
+	}
+}
+
+func TestChannelInfo_Unauthed(t *testing.T) {
+	env := newTestEnv(t)
+	rec := env.request("GET", "/api/channels/1/info", nil)
+	if rec.Code != 401 {
+		t.Fatalf("channel info unauthed: got %d, want 401", rec.Code)
+	}
+}
