@@ -698,6 +698,31 @@ func TestDeleteChannel_CleansUp(t *testing.T) {
 	}
 }
 
+func TestDeleteChannel_CleansReads(t *testing.T) {
+	s := newTestStore(t)
+	bot, _ := s.CreateBot("dcrb", "DCRBot")
+	u, _ := s.CreateUser("dcruser", "p", "")
+	ch, _ := s.CreateChannel(bot.ID, "delreads", "")
+	_ = s.Subscribe(ch.ID, u.ID)
+	msg, _ := s.SaveChannelMessage(ch.ID, "msg", "", "", "")
+	s.MarkChannelRead(ch.ID, u.ID, msg.ID)
+
+	if lr := s.GetLastRead(ch.ID, u.ID); lr == 0 {
+		t.Fatal("expected last_read to be set before delete")
+	}
+
+	if err := s.DeleteChannel(ch.ID); err != nil {
+		t.Fatal(err)
+	}
+	msgs, _ := s.ChannelMessages(ch.ID, 100)
+	if len(msgs) != 0 {
+		t.Error("messages should be cleaned up")
+	}
+	if lr := s.GetLastRead(ch.ID, u.ID); lr != 0 {
+		t.Error("channel_reads should be cleaned up")
+	}
+}
+
 // ── UserSubscriptions ──
 
 func TestUserSubscriptions(t *testing.T) {

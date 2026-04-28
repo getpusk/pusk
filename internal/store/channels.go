@@ -3,6 +3,7 @@
 package store
 
 import (
+	"fmt"
 	"log/slog"
 	"time"
 )
@@ -191,14 +192,24 @@ func (s *Store) DeleteChannelMessage(id int64) error {
 }
 
 func (s *Store) DeleteChannel(id int64) error {
-	//nolint:errcheck // cascade cleanup — best-effort before main delete
-	s.db.Exec("DELETE FROM channel_messages WHERE channel_id=?", id)
-	//nolint:errcheck // cascade cleanup
-	s.db.Exec("DELETE FROM channel_subscribers WHERE channel_id=?", id)
-	//nolint:errcheck // cascade cleanup
-	s.db.Exec("DELETE FROM channel_reads WHERE channel_id=?", id)
-	_, err := s.db.Exec("DELETE FROM channels WHERE id=?", id)
-	return err
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec("DELETE FROM channel_messages WHERE channel_id=?", id); err != nil {
+		return fmt.Errorf("delete messages: %w", err)
+	}
+	if _, err := tx.Exec("DELETE FROM channel_subscribers WHERE channel_id=?", id); err != nil {
+		return fmt.Errorf("delete subscribers: %w", err)
+	}
+	if _, err := tx.Exec("DELETE FROM channel_reads WHERE channel_id=?", id); err != nil {
+		return fmt.Errorf("delete reads: %w", err)
+	}
+	if _, err := tx.Exec("DELETE FROM channels WHERE id=?", id); err != nil {
+		return fmt.Errorf("delete channel: %w", err)
+	}
+	return tx.Commit()
 }
 
 func (s *Store) MarkChannelRead(channelID, userID, lastMsgID int64) {

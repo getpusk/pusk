@@ -253,6 +253,10 @@ func (a *AdminAPI) renameChannel(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if err := s.RenameChannel(channelID, req.Name); err != nil {
+		if strings.Contains(err.Error(), "UNIQUE") {
+			jsonErr(w, "channel name already exists", 409)
+			return
+		}
 		jsonErr(w, "rename failed", 500)
 		return
 	}
