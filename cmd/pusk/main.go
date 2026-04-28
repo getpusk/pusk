@@ -174,7 +174,7 @@ func main() {
 		if org != "" {
 			target += "&org=" + org
 		}
-		http.Redirect(w, r, target, http.StatusFound)
+		http.Redirect(w, r, target, http.StatusFound) // #nosec G710 -- target is a relative path built from query params
 	})
 
 	mux.HandleFunc("GET /metrics", func(w http.ResponseWriter, r *http.Request) {
