@@ -324,3 +324,20 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 
 .demo-link{color:rgba(255,255,255,0.7);font-size:11px;cursor:pointer;text-decoration:underline}
 .demo-link:hover{color:#fff}
+
+/* Channel info panel */
+#ch-info-bg{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:200}
+#ch-info{display:none;position:fixed;top:48px;right:8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);width:280px;max-height:80vh;z-index:201;box-shadow:0 8px 24px rgba(0,0,0,0.4);flex-direction:column}
+#ch-info-inner{padding:16px;overflow-y:auto;flex:1}
+.chi-name{font-size:16px;font-weight:700;margin-bottom:8px}
+.chi-desc{font-size:13px;color:var(--text2);margin-bottom:12px}
+.chi-meta{color:var(--text2);font-size:13px;margin-bottom:4px}
+.chi-subs{margin-top:12px}
+.chi-subs-title{font-size:12px;text-transform:uppercase;color:var(--text2);letter-spacing:1px;margin-bottom:8px}
+.chi-sub-row{display:flex;gap:8px;align-items:center;padding:6px 0;font-size:14px}
+.chi-badge{font-size:11px;color:var(--accent);font-weight:600}
+.chi-sub-btn{padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);cursor:pointer;font-size:14px;width:100%;margin-top:12px;text-align:center}
+.chi-sub-btn.on{background:#2d8a63;color:#fff;border-color:#2d8a63}
+#hdr-info{cursor:pointer;color:var(--text2);font-size:16px;display:none}
+#hdr-info:hover{color:var(--accent)}
+@media(max-width:600px){#ch-info{left:0;right:0;width:auto}}

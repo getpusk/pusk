@@ -104,6 +104,7 @@ bot = Bot(token="my-token",
   <header role="banner">
     <span class="hdr-back" id="hdr-back" role="button" tabindex="0" aria-label="Back"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></span>
     <h2 id="hdr-title"></h2>
+    <span class="hdr-info" id="hdr-info" role="button" tabindex="0" aria-label="Channel info">ⓘ</span>
     <span id="hdr-online" class="hdr-online"></span>
     <span class="hdr-dot" id="hdr-dot">&#9679;</span>
     <span class="hdr-ava" id="hdr-ava"></span>
@@ -139,6 +140,9 @@ bot = Bot(token="my-token",
   </div>
   <button class="s-out" id="s-out"></button>
 </div>
+
+<div id="ch-info-bg"></div>
+<div id="ch-info"><div id="ch-info-inner"></div></div>
 
 <div class="modal-bg" id="modal-bg">
   <div class="modal" role="dialog" aria-modal="true">

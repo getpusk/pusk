@@ -30,6 +30,7 @@ export const L={
     show_tok:'Показать token',tap_copy:'тап=копировать',copied:'Скопировано!',
     orgs_title:'Организации:',fill_all:'Заполните все поля',register_btn:'Зарегистрироваться',
     invite_hint:'Создайте логин и пароль для входа',push_on:'Вкл',push_off:'Выкл',push_blocked:'Заблокировано',push_reload:'Вкл (перезагрузите для откл.)',
+    ch_info:'Информация о канале',ch_bot:'Бот',ch_created:'Создан',ch_subs:'Подписчики',
     foot:(b,c,o)=>`Pusk · ${b} бот. · ${c} кан. · ${o} онлайн`},
   en:{sub:'Bot platform',login:'Login',reg:'Register',demo:'Demo',user:'Username',pin:'Password',
     err_empty:'Enter username and password',err_wrong:'Wrong username or password',err_taken:'taken',
@@ -40,6 +41,7 @@ export const L={
     show_tok:'Show token',tap_copy:'tap=copy',copied:'Copied!',
     orgs_title:'Organizations:',fill_all:'Fill all fields',register_btn:'Register',
     invite_hint:'Create username and password',push_on:'ON',push_off:'OFF',push_blocked:'Blocked',push_reload:'ON (reload to disable)',
+    ch_info:'Channel info',ch_bot:'Bot',ch_created:'Created',ch_subs:'Subscribers',
     foot:(b,c,o)=>`Pusk · ${b} bots · ${c} ch. · ${o} online`}
 };
 export function t(k){return L[S.lang][k]||L.en[k]||k}
