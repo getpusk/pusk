@@ -1087,7 +1087,7 @@ func TestFirstChannelByBot_ReturnsOldest(t *testing.T) {
 	s := newTestStore(t)
 	bot, _ := s.CreateBot("fcb1", "FCBBot")
 	ch1, _ := s.CreateChannel(bot.ID, "first", "")
-	s.CreateChannel(bot.ID, "second", "")
+	_, _ = s.CreateChannel(bot.ID, "second", "")
 
 	got, err := s.FirstChannelByBot(bot.ID)
 	if err != nil {
