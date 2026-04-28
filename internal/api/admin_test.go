@@ -457,6 +457,30 @@ func TestAdminRenameChannel_EmptyName(t *testing.T) {
 	}
 }
 
+func TestAdminRenameChannel_Collision(t *testing.T) {
+	env := newAdminEnv(t)
+	env.doReq("POST", "/admin/bots", map[string]string{
+		"token": "col-bot-1234567", "name": "Bot",
+	}, env.token)
+	// Create two channels
+	env.doReq("POST", "/admin/channel", map[string]string{"name": "alpha"}, env.token)
+	rec := env.doReq("POST", "/admin/channel", map[string]string{"name": "beta"}, env.token)
+	var resp map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	result := resp["result"].(map[string]interface{})
+	betaID := fmt.Sprintf("%.0f", result["id"].(float64))
+
+	// Rename beta → alpha (collision)
+	rec = env.doReq("PUT", "/admin/channel/"+betaID, map[string]string{
+		"name": "alpha",
+	}, env.token)
+	if rec.Code != 409 {
+		t.Fatalf("rename collision: got %d, want 409, body: %s", rec.Code, rec.Body.String())
+	}
+}
+
 // ── renameBot ──
 
 func TestAdminRenameBot_Success(t *testing.T) {
