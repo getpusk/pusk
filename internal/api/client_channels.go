@@ -32,6 +32,41 @@ func (a *ClientAPI) broadcastChannel(_ *store.Store, channelID int64, orgID, evT
 	a.hub.SendToOrg(orgID, ws.Event{Type: evType, ChatID: channelID, Payload: payload}, excludeKey)
 }
 
+func (a *ClientAPI) channelInfo(w http.ResponseWriter, r *http.Request) {
+	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
+	s := a.db(r)
+
+	ch, err := s.ChannelByID(channelID)
+	if err != nil {
+		jsonErr(w, "channel not found", 404)
+		return
+	}
+
+	botName := ""
+	if bot, berr := s.BotByID(ch.BotID); berr == nil && bot != nil {
+		botName = bot.Name
+	}
+
+	subs, _ := s.ChannelSubscribersJoin(channelID)
+	if subs == nil {
+		subs = []store.ChannelSubscriber{}
+	}
+
+	pinned := s.GetPinnedMessage(channelID)
+
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"id":                ch.ID,
+		"name":              ch.Name,
+		"description":       ch.Description,
+		"bot_id":            ch.BotID,
+		"bot_name":          botName,
+		"created_at":        ch.CreatedAt,
+		"subscribers":       subs,
+		"subscriber_count":  len(subs),
+		"pinned_message_id": pinned,
+	})
+}
+
 func (a *ClientAPI) channelReaders(w http.ResponseWriter, r *http.Request) {
 	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
 	s := a.db(r)

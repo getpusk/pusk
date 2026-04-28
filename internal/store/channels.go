@@ -13,6 +13,7 @@ type Channel struct {
 	BotID       int64  `json:"bot_id"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
+	CreatedAt   string `json:"created_at,omitempty"`
 }
 
 // ChannelMessage represents a message in a channel.
@@ -42,20 +43,20 @@ func (s *Store) CreateChannel(botID int64, name, description string) (*Channel, 
 
 func (s *Store) ChannelByName(botID int64, name string) (*Channel, error) {
 	ch := &Channel{}
-	err := s.db.QueryRow("SELECT id, bot_id, name, COALESCE(description,'') FROM channels WHERE bot_id=? AND name=?",
-		botID, name).Scan(&ch.ID, &ch.BotID, &ch.Name, &ch.Description)
+	err := s.db.QueryRow("SELECT id, bot_id, name, COALESCE(description,''), COALESCE(created_at,'') FROM channels WHERE bot_id=? AND name=?",
+		botID, name).Scan(&ch.ID, &ch.BotID, &ch.Name, &ch.Description, &ch.CreatedAt)
 	return ch, err
 }
 
 func (s *Store) ChannelByID(id int64) (*Channel, error) {
 	ch := &Channel{}
-	err := s.db.QueryRow("SELECT id, bot_id, name, COALESCE(description,'') FROM channels WHERE id=?",
-		id).Scan(&ch.ID, &ch.BotID, &ch.Name, &ch.Description)
+	err := s.db.QueryRow("SELECT id, bot_id, name, COALESCE(description,''), COALESCE(created_at,'') FROM channels WHERE id=?",
+		id).Scan(&ch.ID, &ch.BotID, &ch.Name, &ch.Description, &ch.CreatedAt)
 	return ch, err
 }
 
 func (s *Store) ListChannels() ([]Channel, error) {
-	rows, err := s.db.Query("SELECT id, bot_id, name, COALESCE(description,'') FROM channels ORDER BY CASE WHEN name='general' THEN 0 ELSE 1 END, name")
+	rows, err := s.db.Query("SELECT id, bot_id, name, COALESCE(description,''), COALESCE(created_at,'') FROM channels ORDER BY CASE WHEN name='general' THEN 0 ELSE 1 END, name")
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +64,7 @@ func (s *Store) ListChannels() ([]Channel, error) {
 	var chs []Channel
 	for rows.Next() {
 		var ch Channel
-		if err := rows.Scan(&ch.ID, &ch.BotID, &ch.Name, &ch.Description); err != nil {
+		if err := rows.Scan(&ch.ID, &ch.BotID, &ch.Name, &ch.Description, &ch.CreatedAt); err != nil {
 			continue
 		}
 		chs = append(chs, ch)
@@ -101,7 +102,7 @@ func (s *Store) ChannelSubscribers(channelID int64) ([]int64, error) {
 }
 
 func (s *Store) UserSubscriptions(userID int64) ([]Channel, error) {
-	rows, err := s.db.Query(`SELECT c.id, c.bot_id, c.name, COALESCE(c.description,'')
+	rows, err := s.db.Query(`SELECT c.id, c.bot_id, c.name, COALESCE(c.description,''), COALESCE(c.created_at,'')
 		FROM channels c JOIN channel_subscribers cs ON c.id = cs.channel_id
 		WHERE cs.user_id = ?`, userID)
 	if err != nil {
@@ -111,7 +112,7 @@ func (s *Store) UserSubscriptions(userID int64) ([]Channel, error) {
 	var chs []Channel
 	for rows.Next() {
 		var ch Channel
-		if err := rows.Scan(&ch.ID, &ch.BotID, &ch.Name, &ch.Description); err != nil {
+		if err := rows.Scan(&ch.ID, &ch.BotID, &ch.Name, &ch.Description, &ch.CreatedAt); err != nil {
 			continue
 		}
 		chs = append(chs, ch)
@@ -283,6 +284,35 @@ func (s *Store) ListChannelsForUser(userID int64) ([]ChannelInfo, error) {
 		result = append(result, ci)
 	}
 	return result, nil
+}
+
+// ChannelSubscriber represents a user subscribed to a channel (with username from JOIN).
+type ChannelSubscriber struct {
+	UserID   int64  `json:"user_id"`
+	Username string `json:"username"`
+}
+
+// ChannelSubscribersJoin returns subscribers with usernames in a single JOIN query.
+func (s *Store) ChannelSubscribersJoin(channelID int64) ([]ChannelSubscriber, error) {
+	rows, err := s.db.Query(`
+		SELECT cs.user_id, u.username
+		FROM channel_subscribers cs
+		JOIN users u ON cs.user_id = u.id
+		WHERE cs.channel_id = ?
+		ORDER BY u.username`, channelID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	var subs []ChannelSubscriber
+	for rows.Next() {
+		var sub ChannelSubscriber
+		if err := rows.Scan(&sub.UserID, &sub.Username); err != nil {
+			continue
+		}
+		subs = append(subs, sub)
+	}
+	return subs, nil
 }
 
 // ChannelReader represents a user who has read messages in a channel.
