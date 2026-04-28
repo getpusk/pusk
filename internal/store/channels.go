@@ -362,6 +362,14 @@ func (s *Store) RenameChannel(channelID int64, name string) error {
 	return err
 }
 
+// FirstChannelByBot returns the first channel owned by a bot (by creation order).
+func (s *Store) FirstChannelByBot(botID int64) (*Channel, error) {
+	ch := &Channel{}
+	err := s.db.QueryRow("SELECT id, bot_id, name, COALESCE(description,''), COALESCE(created_at,'') FROM channels WHERE bot_id=? ORDER BY id LIMIT 1",
+		botID).Scan(&ch.ID, &ch.BotID, &ch.Name, &ch.Description, &ch.CreatedAt)
+	return ch, err
+}
+
 // UpdateChannelBot changes the bot associated with a channel.
 func (s *Store) UpdateChannelBot(channelID, botID int64) error {
 	_, err := s.db.Exec("UPDATE channels SET bot_id=? WHERE id=?", botID, channelID)
