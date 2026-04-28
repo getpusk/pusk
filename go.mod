@@ -9,7 +9,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	go.uber.org/goleak v1.3.0
 	golang.org/x/crypto v0.50.0
-	modernc.org/sqlite v1.49.1
+	modernc.org/sqlite v1.50.0
 )
 
 require (
