@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/pusk-platform/pusk/internal/metrics"
+	"github.com/pusk-platform/pusk/internal/store"
 )
 
 // ── Per-bot webhook rate limiter ──
@@ -58,8 +59,10 @@ func webhookAllowed(token string) bool {
 //
 //	POST /hook/{token}?format=alertmanager|zabbix|grafana|raw
 //
-// The token is a bot token. Messages are sent to the first channel
-// owned by that bot, or to a channel specified by ?channel= param.
+// The token is a bot token. Messages are routed to:
+// 1. Channel specified by ?channel= param, or
+// 2. First existing channel owned by the bot, or
+// 3. Auto-created "alerts" channel (last resort).
 func (h *Handler) webhook(w http.ResponseWriter, r *http.Request) {
 	bot, err := h.authBot(r)
 	if err != nil {
@@ -129,14 +132,20 @@ func (h *Handler) webhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Find target channel
-	if channelName == "" {
-		channelName = "alerts" // default channel
+	// Find target channel:
+	// 1. Explicit ?channel= param
+	// 2. First channel owned by this bot
+	// 3. Auto-create "alerts" as last resort
+	var ch *store.Channel
+	if channelName != "" {
+		ch, err = s.ChannelByName(bot.ID, channelName)
+	} else {
+		ch, err = s.FirstChannelByBot(bot.ID)
 	}
-
-	ch, err := s.ChannelByName(bot.ID, channelName)
 	if err != nil {
-		// Try creating the channel
+		if channelName == "" {
+			channelName = "alerts"
+		}
 		ch, err = s.CreateChannel(bot.ID, channelName, "Webhook alerts")
 		if err != nil {
 			slog.Error("webhook channel create failed", "channel", channelName, "error", err)
@@ -144,7 +153,6 @@ func (h *Handler) webhook(w http.ResponseWriter, r *http.Request) {
 			_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok", "error": "channel error"})
 			return
 		}
-		// Auto-subscribe admin (user_id=1) to new channel
 		_ = s.Subscribe(ch.ID, 1)
 		slog.Info("webhook auto-created channel", "channel", channelName, "bot", bot.Name)
 	}

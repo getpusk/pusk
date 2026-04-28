@@ -1082,3 +1082,31 @@ func TestChannelByID_CreatedAt(t *testing.T) {
 		t.Errorf("expected name tschan, got %s", ch.Name)
 	}
 }
+
+func TestFirstChannelByBot_ReturnsOldest(t *testing.T) {
+	s := newTestStore(t)
+	bot, _ := s.CreateBot("fcb1", "FCBBot")
+	ch1, _ := s.CreateChannel(bot.ID, "first", "")
+	_, _ = s.CreateChannel(bot.ID, "second", "")
+
+	got, err := s.FirstChannelByBot(bot.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ID != ch1.ID {
+		t.Errorf("expected channel id %d, got %d", ch1.ID, got.ID)
+	}
+	if got.Name != "first" {
+		t.Errorf("expected name first, got %s", got.Name)
+	}
+}
+
+func TestFirstChannelByBot_NoChannels(t *testing.T) {
+	s := newTestStore(t)
+	bot, _ := s.CreateBot("fcb2", "FCBBot2")
+
+	_, err := s.FirstChannelByBot(bot.ID)
+	if err == nil {
+		t.Error("expected error for bot with no channels")
+	}
+}
