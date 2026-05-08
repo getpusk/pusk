@@ -223,7 +223,8 @@ func main() {
 	}
 
 	slog.Info("server starting", "addr", *addr)
-	slog.Info("routes",
+	slog.Info(
+		"routes",
 		"bot_api", "POST /bot{token}/sendMessage",
 		"client_api", "GET /api/health",
 		"pwa", "GET /",

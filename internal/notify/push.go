@@ -83,7 +83,8 @@ func (p *PushService) SendToUser(s *store.Store, userID int64, payload PushPaylo
 				_ = resp.Body.Close()
 			}
 			failed++
-			slog.Error("push send failed",
+			slog.Error(
+				"push send failed",
 				"user_id", userID,
 				"provider", pushProvider(sub.Endpoint),
 				"error", err,
@@ -103,7 +104,8 @@ func (p *PushService) SendToUser(s *store.Store, userID int64, payload PushPaylo
 		if resp.StatusCode == 401 || resp.StatusCode == 410 || resp.StatusCode == 404 || resp.StatusCode == 403 {
 			stale++
 			_ = s.DeletePushSubscription(sub.Endpoint)
-			slog.Info("push stale removed",
+			slog.Info(
+				"push stale removed",
 				"user_id", userID,
 				"provider", pushProvider(sub.Endpoint),
 				"status", resp.StatusCode,
@@ -113,7 +115,8 @@ func (p *PushService) SendToUser(s *store.Store, userID int64, payload PushPaylo
 		}
 	}
 
-	slog.Info("push delivered",
+	slog.Info(
+		"push delivered",
 		"user_id", userID,
 		"title", payload.Title,
 		"sent", sent,
