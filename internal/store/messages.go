@@ -20,7 +20,8 @@ func (s *Store) SaveMessage(chatID int64, sender, text, replyMarkup, fileID, fil
 	now := time.Now().UTC().Format(time.RFC3339)
 	res, err := s.db.Exec(
 		"INSERT INTO messages (chat_id, sender, text, reply_markup, file_id, file_type, created_at) VALUES (?,?,?,?,?,?,?)",
-		chatID, sender, text, replyMarkup, fileID, fileType, now)
+		chatID, sender, text, replyMarkup, fileID, fileType, now,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +35,8 @@ func (s *Store) SaveMessage(chatID int64, sender, text, replyMarkup, fileID, fil
 func (s *Store) GetMessage(id int64) (*Message, error) {
 	m := &Message{}
 	err := s.db.QueryRow(
-		"SELECT id, chat_id, sender, COALESCE(text,''), COALESCE(reply_markup,''), COALESCE(file_id,''), COALESCE(file_type,''), created_at FROM messages WHERE id=?", id).
+		"SELECT id, chat_id, sender, COALESCE(text,''), COALESCE(reply_markup,''), COALESCE(file_id,''), COALESCE(file_type,''), created_at FROM messages WHERE id=?", id,
+	).
 		Scan(&m.ID, &m.ChatID, &m.Sender, &m.Text, &m.ReplyMarkup, &m.FileID, &m.FileType, &m.CreatedAt)
 	return m, err
 }
@@ -52,7 +54,8 @@ func (s *Store) DeleteMessage(id int64) error {
 func (s *Store) ChatMessages(chatID int64, limit int) ([]Message, error) {
 	rows, err := s.db.Query(
 		"SELECT id, chat_id, sender, COALESCE(text,''), COALESCE(reply_markup,''), COALESCE(file_id,''), COALESCE(file_type,''), created_at FROM messages WHERE chat_id=? ORDER BY created_at DESC LIMIT ?",
-		chatID, limit)
+		chatID, limit,
+	)
 	if err != nil {
 		return nil, err
 	}
