@@ -88,9 +88,12 @@ echo "  Static: $NFILES files"
 echo "[3/6] Backing up current binary..."
 $SSH "cp $REMOTE_DIR/pusk $REMOTE_DIR/pusk.rollback 2>/dev/null || true"
 
-# --- Stop + Replace ---
-echo "[4/6] Stopping and replacing..."
-$SSH "kill \$(pgrep -f 'pusk.*${PUSK_PORT:-8443}' | head -1) 2>/dev/null || true; sleep 2; cp /tmp/pusk-deploy $REMOTE_DIR/pusk; chmod +x $REMOTE_DIR/pusk"
+# --- Replace + Restart ---
+# rm -f unlinks the old inode (running process keeps its fd to the deleted file).
+# cp creates a new file at the same path. kill triggers systemd Restart=always
+# which picks up the new binary. This avoids "Text file busy" from cp-over-running.
+echo "[4/6] Replacing binary and restarting..."
+$SSH "rm -f $REMOTE_DIR/pusk && cp /tmp/pusk-deploy $REMOTE_DIR/pusk && chmod +x $REMOTE_DIR/pusk && kill \$(pgrep -f 'pusk.*${PUSK_PORT:-8443}' | head -1) 2>/dev/null || true"
 
 # --- Wait for restart ---
 echo "[5/6] Waiting ${ROLLBACK_WAIT}s for restart..."
@@ -119,7 +122,7 @@ if echo "$HEALTH" | grep -q '"status":"ok"'; then
 else
   echo ""
   echo "=== HEALTH FAILED — ROLLING BACK ==="
-  $SSH "kill \$(pgrep -f 'pusk.*${PUSK_PORT:-8443}' | head -1) 2>/dev/null || true; sleep 2; cp $REMOTE_DIR/pusk.rollback $REMOTE_DIR/pusk 2>/dev/null; sleep 3"
+  $SSH "rm -f $REMOTE_DIR/pusk && cp $REMOTE_DIR/pusk.rollback $REMOTE_DIR/pusk 2>/dev/null && chmod +x $REMOTE_DIR/pusk; kill \$(pgrep -f 'pusk.*${PUSK_PORT:-8443}' | head -1) 2>/dev/null || true; sleep 3"
   HEALTH2=$($SSH "curl -sf $HEALTH_URL" 2>/dev/null || echo "FAIL")
   if echo "$HEALTH2" | grep -q '"status":"ok"'; then
     echo "  Rollback OK. Previous version restored."
