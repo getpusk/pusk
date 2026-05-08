@@ -7,5 +7,6 @@ data/
 *.secret
 tests/e2e/node_modules/
 scripts/deploy.env
+scripts/deploy.sh
 tests/e2e/test-results/
 demo-bots/demobot.py
