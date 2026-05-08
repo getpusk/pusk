@@ -35,7 +35,7 @@ jobs:
         with:
           version: v2.11.4
       - name: Install gofumpt
-        run: go install mvdan.cc/gofumpt@latest
+        run: go install mvdan.cc/gofumpt@v0.10.0
       - name: gofumpt
         run: test -z "$(gofumpt -l .)"
       - name: JS syntax check

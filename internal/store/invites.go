@@ -16,7 +16,8 @@ func (s *Store) CreateInvite(code string, ttl time.Duration) error {
 func (s *Store) UseInvite(code string) error {
 	res, err := s.db.Exec(
 		"UPDATE invites SET uses=uses+1 WHERE code=? AND uses<COALESCE(max_uses,50) AND expires_at > ?",
-		code, time.Now().UTC().Format(time.RFC3339))
+		code, time.Now().UTC().Format(time.RFC3339),
+	)
 	if err != nil {
 		return fmt.Errorf("invite error")
 	}
@@ -65,7 +66,8 @@ func (s *Store) ActiveInvite() (string, error) {
 	var code string
 	err := s.db.QueryRow(
 		"SELECT code FROM invites WHERE COALESCE(uses,0)<COALESCE(max_uses,50) AND expires_at > ? ORDER BY created_at DESC LIMIT 1",
-		time.Now().UTC().Format(time.RFC3339)).Scan(&code)
+		time.Now().UTC().Format(time.RFC3339),
+	).Scan(&code)
 	if err != nil {
 		return "", nil //nolint:nilerr // sql.ErrNoRows means no active invite — not an error for callers
 	}
