@@ -57,7 +57,8 @@ func RequestLogger(next http.Handler) http.Handler {
 			ip = r.RemoteAddr
 		}
 
-		slog.Info("http request",
+		slog.Info(
+			"http request",
 			"method", r.Method,
 			"path", path,
 			"status", sw.code,
