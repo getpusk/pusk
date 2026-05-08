@@ -120,8 +120,7 @@ docker run -d --name pusk \
   -v pusk-data:/app/data \
   ghcr.io/getpusk/pusk:latest
 
-# Docker Compose
-curl -O https://raw.githubusercontent.com/getpusk/pusk/main/docker-compose.yml
+# Docker Compose (see README for full docker-compose.yml)
 docker compose up -d
 
 # From source
