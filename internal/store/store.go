@@ -5,6 +5,7 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -21,20 +22,56 @@ type Store struct {
 
 // New opens (or creates) the SQLite database at path and runs migrations.
 func New(path string) (*Store, error) {
-	db, err := sql.Open("sqlite", path+"?_journal_mode=WAL&_busy_timeout=5000")
+	// modernc.org/sqlite only honors the "_pragma" DSN key; mattn-style keys
+	// (_journal_mode, _busy_timeout) are silently ignored. Pragmas set this way
+	// are applied to every pooled connection, unlike a one-shot db.Exec which
+	// would only configure whichever connection happened to run it.
+	dsn := path + "?" + strings.Join([]string{
+		"_pragma=busy_timeout(5000)",
+		"_pragma=journal_mode(WAL)",
+		"_pragma=synchronous(NORMAL)",
+		"_pragma=journal_size_limit(67108864)", // 64MB
+		"_pragma=foreign_keys(1)",
+	}, "&")
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
-	db.SetMaxOpenConns(4) // WAL mode allows concurrent reads; single writer enforced by WAL
-	//nolint:errcheck // best-effort PRAGMA tuning — defaults are safe
-	db.Exec("PRAGMA journal_size_limit = 67108864") // 64MB
-	//nolint:errcheck // best-effort PRAGMA tuning
-	db.Exec("PRAGMA synchronous = NORMAL")
+	db.SetMaxOpenConns(4) // WAL allows concurrent readers; busy_timeout serializes writers
 	s := &Store{db: db}
+	if err := s.verifyPragmas(path); err != nil {
+		db.Close() //nolint:errcheck // returning the original error
+		return nil, err
+	}
 	if err := s.migrate(); err != nil {
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
 	return s, nil
+}
+
+// verifyPragmas confirms the runtime PRAGMAs from the DSN actually took effect.
+// The driver applies them silently, so a typo or driver change could leave the
+// database in DELETE-journal mode with foreign keys off without any error at
+// open — exactly the regression this guards against.
+func (s *Store) verifyPragmas(path string) error {
+	var fk int
+	if err := s.db.QueryRow("PRAGMA foreign_keys").Scan(&fk); err != nil {
+		return fmt.Errorf("read foreign_keys pragma: %w", err)
+	}
+	if fk != 1 {
+		return fmt.Errorf("foreign_keys not enabled (got %d): DSN pragmas were not applied", fk)
+	}
+	// WAL is a file-level mode; in-memory databases always report "memory".
+	if path != ":memory:" {
+		var mode string
+		if err := s.db.QueryRow("PRAGMA journal_mode").Scan(&mode); err != nil {
+			return fmt.Errorf("read journal_mode pragma: %w", err)
+		}
+		if !strings.EqualFold(mode, "wal") {
+			return fmt.Errorf("journal_mode is %q, want wal: DSN pragmas were not applied", mode)
+		}
+	}
+	return nil
 }
 
 // Close closes the underlying database connection.
