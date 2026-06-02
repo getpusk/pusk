@@ -1,5 +1,7 @@
 # syntax=docker/dockerfile:1.4
-# Runtime: scratch — compatible with RED OS (FSTEC certified)
+# Runtime: scratch — for FSTEC-certified OS (Astra Linux SE, RED OS).
+# Built once and pushed under both -astra and -redos tags; the images are
+# byte-identical, so the suffix only marks the certified target.
 # Binary is pre-built by CI (go build, CGO_ENABLED=0) and passed via context
 
 FROM alpine:3.23@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11 AS certs
