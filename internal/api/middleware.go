@@ -4,13 +4,38 @@ package api
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
+	"runtime/debug"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/pusk-platform/pusk/internal/auth"
 )
+
+// Recover wraps a handler so a panic anywhere downstream is logged with a stack
+// trace and turned into a 500, instead of an abrupt connection drop with no log.
+func Recover(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				slog.Error("panic in handler", "panic", rec, "path", r.URL.Path, "stack", string(debug.Stack()))
+				jsonErr(w, "internal error", http.StatusInternalServerError)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
+}
+
+// recoverLog recovers a panic in a spawned goroutine and logs it. net/http only
+// recovers panics on the request goroutine, so any `go func()` must guard itself
+// or a single panic takes down the whole process.
+func recoverLog(where string) {
+	if rec := recover(); rec != nil {
+		slog.Error("recovered panic in goroutine", "where", where, "panic", rec, "stack", string(debug.Stack()))
+	}
+}
 
 type ctxKey int
 
