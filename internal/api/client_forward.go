@@ -5,10 +5,14 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/pusk-platform/pusk/internal/bot"
@@ -196,11 +200,45 @@ func (a *ClientAPI) forwardCallback(s *store.Store, chatID, userID int64, data s
 	sendWebhook(b.WebhookURL, update)
 }
 
+// webhookClient is the shared client for outbound webhook delivery. Its dialer
+// validates the actual IP being connected to — on the initial request and on
+// every redirect hop — so a host that resolves (now, or after a DNS rebind
+// between IsLocalURL's check and the connection) to a loopback/private/
+// link-local address is refused at connect time. This is the authoritative
+// SSRF gate; bot.IsLocalURL is only a fast pre-filter.
+var webhookClient = &http.Client{
+	Timeout: 10 * time.Second,
+	Transport: &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout: 10 * time.Second,
+			Control: func(_, address string, _ syscall.RawConn) error {
+				host, _, err := net.SplitHostPort(address)
+				if err != nil {
+					return err
+				}
+				ip := net.ParseIP(host)
+				if ip == nil || bot.IsBlockedIP(ip) {
+					return fmt.Errorf("refusing webhook connection to internal address %s", address)
+				}
+				return nil
+			},
+		}).DialContext,
+		MaxIdleConns:        100,
+		IdleConnTimeout:     90 * time.Second,
+		TLSHandshakeTimeout: 10 * time.Second,
+	},
+	CheckRedirect: func(_ *http.Request, via []*http.Request) error {
+		if len(via) >= 5 {
+			return errors.New("stopped after 5 redirects")
+		}
+		return nil
+	},
+}
+
 func sendWebhook(url string, payload interface{}) {
 	data, _ := json.Marshal(payload)
-	client := &http.Client{Timeout: 10 * time.Second}
-	//nolint:gosec // G704: URL from admin-configured webhook, not user input
-	resp, err := client.Post(url, "application/json", bytes.NewReader(data)) // #nosec G704
+	//nolint:gosec // G704: admin-configured URL; webhookClient's dialer blocks internal IPs (SSRF)
+	resp, err := webhookClient.Post(url, "application/json", bytes.NewReader(data)) // #nosec G704
 	if err != nil {
 		slog.Error("webhook send failed", "url", url, "error", err)
 		return

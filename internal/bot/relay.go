@@ -118,18 +118,32 @@ func IsLocalURL(rawURL string) bool {
 		return true
 	}
 
-	// Parse as IP
-	ip := net.ParseIP(host)
-	if ip == nil {
-		// Not an IP — try DNS resolve
-		ips, err := net.LookupIP(host)
-		if err != nil || len(ips) == 0 {
-			return false // can't resolve, let it through (will fail on HTTP POST)
-		}
-		ip = ips[0]
+	// Literal IP — check directly.
+	if ip := net.ParseIP(host); ip != nil {
+		return IsBlockedIP(ip)
 	}
 
-	// Check private/loopback/link-local ranges
-	// BUG-6: also block 0.0.0.0 (IsUnspecified)
-	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified()
+	// Hostname — resolve and block if ANY resolved address is internal, so a
+	// public A-record paired with a private one cannot slip through. Resolution
+	// failure stays fail-open here: IsLocalURL is only a fast pre-filter, and
+	// the webhook HTTP client re-validates the actual connected IP at dial time
+	// (closing the DNS-rebinding TOCTOU), so an unresolvable corporate hostname
+	// may still attempt delivery.
+	ips, err := net.LookupIP(host)
+	if err != nil || len(ips) == 0 {
+		return false
+	}
+	for _, ip := range ips {
+		if IsBlockedIP(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// IsBlockedIP reports whether ip is an SSRF-sensitive internal destination:
+// loopback, private, link-local, or the unspecified address (0.0.0.0 / ::).
+func IsBlockedIP(ip net.IP) bool {
+	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() ||
+		ip.IsLinkLocalMulticast() || ip.IsUnspecified()
 }
