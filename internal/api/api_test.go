@@ -831,3 +831,17 @@ func TestChannelRead_RequiresMembership(t *testing.T) {
 		}
 	}
 }
+
+// TestAuthRequired_RejectsDeletedOrg covers API-6: a token whose org no longer
+// resolves must be rejected, not silently served against the default org.
+func TestAuthRequired_RejectsDeletedOrg(t *testing.T) {
+	env := newTestEnv(t)
+	token, err := env.jwt.Generate(1, "ghost-org", "admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := env.authedRequest("GET", "/api/chats", nil, token)
+	if rec.Code != 401 {
+		t.Fatalf("token for a non-existent org: got %d, want 401", rec.Code)
+	}
+}

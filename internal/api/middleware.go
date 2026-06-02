@@ -65,6 +65,16 @@ func (a *ClientAPI) AuthRequired(next http.HandlerFunc) http.HandlerFunc {
 			jsonErr(w, "unauthorized", 401)
 			return
 		}
+		// Reject tokens whose org no longer resolves (e.g. a deleted org).
+		// Without this, db(r) would fall back to the default-org store and the
+		// request would run under the default org's identity — a deleted org's
+		// user_id can collide with the default org's admin (API-6).
+		if a.orgs != nil && claims.OrgID != "" {
+			if _, err := a.orgs.Get(claims.OrgID); err != nil {
+				jsonErr(w, "unauthorized", 401)
+				return
+			}
+		}
 		// Check token revocation
 		rKey := claims.OrgID + ":" + strconv.FormatInt(claims.UserID, 10)
 		if t, ok := revokedUsers.Load(rKey); ok {
