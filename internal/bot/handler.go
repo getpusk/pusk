@@ -648,21 +648,35 @@ func (h *Handler) pushChannelMessage(s *store.Store, ch *store.Channel, bot *sto
 		"channel_name": ch.Name,
 		"bot_name":     bot.Name,
 	})
-	// WS broadcast to all org users (so unsubscribed users get badge updates)
+	// WS broadcast to all org users (so unsubscribed users get badge updates).
+	// In-memory and fast, so it stays on the caller's goroutine.
 	h.hub.SendToOrg(s.OrgID, ws.Event{Type: "channel_message", ChatID: ch.ID, Payload: payload}, "")
-	// Push notifications only to offline subscribers
-	subs, _ := s.ChannelSubscribers(ch.ID)
-	for _, userID := range subs {
-		key := s.OrgID + ":" + fmt.Sprintf("%d", userID)
-		if !h.hub.IsConnected(key) {
-			h.push.SendToUser(s, userID, notify.PushPayload{
-				Title: "#" + ch.Name,
-				Body:  truncate(msg.Text, 100),
-				Tag:   fmt.Sprintf("ch-%d-%d", ch.ID, msg.ID),
-				URL:   fmt.Sprintf("/?channel=%d&org=%s", ch.ID, s.OrgID),
-			})
+
+	// Push fan-out talks to external providers (FCM/Mozilla/Yandex). On the
+	// webhook ingest path this runs before the 200 returned to the monitoring
+	// system, so a slow provider would delay alert ingestion. Dispatch it off
+	// the caller's goroutine; each send is already time-bounded by the push
+	// HTTP client. The store and hub are process-lived, so they are safe to use
+	// after the request returns.
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("panic in channel push fan-out", "panic", r, "channel", ch.Name)
+			}
+		}()
+		subs, _ := s.ChannelSubscribers(ch.ID)
+		for _, userID := range subs {
+			key := s.OrgID + ":" + fmt.Sprintf("%d", userID)
+			if !h.hub.IsConnected(key) {
+				h.push.SendToUser(s, userID, notify.PushPayload{
+					Title: "#" + ch.Name,
+					Body:  truncate(msg.Text, 100),
+					Tag:   fmt.Sprintf("ch-%d-%d", ch.ID, msg.ID),
+					URL:   fmt.Sprintf("/?channel=%d&org=%s", ch.ID, s.OrgID),
+				})
+			}
 		}
-	}
+	}()
 }
 
 // ── Channel handlers ──
