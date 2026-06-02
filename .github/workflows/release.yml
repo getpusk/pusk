@@ -97,7 +97,7 @@ jobs:
         uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7
         with:
           context: .
-          file: Dockerfile.redos
+          file: Dockerfile.scratch
           push: true
           tags: ${{ steps.meta-redos.outputs.tags }}
           labels: ${{ steps.meta-redos.outputs.labels }}
@@ -122,7 +122,7 @@ jobs:
         uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7
         with:
           context: .
-          file: Dockerfile.astra
+          file: Dockerfile.scratch
           push: true
           tags: ${{ steps.meta-astra.outputs.tags }}
           labels: ${{ steps.meta-astra.outputs.labels }}
