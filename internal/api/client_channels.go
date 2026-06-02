@@ -206,6 +206,9 @@ func (a *ClientAPI) channelMessages(w http.ResponseWriter, r *http.Request) {
 	if limit > 200 {
 		limit = 200
 	}
+	if limit < 1 {
+		limit = 50 // negative reaches SQLite as LIMIT -1 (unbounded)
+	}
 	msgs, err := s.ChannelMessages(channelID, limit)
 	if err != nil {
 		jsonErr(w, "internal error", 500)

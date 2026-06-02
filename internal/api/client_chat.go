@@ -109,6 +109,9 @@ func (a *ClientAPI) chatMessages(w http.ResponseWriter, r *http.Request) {
 	if limit > 200 {
 		limit = 200
 	}
+	if limit < 1 {
+		limit = 50 // negative reaches SQLite as LIMIT -1 (unbounded)
+	}
 
 	msgs, err := a.db(r).ChatMessages(chatID, limit)
 	if err != nil {
