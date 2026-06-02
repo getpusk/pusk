@@ -255,7 +255,10 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string, bypassLimit b
 			}
 		}
 
-		slog.Info("org system bot created", "bot", sysBot.Name, "token", botToken)
+		// Log only a token prefix — the full token is the sole credential for
+		// /bot/<token> and the inbound /hook/<token>, and logs are routinely
+		// shipped/aggregated. Matches registerBot's "token_prefix" convention.
+		slog.Info("org system bot created", "bot", sysBot.Name, "token_prefix", botToken[:8])
 	}
 
 	m.orgs = append(m.orgs, Org{
