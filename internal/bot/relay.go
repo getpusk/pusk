@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
+	"github.com/pusk-platform/pusk/internal/metrics"
 	"github.com/pusk-platform/pusk/internal/ws"
 )
 
@@ -54,6 +55,7 @@ func (rh *RelayHub) Register(botID int64, c *ws.Conn) {
 		old.Send([]byte(`{"type":"replaced"}`))
 	}
 	rh.conns[botID] = c
+	metrics.RelayBotsConnected.Set(float64(len(rh.conns)))
 	slog.Info("relay bot connected", "bot_id", botID)
 }
 
@@ -62,6 +64,7 @@ func (rh *RelayHub) Unregister(botID int64, c *ws.Conn) {
 	defer rh.mu.Unlock()
 	if cur, ok := rh.conns[botID]; ok && cur == c {
 		delete(rh.conns, botID)
+		metrics.RelayBotsConnected.Set(float64(len(rh.conns)))
 		slog.Info("relay bot disconnected", "bot_id", botID)
 	}
 }

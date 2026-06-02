@@ -10,6 +10,7 @@ import (
 	"time"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
+	"github.com/pusk-platform/pusk/internal/metrics"
 	"github.com/pusk-platform/pusk/internal/store"
 )
 
@@ -133,6 +134,10 @@ func (p *PushService) SendToUser(s *store.Store, userID int64, payload PushPaylo
 			sent++
 		}
 	}
+
+	metrics.PushTotal.WithLabelValues("sent").Add(float64(sent))
+	metrics.PushTotal.WithLabelValues("failed").Add(float64(failed))
+	metrics.PushTotal.WithLabelValues("stale").Add(float64(stale))
 
 	slog.Info(
 		"push delivered",

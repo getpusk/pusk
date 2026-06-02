@@ -7,6 +7,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/pusk-platform/pusk/internal/metrics"
 )
 
 // Update represents a Telegram-compatible update object for long polling.
@@ -60,6 +62,7 @@ func (q *UpdateQueue) Push(botID int64, u Update) {
 	case ch <- u:
 		slog.Debug("update queued", "bot_id", botID, "update_id", u.UpdateID)
 	default:
+		metrics.UpdateQueueDropped.Inc()
 		slog.Warn("update queue full, dropping", "bot_id", botID, "update_id", u.UpdateID)
 	}
 }
