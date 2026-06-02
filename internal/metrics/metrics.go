@@ -58,6 +58,34 @@ var (
 			Help: "Total registered users across all orgs",
 		},
 	)
+	// Delivery-outcome metrics: without these the platform's primary function
+	// (did the alert actually reach a recipient?) is unobservable.
+	PushTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "pusk_push_total",
+			Help: "Web Push notifications by result",
+		},
+		[]string{"result"}, // sent | failed | stale
+	)
+	WebhookForward = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "pusk_webhook_forward_total",
+			Help: "Outbound webhook deliveries by result",
+		},
+		[]string{"result"}, // success | failure
+	)
+	UpdateQueueDropped = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "pusk_update_queue_dropped_total",
+			Help: "Bot update-queue messages dropped because the queue was full",
+		},
+	)
+	RelayBotsConnected = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "pusk_relay_bots_connected",
+			Help: "Bots currently connected via WebSocket relay",
+		},
+	)
 )
 
 func init() {
@@ -70,5 +98,9 @@ func init() {
 		WebhooksDedupedTotal,
 		OrgsTotal,
 		UsersTotal,
+		PushTotal,
+		WebhookForward,
+		UpdateQueueDropped,
+		RelayBotsConnected,
 	)
 }

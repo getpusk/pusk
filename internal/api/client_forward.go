@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/pusk-platform/pusk/internal/bot"
+	"github.com/pusk-platform/pusk/internal/metrics"
 	"github.com/pusk-platform/pusk/internal/store"
 )
 
@@ -242,9 +243,11 @@ func sendWebhook(url string, payload interface{}) {
 	//nolint:gosec // G704: admin-configured URL; webhookClient's dialer blocks internal IPs (SSRF)
 	resp, err := webhookClient.Post(url, "application/json", bytes.NewReader(data)) // #nosec G704
 	if err != nil {
+		metrics.WebhookForward.WithLabelValues("failure").Inc()
 		slog.Error("webhook send failed", "url", url, "error", err)
 		return
 	}
 	_ = resp.Body.Close()
+	metrics.WebhookForward.WithLabelValues("success").Inc()
 	slog.Info("webhook sent", "url", url, "status", resp.StatusCode)
 }
