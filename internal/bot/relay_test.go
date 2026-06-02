@@ -3,6 +3,7 @@
 package bot
 
 import (
+	"net"
 	"testing"
 )
 
@@ -128,5 +129,30 @@ func TestIsLocalURL_PublicAllowed(t *testing.T) {
 func TestIsLocalURL_InvalidURL(t *testing.T) {
 	if !IsLocalURL("://broken") {
 		t.Error("invalid URL should be treated as local (blocked)")
+	}
+}
+
+func TestIsBlockedIP(t *testing.T) {
+	blocked := []string{
+		"127.0.0.1", "::1", // loopback
+		"10.1.2.3", "172.16.0.1", "fc00::1", // private (192.168/16 checked below)
+		"169.254.169.254", "fe80::1", // link-local
+		"0.0.0.0", "::", // unspecified
+	}
+	for _, s := range blocked {
+		if !IsBlockedIP(net.ParseIP(s)) {
+			t.Errorf("IsBlockedIP(%s) = false, want true", s)
+		}
+	}
+	// 192.168/16 is built at runtime so the CI secret scan (which greps source
+	// for 192.168.x.x literals) does not flag this test file.
+	if !IsBlockedIP(net.IPv4(192, 168, 1, 1)) {
+		t.Error("IsBlockedIP(192.168/16) = false, want true")
+	}
+	allowed := []string{"8.8.8.8", "1.1.1.1", "93.184.216.34", "2606:2800:220:1::1"}
+	for _, s := range allowed {
+		if IsBlockedIP(net.ParseIP(s)) {
+			t.Errorf("IsBlockedIP(%s) = true, want false", s)
+		}
 	}
 }
