@@ -38,6 +38,9 @@ func (s *Store) UserChats(userID int64) ([]Chat, error) {
 		}
 		chats = append(chats, c)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return chats, nil
 }
 

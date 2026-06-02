@@ -70,6 +70,9 @@ func (s *Store) ListChannels() ([]Channel, error) {
 		}
 		chs = append(chs, ch)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return chs, nil
 }
 
@@ -99,6 +102,9 @@ func (s *Store) ChannelSubscribers(channelID int64) ([]int64, error) {
 		}
 		ids = append(ids, id)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return ids, nil
 }
 
@@ -117,6 +123,9 @@ func (s *Store) UserSubscriptions(userID int64) ([]Channel, error) {
 			continue
 		}
 		chs = append(chs, ch)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return chs, nil
 }
@@ -168,6 +177,9 @@ func (s *Store) ChannelMessages(channelID int64, limit int) ([]ChannelMessage, e
 			continue
 		}
 		msgs = append(msgs, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return msgs, nil
 }
@@ -299,6 +311,9 @@ func (s *Store) ListChannelsForUser(userID int64) ([]ChannelInfo, error) {
 		ci.Subscribed = sub == 1
 		result = append(result, ci)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return result, nil
 }
 
@@ -327,6 +342,9 @@ func (s *Store) ChannelSubscribersJoin(channelID int64) ([]ChannelSubscriber, er
 			continue
 		}
 		subs = append(subs, sub)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return subs, nil
 }
@@ -357,6 +375,9 @@ func (s *Store) ChannelReadersJoin(channelID int64) ([]ChannelReader, error) {
 			continue
 		}
 		readers = append(readers, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return readers, nil
 }
