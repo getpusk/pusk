@@ -94,6 +94,7 @@ func (a *ClientAPI) pushCallbackToQueue(s *store.Store, chatID, userID int64, da
 }
 
 func (a *ClientAPI) forwardToBot(s *store.Store, chatID, userID int64, msg *store.Message) {
+	defer recoverLog("forwardToBot")
 	botID, err := s.ChatBotID(chatID)
 	if err != nil || botID == 0 {
 		slog.Warn("no bot for chat", "chat_id", chatID)
@@ -142,6 +143,7 @@ func (a *ClientAPI) forwardToBot(s *store.Store, chatID, userID int64, msg *stor
 }
 
 func (a *ClientAPI) forwardCallback(s *store.Store, chatID, userID int64, data string, messageID int64) {
+	defer recoverLog("forwardCallback")
 	slog.Info("forwardCallback called", "chat_id", chatID, "user_id", userID, "data", data, "msg_id", messageID)
 	botID, err := s.ChatBotID(chatID)
 	if err != nil || botID == 0 {

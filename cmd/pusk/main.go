@@ -237,7 +237,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:              *addr,
-		Handler:           securityHeaders(api.RequestLogger(bot.TelegramCompat(mux))),
+		Handler:           api.Recover(securityHeaders(api.RequestLogger(bot.TelegramCompat(mux)))),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
