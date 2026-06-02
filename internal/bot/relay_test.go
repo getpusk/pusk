@@ -8,9 +8,6 @@ import (
 
 func TestNewRelayHub(t *testing.T) {
 	rh := NewRelayHub()
-	if rh == nil {
-		t.Fatal("expected non-nil hub")
-	}
 	if rh.conns == nil {
 		t.Fatal("expected non-nil conns map")
 	}

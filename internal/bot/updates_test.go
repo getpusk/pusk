@@ -10,9 +10,6 @@ import (
 
 func TestNewUpdateQueue(t *testing.T) {
 	q := NewUpdateQueue()
-	if q == nil {
-		t.Fatal("expected non-nil queue")
-	}
 	if q.channels == nil {
 		t.Fatal("expected non-nil channels map")
 	}

@@ -39,9 +39,6 @@ func TestGet_Default(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s == nil {
-		t.Fatal("expected non-nil store")
-	}
 	if s.OrgID != "default" {
 		t.Fatalf("OrgID = %q, want default", s.OrgID)
 	}
