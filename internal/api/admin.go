@@ -372,7 +372,10 @@ func (a *AdminAPI) orgInfo(w http.ResponseWriter, r *http.Request) {
 			userOrgs++
 		}
 	}
-	canCreate := a.orgs.CanCreateOrg()
+	// In production org creation requires the global admin token; demo mode is
+	// an open sandbox. The landing page hides the create-org button when this is
+	// false, so anonymous visitors are never shown a control that would 401.
+	canCreate := (a.DemoMode || a.isGlobalAdmin(r)) && a.orgs.CanCreateOrg()
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"can_create_org": canCreate,
@@ -382,9 +385,15 @@ func (a *AdminAPI) orgInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *AdminAPI) registerOrg(w http.ResponseWriter, r *http.Request) {
-	// Enforce org limit unless caller has admin token
-	if !a.orgs.CanCreateOrg() && !a.isGlobalAdmin(r) {
-		jsonErr(w, "org registration disabled — limit reached", http.StatusForbidden)
+	// Org creation is an instance-level operation: in production it requires the
+	// global admin token. When PUSK_ADMIN_TOKEN is unset, isGlobalAdmin is false
+	// and registration is refused — consistent with resetPassword/deleteOrg.
+	// Otherwise any anonymous client could create the first org on a default
+	// deployment and receive an admin token (pre-auth privilege escalation).
+	// Demo mode is an open sandbox (guest login, seeded data) and keeps the
+	// self-serve registration flow.
+	if !a.DemoMode && !a.isGlobalAdmin(r) {
+		jsonErr(w, "org registration requires admin authentication", http.StatusUnauthorized)
 		return
 	}
 
@@ -406,6 +415,8 @@ func (a *AdminAPI) registerOrg(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"password must be at least 8 characters"}`, 400)
 		return
 	}
+	// A global admin may exceed the MaxOrgs limit; demo registrations stay
+	// subject to it (demo runs with PUSK_MAX_ORGS=0, i.e. unlimited).
 	if err := a.orgs.Register(req.Slug, req.Name, req.Username, req.Pin, a.isGlobalAdmin(r)); err != nil {
 		jsonErr(w, err.Error(), 400)
 		return
