@@ -71,6 +71,9 @@ func (s *Store) ChatMessages(chatID int64, limit int) ([]Message, error) {
 		}
 		msgs = append(msgs, m)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return msgs, nil
 }
 
