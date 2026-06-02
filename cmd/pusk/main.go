@@ -139,7 +139,11 @@ func main() {
 
 	adminToken := os.Getenv("PUSK_ADMIN_TOKEN")
 	if adminToken == "" {
-		slog.Warn("PUSK_ADMIN_TOKEN not set — org creation is unprotected, set it for production use")
+		if os.Getenv("PUSK_DEMO") == "1" {
+			slog.Warn("PUSK_ADMIN_TOKEN not set — org registration is open (demo mode sandbox)")
+		} else {
+			slog.Warn("PUSK_ADMIN_TOKEN not set — org registration and the admin API are disabled; set it to create organizations")
+		}
 	}
 
 	mux := http.NewServeMux()
