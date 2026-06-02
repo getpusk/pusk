@@ -796,3 +796,38 @@ func TestChannelInfo_Unauthed(t *testing.T) {
 		t.Fatalf("channel info unauthed: got %d, want 401", rec.Code)
 	}
 }
+
+// TestChannelRead_RequiresMembership covers API-1: the read/ack endpoints must
+// reject a caller who is not subscribed to the channel (previously any org
+// member could read history/subscribers/readers and write acks).
+func TestChannelRead_RequiresMembership(t *testing.T) {
+	env := newTestEnv(t)
+
+	// Register the caller first: register auto-subscribes the user to all
+	// *existing* channels, so a channel created afterwards has no subscription.
+	reg := env.request("POST", "/api/register", map[string]string{
+		"username": "outsider", "pin": "pass123456",
+	})
+	token := decodeJSON(t, reg)["token"].(string)
+
+	s, _ := env.orgs.Get("default")
+	bot, _ := s.CreateBot("tok-mem-api", "MemBot")
+	ch, _ := s.CreateChannel(bot.ID, "private-chan", "")
+
+	base := fmt.Sprintf("/api/channels/%d", ch.ID)
+	cases := []struct {
+		method, path string
+		body         interface{}
+	}{
+		{"GET", base + "/messages", nil},
+		{"GET", base + "/info", nil},
+		{"GET", base + "/readers", nil},
+		{"POST", base + "/ack", map[string]interface{}{"message_id": 1, "action": "ack"}},
+	}
+	for _, c := range cases {
+		rec := env.authedRequest(c.method, c.path, c.body, token)
+		if rec.Code != 403 {
+			t.Errorf("%s %s: got %d, want 403 (not subscribed)", c.method, c.path, rec.Code)
+		}
+	}
+}
