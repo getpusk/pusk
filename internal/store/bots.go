@@ -51,6 +51,9 @@ func (s *Store) ListBots() ([]Bot, error) {
 		}
 		bots = append(bots, b)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return bots, nil
 }
 
