@@ -41,6 +41,10 @@ func (a *ClientAPI) channelInfo(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "channel not found", 404)
 		return
 	}
+	if !s.IsSubscribed(channelID, UserIDFromCtx(r.Context())) {
+		jsonErr(w, "not subscribed", 403)
+		return
+	}
 
 	botName := ""
 	if bot, berr := s.BotByID(ch.BotID); berr == nil && bot != nil {
@@ -70,6 +74,10 @@ func (a *ClientAPI) channelInfo(w http.ResponseWriter, r *http.Request) {
 func (a *ClientAPI) channelReaders(w http.ResponseWriter, r *http.Request) {
 	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
 	s := a.db(r)
+	if !s.IsSubscribed(channelID, UserIDFromCtx(r.Context())) {
+		jsonErr(w, "not subscribed", 403)
+		return
+	}
 	readers, err := s.ChannelReadersJoin(channelID)
 	if err != nil {
 		jsonErr(w, "internal error", 500)
@@ -84,6 +92,11 @@ func (a *ClientAPI) channelReaders(w http.ResponseWriter, r *http.Request) {
 func (a *ClientAPI) ackChannelMessage(w http.ResponseWriter, r *http.Request) {
 	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
 	s := a.db(r)
+
+	if !s.IsSubscribed(channelID, UserIDFromCtx(r.Context())) {
+		jsonErr(w, "not subscribed", 403)
+		return
+	}
 
 	var req struct {
 		MessageID int64  `json:"message_id"`
@@ -182,6 +195,10 @@ func (a *ClientAPI) unsubscribe(w http.ResponseWriter, r *http.Request) {
 func (a *ClientAPI) channelMessages(w http.ResponseWriter, r *http.Request) {
 	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
 	s := a.db(r)
+	if !s.IsSubscribed(channelID, UserIDFromCtx(r.Context())) {
+		jsonErr(w, "not subscribed", 403)
+		return
+	}
 	limit := 50
 	if l := r.URL.Query().Get("limit"); l != "" {
 		limit, _ = strconv.Atoi(l)
