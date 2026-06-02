@@ -5,11 +5,18 @@ package notify
 import (
 	"encoding/json"
 	"log/slog"
+	"net/http"
 	"strings"
+	"time"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
 	"github.com/pusk-platform/pusk/internal/store"
 )
+
+// pushTimeout bounds a single Web Push HTTP request. Without it webpush-go uses
+// a client with no timeout, so a slow/hung push provider can block the caller
+// (the webhook ingest goroutine) until the OS TCP timeout — minutes.
+const pushTimeout = 10 * time.Second
 
 // PushService sends Web Push notifications.
 // It no longer holds a store reference; callers pass the org store per-request.
@@ -17,11 +24,22 @@ type PushService struct {
 	vapidPub   string
 	vapidPriv  string
 	vapidEmail string
+	httpClient *http.Client
 }
 
 func NewPushService(vapidPub, vapidPriv, email string) *PushService {
 	return &PushService{
 		vapidPub: vapidPub, vapidPriv: vapidPriv, vapidEmail: email,
+		// One shared client with a timeout and a pooled transport, reused across
+		// all sends instead of webpush-go's default zero-timeout client.
+		httpClient: &http.Client{
+			Timeout: pushTimeout,
+			Transport: &http.Transport{
+				MaxIdleConns:        100,
+				MaxIdleConnsPerHost: 10,
+				IdleConnTimeout:     90 * time.Second,
+			},
+		},
 	}
 }
 
@@ -72,6 +90,7 @@ func (p *PushService) SendToUser(s *store.Store, userID int64, payload PushPaylo
 		}
 
 		resp, err := webpush.SendNotification(data, wps, &webpush.Options{
+			HTTPClient:      p.httpClient,
 			Subscriber:      p.vapidEmail,
 			VAPIDPublicKey:  p.vapidPub,
 			VAPIDPrivateKey: p.vapidPriv,
