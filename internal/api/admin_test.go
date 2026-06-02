@@ -85,7 +85,7 @@ func TestAdminRegisterOrg_Success(t *testing.T) {
 	env := newAdminEnv(t)
 	rec := env.doReq("POST", "/api/org/register", map[string]string{
 		"slug": "neworg", "name": "New Org", "username": "admin", "pin": "admin12345",
-	}, "")
+	}, env.token)
 	if rec.Code != 200 {
 		t.Fatalf("register org: got %d, body: %s", rec.Code, rec.Body.String())
 	}
@@ -108,7 +108,7 @@ func TestAdminRegisterOrg_MissingFields(t *testing.T) {
 	env := newAdminEnv(t)
 	rec := env.doReq("POST", "/api/org/register", map[string]string{
 		"slug": "x",
-	}, "")
+	}, env.token)
 	if rec.Code != 400 {
 		t.Fatalf("register org missing fields: got %d, want 400", rec.Code)
 	}
@@ -118,7 +118,7 @@ func TestAdminRegisterOrg_ShortPin(t *testing.T) {
 	env := newAdminEnv(t)
 	rec := env.doReq("POST", "/api/org/register", map[string]string{
 		"slug": "shortpin", "username": "admin", "pin": "abc",
-	}, "")
+	}, env.token)
 	if rec.Code != 400 {
 		t.Fatalf("register org short pin: got %d, want 400", rec.Code)
 	}
@@ -128,12 +128,88 @@ func TestAdminRegisterOrg_Duplicate(t *testing.T) {
 	env := newAdminEnv(t)
 	env.doReq("POST", "/api/org/register", map[string]string{
 		"slug": "duporg", "name": "Dup", "username": "admin", "pin": "admin12345",
-	}, "")
+	}, env.token)
 	rec := env.doReq("POST", "/api/org/register", map[string]string{
 		"slug": "duporg", "name": "Dup2", "username": "admin2", "pin": "admin12345",
-	}, "")
+	}, env.token)
 	if rec.Code != 400 {
 		t.Fatalf("register org duplicate: got %d, want 400", rec.Code)
+	}
+}
+
+// TestAdminRegisterOrg_NoAuth verifies the SEC-1 fix: an anonymous client can
+// no longer create an org (which previously handed out an admin token).
+func TestAdminRegisterOrg_NoAuth(t *testing.T) {
+	env := newAdminEnv(t)
+	rec := env.doReq("POST", "/api/org/register", map[string]string{
+		"slug": "anon", "name": "Anon", "username": "admin", "pin": "admin12345",
+	}, "")
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous register: got %d, want 401", rec.Code)
+	}
+	if _, err := env.orgs.Get("anon"); err == nil {
+		t.Error("anonymous register must not create the org")
+	}
+}
+
+func TestAdminRegisterOrg_WrongToken(t *testing.T) {
+	env := newAdminEnv(t)
+	rec := env.doReq("POST", "/api/org/register", map[string]string{
+		"slug": "wrong", "name": "Wrong", "username": "admin", "pin": "admin12345",
+	}, "not-the-admin-token")
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("wrong-token register: got %d, want 401", rec.Code)
+	}
+}
+
+// TestAdminRegisterOrg_NoAdminTokenConfigured covers the default deployment:
+// with PUSK_ADMIN_TOKEN unset, registration is refused outright rather than
+// silently allowing the first anonymous caller to become admin.
+func TestAdminRegisterOrg_NoAdminTokenConfigured(t *testing.T) {
+	env := newAdminEnv(t)
+	env.admin.adminToken = "" // server started without PUSK_ADMIN_TOKEN
+	rec := env.doReq("POST", "/api/org/register", map[string]string{
+		"slug": "noatoken", "name": "X", "username": "admin", "pin": "admin12345",
+	}, "")
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("register with no admin token configured: got %d, want 401", rec.Code)
+	}
+}
+
+// TestAdminRegisterOrg_DemoModeAllowsAnon confirms demo mode keeps the open
+// self-serve flow the e2e/integration harness relies on.
+func TestAdminRegisterOrg_DemoModeAllowsAnon(t *testing.T) {
+	env := newAdminEnv(t)
+	env.admin.DemoMode = true
+	rec := env.doReq("POST", "/api/org/register", map[string]string{
+		"slug": "demoorg", "name": "Demo", "username": "admin", "pin": "admin12345",
+	}, "")
+	if rec.Code != 200 {
+		t.Fatalf("demo-mode anonymous register: got %d, want 200, body: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// TestAdminOrgInfo_CanCreateRequiresAdmin verifies the landing page only shows
+// the create-org button to a global admin (can_create_org is admin-aware).
+func TestAdminOrgInfo_CanCreateRequiresAdmin(t *testing.T) {
+	env := newAdminEnv(t)
+
+	rec := env.doReq("GET", "/api/org/info", nil, "")
+	var anon map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &anon); err != nil {
+		t.Fatal(err)
+	}
+	if anon["can_create_org"] != false {
+		t.Errorf("anonymous can_create_org = %v, want false", anon["can_create_org"])
+	}
+
+	rec = env.doReq("GET", "/api/org/info", nil, env.token)
+	var adm map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &adm); err != nil {
+		t.Fatal(err)
+	}
+	if adm["can_create_org"] != true {
+		t.Errorf("admin can_create_org = %v, want true", adm["can_create_org"])
 	}
 }
 
@@ -181,7 +257,7 @@ func TestAdminRegisterBot_WithJWT(t *testing.T) {
 	// Register org to get JWT admin token
 	rec := env.doReq("POST", "/api/org/register", map[string]string{
 		"slug": "botorg", "name": "BotOrg", "username": "admin", "pin": "admin12345",
-	}, "")
+	}, env.token)
 	var orgResp map[string]interface{}
 	if err := json.Unmarshal(rec.Body.Bytes(), &orgResp); err != nil {
 		t.Fatal(err)
@@ -541,7 +617,7 @@ func TestAdminResetPassword_Success(t *testing.T) {
 	env := newAdminEnv(t)
 	env.doReq("POST", "/api/org/register", map[string]string{
 		"slug": "rporg", "name": "RP", "username": "user1", "pin": "oldpass123",
-	}, "")
+	}, env.token)
 
 	rec := env.doReq("POST", "/admin/reset-password", map[string]interface{}{
 		"org": "rporg", "username": "user1", "new_pin": "newpass789",
@@ -604,7 +680,7 @@ func TestAdminSetRole_Success(t *testing.T) {
 	env := newAdminEnv(t)
 	rec := env.doReq("POST", "/api/org/register", map[string]string{
 		"slug": "srorg", "name": "SR", "username": "user1", "pin": "pass123456",
-	}, "")
+	}, env.token)
 	var orgResp map[string]interface{}
 	if err := json.Unmarshal(rec.Body.Bytes(), &orgResp); err != nil {
 		t.Fatal(err)
