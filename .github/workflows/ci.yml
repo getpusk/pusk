@@ -91,6 +91,16 @@ jobs:
           fi
           echo "No private IPs or internal domains found"
 
+      - name: Changelog sync (EN/RU top version)
+        run: |
+          EN=$(grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | head -1 | tr -d 'v')
+          RU=$(grep -oE '\[[0-9]+\.[0-9]+\.[0-9]+\]' CHANGELOG.ru.md | head -1 | tr -d '[]')
+          if [ "$EN" != "$RU" ]; then
+            echo "FAIL: CHANGELOG.md ($EN) and CHANGELOG.ru.md ($RU) top versions differ — update CHANGELOG.ru.md"
+            exit 1
+          fi
+          echo "Changelog EN/RU in sync: $EN"
+
       - name: gosec — static security analysis
         run: |
           go install github.com/securego/gosec/v2/cmd/gosec@latest
