@@ -52,6 +52,9 @@ func (s *Store) DeleteMessage(id int64) error {
 }
 
 func (s *Store) ChatMessages(chatID int64, limit int) ([]Message, error) {
+	if limit < 1 {
+		limit = 50 // guard: a negative LIMIT is "unbounded" in SQLite
+	}
 	rows, err := s.db.Query(
 		"SELECT id, chat_id, sender, COALESCE(text,''), COALESCE(reply_markup,''), COALESCE(file_id,''), COALESCE(file_type,''), created_at FROM messages WHERE chat_id=? ORDER BY created_at DESC LIMIT ?",
 		chatID, limit,
