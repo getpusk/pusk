@@ -215,7 +215,9 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string, bypassLimit b
 
 	// Create default system bot (needed for channels)
 	tokenBytes := make([]byte, 16)
-	crand.Read(tokenBytes)
+	if _, err := crand.Read(tokenBytes); err != nil {
+		return fmt.Errorf("generate system bot token: %w", err)
+	}
 	botToken := hex.EncodeToString(tokenBytes)
 	sysBot, _ := s.CreateBot(botToken, name+" Bot")
 	if sysBot != nil {
@@ -224,7 +226,7 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string, bypassLimit b
 		// Create #general channel with welcome message
 		ch, _ := s.CreateChannel(sysBot.ID, "general", "General channel")
 		if ch != nil {
-			_ = s.Subscribe(ch.ID, 1) // admin user_id = 1
+			_ = s.Subscribe(ch.ID, admin.ID) // subscribe the org admin to #general
 			welcome := fmt.Sprintf("Welcome to **%s**! / Добро пожаловать в **%s**!\n\n"+
 				"This is #general — your team's chat channel.\n"+
 				"Это #general — канал для общения команды.\n\n"+

@@ -343,7 +343,7 @@ func (a *ClientAPI) orgStats(w http.ResponseWriter, r *http.Request) {
 	}
 	users, _ := s.ListUsers()
 	channels, _ := s.ListChannels()
-	msgCount := s.MessageCount()
+	msgCount := s.ChannelMessageCount()
 	fileSize := s.TotalFileSize()
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"users":     len(users),

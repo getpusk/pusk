@@ -188,7 +188,7 @@ func TestCleanOldChannelMessages(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	future := time.Now().Add(time.Hour).Format(time.RFC3339)
+	future := time.Now().Add(time.Hour).UTC().Format(time.RFC3339)
 	s.CleanOldChannelMessages(future)
 
 	msgs, err := s.ChannelMessages(ch.ID, 100)
@@ -367,7 +367,7 @@ func TestMessageCount(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	count := s.MessageCount()
+	count := s.ChannelMessageCount()
 	if count != 3 {
 		t.Errorf("message count = %d, want 3", count)
 	}
@@ -376,7 +376,7 @@ func TestMessageCount(t *testing.T) {
 func TestMessageCount_Empty(t *testing.T) {
 	s := newTestStore(t)
 
-	count := s.MessageCount()
+	count := s.ChannelMessageCount()
 	if count != 0 {
 		t.Errorf("message count = %d, want 0", count)
 	}
