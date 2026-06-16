@@ -1,0 +1,2459 @@
+{
+  "_meta": {
+    "version": "v0",
+    "date": "2026-06-16",
+    "project": "PUSK — self-hosted Telegram-based alert platform (Go)",
+    "principle": "Human authors contracts; the gate ratifies. enforced_by=NONE is a VISIBLE gap, never silent. New gap or OK-contract-regression => RED.",
+    "status_legend": "OK=specified+enforced | PARTIAL=partial enforcement | GAP=known blind spot (enforced_by=NONE)",
+    "enforced_by_legend": "compiler|grep|test|runtime|NONE",
+    "source": "Hand-authored backend/security invariant registry, ratified by pusk_contract_gate.py."
+  },
+  "contracts": [
+    {
+      "id": "jwt-rejects-non-hmac-alg",
+      "capability": "fail-closed",
+      "kind": "invariant",
+      "family": "fail-closed",
+      "severity": "critical",
+      "requirement": "JWT validation must reject any token not signed with HMAC (HS256), preventing alg-confusion / alg:none bypass.",
+      "measure": "validate(tok) ok => tok.header.alg is *SigningMethodHMAC",
+      "code_anchor": "internal/auth/jwt.go:Validate",
+      "enforced_by": "compiler",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/auth/jwt.go:53, internal/auth/jwt.go:54, internal/auth/jwt.go:62",
+      "live_check": {
+        "file": "internal/auth/jwt.go",
+        "must_contain": [
+          "*jwt.SigningMethodHMAC",
+          "return nil, ErrInvalidToken",
+          "!token.Valid"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (j *JWTService) Validate("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "jwt-secret-fail-closed-on-empty",
+      "capability": "fail-closed",
+      "kind": "invariant",
+      "family": "fail-closed",
+      "severity": "critical",
+      "requirement": "The JWT service must refuse to construct with an empty signing secret (panic at startup) rather than silently signing with a zero-length key.",
+      "measure": "NewJWTService(secret,_) => secret != \"\"  (else panic)",
+      "code_anchor": "internal/auth/jwt.go:NewJWTService",
+      "enforced_by": "runtime",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/auth/jwt.go:27, internal/auth/jwt.go:28, internal/auth/jwt.go:30",
+      "live_check": {
+        "file": "internal/auth/jwt.go",
+        "must_contain": [
+          "if secret == \"\"",
+          "panic("
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func NewJWTService("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "authrequired-rejects-missing-or-invalid-token",
+      "capability": "authorization",
+      "kind": "invariant",
+      "family": "authz",
+      "severity": "critical",
+      "requirement": "AuthRequired must return 401 and not call the next handler when the token is missing or fails validation.",
+      "measure": "next called => tokenStr != \"\" AND jwt.Validate(tokenStr) ok",
+      "code_anchor": "internal/api/middleware.go:AuthRequired",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/middleware.go:88, internal/api/middleware.go:89, internal/api/middleware.go:90",
+      "live_check": {
+        "file": "internal/api/middleware.go",
+        "must_contain": [
+          "a.jwt.Validate(tokenStr)",
+          "jsonErr(w, \"unauthorized\", 401)",
+          "if err != nil",
+          "return"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (a *ClientAPI) AuthRequired("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "authrequired-rejects-unresolvable-org",
+      "capability": "multi-tenant-isolation",
+      "kind": "invariant",
+      "family": "isolation",
+      "severity": "critical",
+      "requirement": "AuthRequired must reject a token whose OrgID no longer resolves to a live org, so a deleted-org token cannot silently fall back to the default-org store (#153/#168).",
+      "measure": "next called => orgs.Get(claims.OrgID) ok  (when OrgID != \"\")",
+      "code_anchor": "internal/api/middleware.go:AuthRequired",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/middleware.go:97, internal/api/middleware.go:98, internal/api/middleware.go:99",
+      "live_check": {
+        "file": "internal/api/middleware.go",
+        "must_contain": [
+          "claims.OrgID != \"\"",
+          "a.orgs.Get(claims.OrgID)",
+          "jsonErr(w, \"unauthorized\", 401)"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (a *ClientAPI) AuthRequired("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "authrequired-honors-token-revocation",
+      "capability": "authorization",
+      "kind": "invariant",
+      "family": "authz",
+      "severity": "high",
+      "requirement": "AuthRequired must reject a JWT issued before its user was revoked (password change / delete), enforcing logout-everywhere within the revocation window.",
+      "measure": "next called => NOT(revoked(org:uid) AND claims.IssuedAt < revokedAt)",
+      "code_anchor": "internal/api/middleware.go:AuthRequired",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/middleware.go:105, internal/api/middleware.go:109, internal/api/middleware.go:110",
+      "live_check": {
+        "file": "internal/api/middleware.go",
+        "must_contain": [
+          "revokedUsers.Load(rKey)",
+          "claims.IssuedAt.Before(revokedAt)",
+          "jsonErr(w, \"token revoked\", 401)"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (a *ClientAPI) AuthRequired("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "db-store-bound-to-jwt-org",
+      "capability": "multi-tenant-isolation",
+      "kind": "invariant",
+      "family": "isolation",
+      "severity": "critical",
+      "requirement": "The per-request Store must be resolved strictly from the authenticated JWT's OrgID (context or re-parsed token), never from request-controlled org parameters.",
+      "measure": "db(r) = orgs.Get(claims.OrgID)  where claims = verified JWT",
+      "code_anchor": "internal/api/client.go:db",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "PARTIAL",
+      "proof": "internal/api/client.go:49, internal/api/client.go:51, internal/api/client.go:62",
+      "live_check": {
+        "file": "internal/api/client.go",
+        "must_contain": [
+          "ClaimsFromCtx(r.Context())",
+          "a.orgs.Get(claims.OrgID)",
+          "a.jwt.Validate(tokenStr)"
+        ],
+        "must_not_contain": [
+          "r.URL.Query().Get(\"org\")",
+          "r.PathValue(\"org\")",
+          "a.orgs.Get(o)"
+        ],
+        "fn_sig": "func (a *ClientAPI) db("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "admin-token-constant-time-compare",
+      "capability": "authorization",
+      "kind": "invariant",
+      "family": "authz",
+      "severity": "high",
+      "requirement": "The global admin token must be compared with crypto/subtle constant-time comparison, never plain string equality, to prevent timing-oracle recovery.",
+      "measure": "all adminToken checks use subtle.ConstantTimeCompare",
+      "code_anchor": "internal/api/admin.go:ConstantTimeCompare",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/admin.go:62, internal/api/admin.go:79, internal/api/admin.go:454",
+      "live_check": {
+        "file": "internal/api/admin.go",
+        "must_contain": [
+          "subtle.ConstantTimeCompare"
+        ],
+        "must_not_contain": []
+      },
+      "note": "must_contain pins subtle.ConstantTimeCompare (used at 5 sites); a plain `==` on the bearer token would fail the check. An earlier `must_not_contain: a.adminToken ==` was dropped as a false positive — it matched the legit empty-check `a.adminToken == \"\"`.",
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "admin-token-empty-fail-closed",
+      "capability": "fail-closed",
+      "kind": "invariant",
+      "family": "fail-closed",
+      "severity": "critical",
+      "requirement": "Global-admin-only endpoints must deny access when no admin token is configured (empty token never authenticates as admin).",
+      "measure": "isGlobalAdmin/requireAdmin(token) => adminToken != \"\"",
+      "code_anchor": "internal/api/admin.go:isGlobalAdmin",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/admin.go:357, internal/api/admin.go:358, internal/api/admin.go:361",
+      "live_check": {
+        "file": "internal/api/admin.go",
+        "must_contain": [
+          "if a.adminToken == \"\"",
+          "return false"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (a *AdminAPI) isGlobalAdmin("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "org-register-blocks-pre-auth-escalation",
+      "capability": "fail-closed",
+      "kind": "invariant",
+      "family": "fail-closed",
+      "severity": "critical",
+      "requirement": "Org self-registration must require the global admin token in production (non-demo), preventing an anonymous client from creating the first org and receiving an admin token.",
+      "measure": "registerOrg succeeds => DemoMode OR isGlobalAdmin(r)",
+      "code_anchor": "internal/api/admin.go:registerOrg",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/admin.go:395, internal/api/admin.go:396, internal/api/admin.go:398",
+      "live_check": {
+        "file": "internal/api/admin.go",
+        "must_contain": [
+          "if !a.DemoMode && !a.isGlobalAdmin(r)",
+          "http.StatusUnauthorized",
+          "return"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (a *AdminAPI) registerOrg("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "admin-mutations-require-admin-role",
+      "capability": "authorization",
+      "kind": "invariant",
+      "family": "authz",
+      "severity": "high",
+      "requirement": "Admin mutation handlers (createChannel, deleteChannel, registerBot, deleteBot, etc.) must pass both getOrgStore and requireAdmin before mutating, so a non-admin org member cannot mutate org config.",
+      "measure": "createChannel mutates => getOrgStore(r).ok AND requireAdmin(r,s)",
+      "code_anchor": "internal/api/admin.go:createChannel",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/admin.go:127, internal/api/admin.go:132, internal/api/admin.go:176",
+      "live_check": {
+        "file": "internal/api/admin.go",
+        "must_contain": [
+          "a.getOrgStore(r)",
+          "if !a.requireAdmin(r, s)",
+          "http.StatusForbidden",
+          "s.CreateChannel("
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (a *AdminAPI) createChannel("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "ws-connection-keyed-by-org",
+      "capability": "multi-tenant-isolation",
+      "kind": "invariant",
+      "family": "isolation",
+      "severity": "high",
+      "requirement": "Each websocket connection and its presence/status fan-out must be keyed by the authenticated org so events never cross org boundaries.",
+      "measure": "ws.key = claims.OrgID + ':' + userID  AND status fan-out filters by claims.OrgID prefix",
+      "code_anchor": "internal/api/client_chat.go:websocket",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/client_chat.go:211, internal/api/client_chat.go:222, internal/api/client_chat.go:248",
+      "live_check": {
+        "file": "internal/api/client_chat.go",
+        "must_contain": [
+          "claims := ClaimsFromCtx(r.Context())",
+          "key := claims.OrgID + \":\"",
+          "k[:len(claims.OrgID)+1] == claims.OrgID+\":\""
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (a *ClientAPI) websocket("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "channel-message-read-requires-subscription",
+      "capability": "authorization",
+      "kind": "invariant",
+      "family": "authz",
+      "severity": "critical",
+      "requirement": "Reading channel messages requires the caller to be a subscriber of that channel; non-members get 403 before any message is fetched.",
+      "measure": "read(channelMessages, ch) => IsSubscribed(ch, currentUser)",
+      "code_anchor": "internal/api/client_channels.go:channelMessages",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/client_channels.go:198, internal/api/client_channels.go:199, internal/store/channels.go:133",
+      "live_check": {
+        "file": "internal/api/client_channels.go",
+        "must_contain": [
+          "!s.IsSubscribed(channelID, UserIDFromCtx(r.Context()))",
+          "\"not subscribed\", 403"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (a *ClientAPI) channelMessages("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "channel-info-requires-subscription",
+      "capability": "authorization",
+      "kind": "invariant",
+      "family": "authz",
+      "severity": "high",
+      "requirement": "Channel info (name, subscribers, pinned message) is only returned to subscribers of that channel.",
+      "measure": "read(channelInfo, ch) => IsSubscribed(ch, currentUser)",
+      "code_anchor": "internal/api/client_channels.go:channelInfo",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/client_channels.go:44, internal/api/client_channels.go:45, internal/api/client_channels.go:54",
+      "live_check": {
+        "file": "internal/api/client_channels.go",
+        "must_contain": [
+          "!s.IsSubscribed(channelID, UserIDFromCtx(r.Context()))",
+          "\"not subscribed\", 403"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (a *ClientAPI) channelInfo("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "channel-readers-requires-subscription",
+      "capability": "authorization",
+      "kind": "invariant",
+      "family": "authz",
+      "severity": "high",
+      "requirement": "The per-message read-receipt list (channelReaders) is only exposed to subscribers of the channel.",
+      "measure": "read(channelReaders, ch) => IsSubscribed(ch, currentUser)",
+      "code_anchor": "internal/api/client_channels.go:channelReaders",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/client_channels.go:77, internal/api/client_channels.go:78, internal/api/client_channels.go:81",
+      "live_check": {
+        "file": "internal/api/client_channels.go",
+        "must_contain": [
+          "!s.IsSubscribed(channelID, UserIDFromCtx(r.Context()))",
+          "\"not subscribed\", 403"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (a *ClientAPI) channelReaders("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "channel-ack-requires-subscription-and-message-in-channel",
+      "capability": "authorization",
+      "kind": "invariant",
+      "family": "authz",
+      "severity": "high",
+      "requirement": "Acknowledging a channel message requires subscription AND that the target message actually belongs to that channel (no cross-channel ACK).",
+      "measure": "ack(ch, msgID) => IsSubscribed(ch, user) && GetChannelMessage(msgID).ChannelID == ch",
+      "code_anchor": "internal/api/client_channels.go:ackChannelMessage",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/client_channels.go:96, internal/api/client_channels.go:117, internal/api/client_channels.go:118",
+      "live_check": {
+        "file": "internal/api/client_channels.go",
+        "must_contain": [
+          "!s.IsSubscribed(channelID, UserIDFromCtx(r.Context()))",
+          "msg.ChannelID != channelID",
+          "\"message not found\", 404"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (a *ClientAPI) ackChannelMessage("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "channel-send-requires-subscription",
+      "capability": "authorization",
+      "kind": "invariant",
+      "family": "authz",
+      "severity": "high",
+      "requirement": "Posting a message to a channel requires the sender to be subscribed to that channel.",
+      "measure": "send(ch, text) => IsSubscribed(ch, currentUser)",
+      "code_anchor": "internal/api/client_channels.go:sendToChannel",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/client_channels.go:253, internal/api/client_channels.go:254, internal/api/client_channels.go:288",
+      "live_check": {
+        "file": "internal/api/client_channels.go",
+        "must_contain": [
+          "!s.IsSubscribed(channelID, userID)",
+          "\"not subscribed\", 403"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (a *ClientAPI) sendToChannel("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "chat-access-requires-ownership",
+      "capability": "authorization",
+      "kind": "invariant",
+      "family": "authz",
+      "severity": "critical",
+      "requirement": "Reading or posting to a 1:1 bot chat requires the authenticated user to be the chat's owner; checkChatAccess compares ChatUserID against the caller.",
+      "measure": "access(chat) => ChatUserID(chat) == currentUser",
+      "code_anchor": "internal/api/client_auth.go:checkChatAccess",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/client_auth.go:187, internal/api/client_auth.go:188, internal/store/chats.go:47",
+      "live_check": {
+        "file": "internal/api/client_auth.go",
+        "must_contain": [
+          "ownerID, err := a.db(r).ChatUserID(chatID)",
+          "ownerID != userID",
+          "403"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (a *ClientAPI) checkChatAccess("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "chat-messages-gated-by-checkchataccess",
+      "capability": "authorization",
+      "kind": "invariant",
+      "family": "authz",
+      "severity": "critical",
+      "requirement": "chatMessages must invoke checkChatAccess and bail out before fetching messages, ensuring cross-user chat reads are blocked.",
+      "measure": "read(chatMessages) => checkChatAccess(chatID) == true",
+      "code_anchor": "internal/api/client_chat.go:chatMessages",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/client_chat.go:102, internal/api/client_chat.go:103, internal/api/client_chat.go:116",
+      "live_check": {
+        "file": "internal/api/client_chat.go",
+        "must_contain": [
+          "if !a.checkChatAccess(w, r, chatID) {",
+          "return"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (a *ClientAPI) chatMessages("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "webhook-client-validates-connect-ip-ssrf",
+      "capability": "ssrf-defense",
+      "kind": "invariant",
+      "family": "ssrf",
+      "severity": "critical",
+      "requirement": "Outbound webhook delivery uses a dedicated client whose dialer Control hook rejects connections to loopback/private/link-local/unspecified IPs on every hop, closing the DNS-rebind TOCTOU left open by the IsLocalURL pre-filter.",
+      "measure": "dial(addr) => !IsBlockedIP(resolvedIP(addr))",
+      "code_anchor": "internal/api/client_forward.go:webhookClient",
+      "enforced_by": "test",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/client_forward.go:217, internal/api/client_forward.go:223, internal/bot/relay.go:149",
+      "live_check": {
+        "file": "internal/api/client_forward.go",
+        "must_contain": [
+          "Control: func(_, address string, _ syscall.RawConn) error",
+          "bot.IsBlockedIP(ip)",
+          "refusing webhook connection to internal address"
+        ],
+        "must_not_contain": []
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "sendwebhook-uses-ssrf-guarded-client",
+      "capability": "ssrf-defense",
+      "kind": "invariant",
+      "family": "ssrf",
+      "severity": "critical",
+      "requirement": "sendWebhook must POST through the SSRF-validating webhookClient, never http.DefaultClient or a fresh unguarded client, so the connect-time IP check cannot be bypassed.",
+      "measure": "sendWebhook(url) => transport == webhookClient (Control-guarded)",
+      "code_anchor": "internal/api/client_forward.go:sendWebhook",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/client_forward.go:244, internal/api/client_forward.go:212, internal/api/client_forward.go:241",
+      "live_check": {
+        "file": "internal/api/client_forward.go",
+        "must_contain": [
+          "webhookClient.Post(url"
+        ],
+        "must_not_contain": [
+          "http.DefaultClient",
+          "http.Post(",
+          "http.Get("
+        ],
+        "fn_sig": "func sendWebhook("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "webhook-redirects-bounded",
+      "capability": "ssrf-defense",
+      "kind": "invariant",
+      "family": "ssrf",
+      "severity": "medium",
+      "requirement": "The webhook client caps redirect chains at 5 hops so a malicious redirect loop or redirect-to-internal cannot be followed indefinitely (each hop is still IP-revalidated by the dialer).",
+      "measure": "redirectCount > 5 => error",
+      "code_anchor": "internal/api/client_forward.go:webhookClient",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/client_forward.go:233, internal/api/client_forward.go:234, internal/api/client_forward.go:235",
+      "live_check": {
+        "file": "internal/api/client_forward.go",
+        "must_contain": [
+          "CheckRedirect: func(_ *http.Request, via []*http.Request) error",
+          "len(via) >= 5",
+          "stopped after 5 redirects"
+        ],
+        "must_not_contain": []
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "startchat-webhook-skips-local-urls",
+      "capability": "ssrf-defense",
+      "kind": "invariant",
+      "family": "ssrf",
+      "severity": "high",
+      "requirement": "The /start auto-trigger only POSTs to a bot's webhook when the URL is non-empty and not a local/internal URL, applying the SSRF pre-filter before delivery.",
+      "measure": "sendWebhook(b.WebhookURL) => b.WebhookURL != \"\" && !IsLocalURL(b.WebhookURL)",
+      "code_anchor": "internal/api/client_chat.go:startChat",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/client_chat.go:91, internal/api/client_chat.go:92, internal/bot/relay.go:107",
+      "live_check": {
+        "file": "internal/api/client_chat.go",
+        "must_contain": [
+          "b.WebhookURL != \"\" && !bot.IsLocalURL(b.WebhookURL)",
+          "sendWebhook(b.WebhookURL, update)"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (a *ClientAPI) startChat("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "channel-messages-limit-clamped",
+      "capability": "input-validation",
+      "kind": "invariant",
+      "family": "input-validation",
+      "severity": "medium",
+      "requirement": "The channelMessages limit query param is clamped to [1,200]; a non-positive limit is reset to 50 to prevent SQLite LIMIT -1 (unbounded) row dumps.",
+      "measure": "limit <= 0 => limit = 50 ; limit > 200 => limit = 200",
+      "code_anchor": "internal/api/client_channels.go:channelMessages",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/client_channels.go:206, internal/api/client_channels.go:209, internal/api/client_channels.go:210",
+      "live_check": {
+        "file": "internal/api/client_channels.go",
+        "must_contain": [
+          "if limit > 200 {",
+          "limit = 200",
+          "if limit < 1 {",
+          "limit = 50"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (a *ClientAPI) channelMessages("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "chat-messages-limit-clamped",
+      "capability": "input-validation",
+      "kind": "invariant",
+      "family": "input-validation",
+      "severity": "medium",
+      "requirement": "The chatMessages limit query param is clamped to [1,200]; a non-positive limit is reset to 50 to avoid SQLite LIMIT -1 unbounded reads.",
+      "measure": "limit <= 0 => limit = 50 ; limit > 200 => limit = 200",
+      "code_anchor": "internal/api/client_chat.go:chatMessages",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/client_chat.go:109, internal/api/client_chat.go:112, internal/api/client_chat.go:113",
+      "live_check": {
+        "file": "internal/api/client_chat.go",
+        "must_contain": [
+          "if limit > 200 {",
+          "limit = 200",
+          "if limit < 1 {",
+          "limit = 50"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (a *ClientAPI) chatMessages("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "send-routes-body-size-limited",
+      "capability": "input-validation",
+      "kind": "invariant",
+      "family": "input-validation",
+      "severity": "medium",
+      "requirement": "Write/JSON-body routes are wrapped in limitBody, which caps request bodies at 1 MiB via http.MaxBytesReader to bound memory on decode.",
+      "measure": "bodyBytes(r) <= 1<<20 for limitBody-wrapped routes",
+      "code_anchor": "internal/api/client.go:limitBody",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/client.go:139, internal/api/client.go:141, internal/api/client.go:82",
+      "live_check": {
+        "file": "internal/api/client.go",
+        "must_contain": [
+          "http.MaxBytesReader(w, r.Body, 1<<20)"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func limitBody("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "channel-send-text-length-bounded",
+      "capability": "input-validation",
+      "kind": "invariant",
+      "family": "input-validation",
+      "severity": "low",
+      "requirement": "Channel message text is rejected when empty and when longer than 4096 chars, bounding stored message size at the handler.",
+      "measure": "send(text) => text != \"\" && len(text) <= 4096",
+      "code_anchor": "internal/api/client_channels.go:sendToChannel",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/client_channels.go:266, internal/api/client_channels.go:271, internal/api/client_channels.go:272",
+      "live_check": {
+        "file": "internal/api/client_channels.go",
+        "must_contain": [
+          "len(req.Text) > 4096",
+          "\"text too long (max 4096 chars)\", 400",
+          "\"text required\", 400"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (a *ClientAPI) sendToChannel("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "webhook-response-body-closed",
+      "capability": "resource-safety",
+      "kind": "invariant",
+      "family": "resource-safety",
+      "severity": "medium",
+      "requirement": "sendWebhook closes the HTTP response body on the success path to avoid connection/file-descriptor leaks on the shared webhook transport.",
+      "measure": "post(url) ok => resp.Body.Close() called",
+      "code_anchor": "internal/api/client_forward.go:sendWebhook",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/client_forward.go:250, internal/api/client_forward.go:244, internal/api/client_forward.go:229",
+      "live_check": {
+        "file": "internal/api/client_forward.go",
+        "must_contain": [
+          "resp.Body.Close()"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func sendWebhook("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "xff-trusted-only-from-private-peer",
+      "capability": "input-validation",
+      "kind": "invariant",
+      "family": "input-validation",
+      "severity": "high",
+      "requirement": "X-Forwarded-For is only trusted to derive the rate-limit client key when the immediate TCP peer is loopback/private; from a public peer the real RemoteAddr is used, so a remote client cannot spoof its rate-limit identity.",
+      "measure": "useXFF(r) => peerIP(r).IsLoopback() || peerIP(r).IsPrivate()",
+      "code_anchor": "internal/api/ratelimit.go:clientIP",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/ratelimit.go:99, internal/api/ratelimit.go:102, internal/api/ratelimit.go:103",
+      "live_check": {
+        "file": "internal/api/ratelimit.go",
+        "must_contain": [
+          "ip != nil && (ip.IsLoopback() || ip.IsPrivate())",
+          "r.Header.Get(\"X-Forwarded-For\")"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func clientIP("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "auth-and-send-routes-ratelimited",
+      "capability": "input-validation",
+      "kind": "invariant",
+      "family": "input-validation",
+      "severity": "high",
+      "requirement": "Auth, register, invite-accept, org-register and message-send routes are wrapped in RateLimit so credential-stuffing and message-flood are throttled per client IP (429).",
+      "measure": "route in {auth, register, send} => handler wrapped by RateLimit(rl, ...)",
+      "code_anchor": "internal/api/client.go:Route",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/client.go:82, internal/api/client.go:83, internal/api/client.go:94, internal/api/client.go:106",
+      "live_check": {
+        "file": "internal/api/client.go",
+        "must_contain": [
+          "RateLimit(authRL, limitBody(a.auth))",
+          "RateLimit(regRL, limitBody(a.register))",
+          "RateLimit(sendRL, limitBody(a.sendToBot))",
+          "RateLimit(sendRL, limitBody(a.sendToChannel))"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (a *ClientAPI) Route("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "set-user-role-requires-admin",
+      "capability": "authorization",
+      "kind": "invariant",
+      "family": "authz",
+      "severity": "critical",
+      "requirement": "Changing a user's role requires the caller to be an org admin; non-admins are rejected with 403 before any role mutation.",
+      "measure": "setUserRole(target, role) => IsAdmin(currentUser)",
+      "code_anchor": "internal/api/client_channels.go:setUserRole",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/client_channels.go:476, internal/api/client_channels.go:477, internal/store/users.go:72",
+      "live_check": {
+        "file": "internal/api/client_channels.go",
+        "must_contain": [
+          "if !s.IsAdmin(userID) {",
+          "\"admin only\", 403"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (a *ClientAPI) setUserRole("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "delete-user-requires-admin",
+      "capability": "authorization",
+      "kind": "invariant",
+      "family": "authz",
+      "severity": "critical",
+      "requirement": "Deleting a user requires the caller to be an org admin and forbids deleting self or the primary admin (id=1).",
+      "measure": "deleteUser(target) => IsAdmin(currentUser) && target != currentUser && target != 1",
+      "code_anchor": "internal/api/client_channels.go:deleteUser",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/client_channels.go:530, internal/api/client_channels.go:535, internal/api/client_channels.go:539",
+      "live_check": {
+        "file": "internal/api/client_channels.go",
+        "must_contain": [
+          "if !s.IsAdmin(userID) {",
+          "\"admin only\", 403",
+          "targetID == 1",
+          "\"cannot delete primary admin\""
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (a *ClientAPI) deleteUser("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "mark-read-open-for-unread-badge",
+      "capability": "multi-tenant-isolation",
+      "kind": "invariant",
+      "family": "authz",
+      "severity": "low",
+      "requirement": "markChannelRead is intentionally NOT subscription-gated: an unsubscribed org member may clear the unread badge of a channel they previously read (feature #101). Channel CONTENT (messages/info/readers/ack/send) stays subscription-gated, so no message content leaks.",
+      "measure": "markChannelRead(u, ch) allowed for any org member; read(messages/info/readers, ch) => member(u, ch).",
+      "code_anchor": "internal/api/client_channels.go:markChannelRead",
+      "enforced_by": "test",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "live_check": {
+        "file": "internal/api/client_channels.go",
+        "fn_sig": "func (a *ClientAPI) markChannelRead(",
+        "must_contain": [],
+        "must_not_contain": [
+          "s.IsSubscribed(channelID, userID)"
+        ]
+      },
+      "note": "RECLASSIFIED 2026-06-16: an earlier read flagged the absent IsSubscribed guard as a gap, but it is by design — feature #101 shows unread badges for unsubscribed channels and clears them via mark-read; re-adding the guard breaks tests/e2e/unread-unsubscribed.spec.js. This contract guards AGAINST re-adding it. Content endpoints stay gated (see channel-message-read-requires-subscription et al.).",
+      "proof": "tests/e2e/unread-unsubscribed.spec.js (#101); content gating channelMessages IsSubscribed at internal/api/client_channels.go.",
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "pragmas-verified-fail-closed-on-open",
+      "capability": "fail-closed",
+      "kind": "invariant",
+      "family": "fail-closed",
+      "severity": "high",
+      "requirement": "Store.New must verify that foreign_keys=1 and journal_mode=WAL actually took effect, returning an error (never a usable Store) if a DSN/driver regression silently disabled them.",
+      "measure": "New(path)=Ok(s) => fk(s)=1 AND (path=:memory: OR journal_mode(s)=WAL)",
+      "code_anchor": "internal/store/store.go:verifyPragmas",
+      "enforced_by": "runtime",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/store/store.go:42 (verifyPragmas called in New before return, db.Close+return err on fail), internal/store/store.go:58 (read PRAGMA foreign_keys), internal/store/store.go:61 (if fk != 1 -> error), internal/store/store.go:70 (!EqualFold(mode,\"wal\") -> error)",
+      "live_check": {
+        "file": "internal/store/store.go",
+        "must_contain": [
+          "PRAGMA foreign_keys",
+          "if fk != 1",
+          "PRAGMA journal_mode",
+          "EqualFold(mode, \"wal\")",
+          "return fmt.Errorf"
+        ],
+        "must_not_contain": [
+          "return nil // skip",
+          "// disabled"
+        ],
+        "fn_sig": "func (s *Store) verifyPragmas("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "store-dsn-sets-required-pragmas",
+      "capability": "fail-closed",
+      "kind": "invariant",
+      "family": "fail-closed",
+      "severity": "high",
+      "requirement": "The SQLite DSN built in New must set busy_timeout, WAL journal_mode, and foreign_keys on every pooled connection via the _pragma DSN key (the only key modernc.org/sqlite honors).",
+      "measure": "dsn contains _pragma=foreign_keys(1) AND _pragma=journal_mode(WAL) AND _pragma=busy_timeout(...)",
+      "code_anchor": "internal/store/store.go:New",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/store/store.go:29-35 (dsn built with _pragma= keys), internal/store/store.go:34 (_pragma=foreign_keys(1)), internal/store/store.go:25-28 (comment: modernc only honors _pragma)",
+      "live_check": {
+        "file": "internal/store/store.go",
+        "must_contain": [
+          "_pragma=foreign_keys(1)",
+          "_pragma=journal_mode(WAL)",
+          "_pragma=busy_timeout(5000)",
+          "verifyPragmas"
+        ],
+        "must_not_contain": [
+          "_journal_mode=",
+          "_busy_timeout="
+        ],
+        "fn_sig": "func New("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "cascade-delete-bot-is-transactional",
+      "capability": "write-atomicity",
+      "kind": "invariant",
+      "family": "atomicity",
+      "severity": "high",
+      "requirement": "DeleteBot must run all dependent-row deletions (callbacks, files, messages, chats, bot) inside a single transaction so a partial failure leaves no orphaned rows.",
+      "measure": "DeleteBot => atomic({del callback_queue, del files, del messages, del chats, del bots}) with rollback-on-error",
+      "code_anchor": "internal/store/bots.go:DeleteBot",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/store/bots.go:85 (tx := s.db.Begin()), internal/store/bots.go:89 (defer tx.Rollback()), internal/store/bots.go:96 (tx.Exec DELETE messages), internal/store/bots.go:99 (tx.Exec DELETE chats), internal/store/bots.go:105 (return tx.Commit())",
+      "live_check": {
+        "file": "internal/store/bots.go",
+        "must_contain": [
+          "s.db.Begin()",
+          "defer tx.Rollback()",
+          "tx.Exec(\"DELETE FROM chats",
+          "tx.Exec(\"DELETE FROM messages",
+          "return tx.Commit()"
+        ],
+        "must_not_contain": [
+          "s.db.Exec(\"DELETE FROM chats",
+          "s.db.Exec(\"DELETE FROM messages"
+        ],
+        "fn_sig": "func (s *Store) DeleteBot("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "cascade-delete-channel-is-transactional",
+      "capability": "write-atomicity",
+      "kind": "invariant",
+      "family": "atomicity",
+      "severity": "high",
+      "requirement": "DeleteChannel must delete channel_messages, channel_subscribers, channel_reads, and the channel itself inside one transaction with rollback on any error.",
+      "measure": "DeleteChannel => atomic({del channel_messages, del channel_subscribers, del channel_reads, del channels})",
+      "code_anchor": "internal/store/channels.go:DeleteChannel",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/store/channels.go:212 (s.db.Begin()), internal/store/channels.go:216 (defer tx.Rollback()), internal/store/channels.go:217-226 (tx.Exec deletes channel_messages/subscribers/reads/channels), internal/store/channels.go:229 (return tx.Commit())",
+      "live_check": {
+        "file": "internal/store/channels.go",
+        "must_contain": [
+          "s.db.Begin()",
+          "defer tx.Rollback()",
+          "tx.Exec(\"DELETE FROM channel_messages",
+          "tx.Exec(\"DELETE FROM channel_subscribers",
+          "tx.Exec(\"DELETE FROM channel_reads",
+          "return tx.Commit()"
+        ],
+        "must_not_contain": [
+          "s.db.Exec(\"DELETE FROM channel_messages WHERE channel_id"
+        ],
+        "fn_sig": "func (s *Store) DeleteChannel("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "cascade-delete-user-is-transactional",
+      "capability": "write-atomicity",
+      "kind": "invariant",
+      "family": "atomicity",
+      "severity": "high",
+      "requirement": "DeleteUser must remove all of a user's dependent rows (subscriptions, reads, push subs, messages, chats) and the user row inside a single transaction, rolling back on any error.",
+      "measure": "DeleteUser => atomic(cascade[] over channel_subscribers, channel_reads, push_subscriptions, messages, chats, users)",
+      "code_anchor": "internal/store/users.go:DeleteUser",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/store/users.go:80 (s.db.Begin()), internal/store/users.go:84 (defer tx.Rollback()), internal/store/users.go:93 (for _, stmt := range cascade), internal/store/users.go:94 (tx.Exec(stmt, userID)), internal/store/users.go:98 (return tx.Commit())",
+      "live_check": {
+        "file": "internal/store/users.go",
+        "must_contain": [
+          "s.db.Begin()",
+          "tx.Rollback()",
+          "for _, stmt := range cascade",
+          "tx.Exec(stmt, userID)",
+          "return tx.Commit()"
+        ],
+        "must_not_contain": [
+          "s.db.Exec(stmt"
+        ],
+        "fn_sig": "func (s *Store) DeleteUser("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "channel-messages-limit-clamped-lower",
+      "capability": "input-validation",
+      "kind": "invariant",
+      "family": "input-validation",
+      "severity": "medium",
+      "requirement": "ChannelMessages must clamp a non-positive limit to a finite default (50) because a negative LIMIT means 'unbounded' in SQLite and would return the entire table.",
+      "measure": "ChannelMessages(_, limit) => effectiveLimit >= 1 (limit<1 => 50)",
+      "code_anchor": "internal/store/channels.go:ChannelMessages",
+      "enforced_by": "test",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/store/channels.go:162 (if limit < 1), internal/store/channels.go:163 (limit = 50), internal/store/channels.go:166 (ORDER BY id DESC LIMIT ?), internal/store/limit_clamp_test.go:25 (asserts len<=50 for negative limits)",
+      "live_check": {
+        "file": "internal/store/channels.go",
+        "must_contain": [
+          "if limit < 1",
+          "limit = 50",
+          "LIMIT ?"
+        ],
+        "must_not_contain": [
+          "fmt.Sprintf(\"...LIMIT %d",
+          "+ strconv.Itoa(limit)"
+        ],
+        "fn_sig": "func (s *Store) ChannelMessages("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "chat-messages-limit-clamped-lower",
+      "capability": "input-validation",
+      "kind": "invariant",
+      "family": "input-validation",
+      "severity": "medium",
+      "requirement": "ChatMessages must clamp a non-positive limit to 50 to avoid SQLite's negative-LIMIT-is-unbounded behavior dumping a whole chat history.",
+      "measure": "ChatMessages(_, limit) => effectiveLimit >= 1 (limit<1 => 50)",
+      "code_anchor": "internal/store/messages.go:ChatMessages",
+      "enforced_by": "test",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/store/messages.go:55 (if limit < 1), internal/store/messages.go:56 (limit = 50), internal/store/messages.go:59 (ORDER BY created_at DESC LIMIT ?)",
+      "live_check": {
+        "file": "internal/store/messages.go",
+        "must_contain": [
+          "if limit < 1",
+          "limit = 50",
+          "LIMIT ?"
+        ],
+        "must_not_contain": [
+          "fmt.Sprintf",
+          "+ strconv"
+        ],
+        "fn_sig": "func (s *Store) ChatMessages("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "invite-consumption-atomic-conditional-update",
+      "capability": "write-atomicity",
+      "kind": "invariant",
+      "family": "atomicity",
+      "severity": "high",
+      "requirement": "UseInvite must consume an invite via a single conditional UPDATE that increments uses only when under max_uses and not expired, so concurrent redemptions cannot exceed the cap (no check-then-act race).",
+      "measure": "UseInvite(code) consumes iff (uses<max_uses AND now<expires_at), enforced in one atomic UPDATE...WHERE",
+      "code_anchor": "internal/store/invites.go:UseInvite",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/store/invites.go:17-20 (single conditional UPDATE uses=uses+1 WHERE uses<COALESCE(max_uses,50) AND expires_at > ?), internal/store/invites.go:24 (RowsAffected()), internal/store/invites.go:25 (if n == 0 -> diagnose)",
+      "live_check": {
+        "file": "internal/store/invites.go",
+        "must_contain": [
+          "UPDATE invites SET uses=uses+1 WHERE code=? AND uses<COALESCE(max_uses,50) AND expires_at >",
+          "RowsAffected()",
+          "if n == 0"
+        ],
+        "must_not_contain": [
+          "SELECT uses FROM invites",
+          "uses = uses + 1"
+        ],
+        "fn_sig": "func (s *Store) UseInvite("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "file-token-single-use-consumed-on-validate",
+      "capability": "authorization",
+      "kind": "invariant",
+      "family": "authz",
+      "severity": "high",
+      "requirement": "ValidateFileToken must delete (consume) the token row after a successful validation so a download token cannot be replayed.",
+      "measure": "ValidateFileToken(t)=Ok => row(t) deleted (single-use); expired token also deleted and rejected",
+      "code_anchor": "internal/store/files.go:ValidateFileToken",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/store/files.go:42 (SELECT user_id, expires_at FROM file_tokens WHERE token=?), internal/store/files.go:47-49 (After(expires) -> delete+reject), internal/store/files.go:51-52 (// Consume token (single-use) + DELETE), internal/store/files.go:53 (return userID, nil)",
+      "live_check": {
+        "file": "internal/store/files.go",
+        "must_contain": [
+          "expires_at FROM file_tokens WHERE token=?",
+          "time.Now().After(expires)",
+          "// Consume token (single-use)",
+          "DELETE FROM file_tokens WHERE token=?",
+          "return userID, nil"
+        ],
+        "must_not_contain": [
+          "// reusable"
+        ],
+        "fn_sig": "func (s *Store) ValidateFileToken("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "user-pin-stored-bcrypt-never-plaintext",
+      "capability": "authorization",
+      "kind": "invariant",
+      "family": "authz",
+      "severity": "critical",
+      "requirement": "User PINs must be hashed with bcrypt before storage (CreateUser, ResetPassword) and verified via constant-time bcrypt compare (AuthUser); the raw pin must never be written to the pin column.",
+      "measure": "writes to users.pin = bcrypt(pin); AuthUser uses bcrypt.CompareHashAndPassword (no plaintext equality)",
+      "code_anchor": "internal/store/users.go:GenerateFromPassword",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/store/users.go:20 (bcrypt.GenerateFromPassword in CreateUser), internal/store/users.go:24-25 (INSERT ... VALUES (?,?,?) with string(hash)), internal/store/users.go:41 (bcrypt.CompareHashAndPassword in AuthUser), internal/store/users.go:111 (ResetPassword GenerateFromPassword)",
+      "live_check": {
+        "file": "internal/store/users.go",
+        "must_contain": [
+          "bcrypt.GenerateFromPassword([]byte(pin)",
+          "bcrypt.CompareHashAndPassword"
+        ],
+        "must_not_contain": []
+      },
+      "note": "corrected anchor+strings to the real bcrypt calls in CreateUser/AuthUser/ResetPassword.",
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "store-queries-parameterized-no-sql-concat",
+      "capability": "injection-defense",
+      "kind": "invariant",
+      "family": "injection",
+      "severity": "critical",
+      "requirement": "Every SQL statement in the store package must use ? bind parameters for caller-supplied values; no user data may be concatenated or Sprintf'd into the query string.",
+      "measure": "forall query q in store/*.go: q has no fmt.Sprintf/string-concat of variables into SQL text",
+      "code_anchor": "internal/store/store.go:Store",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/store/channels.go:47 (ChannelByName WHERE bot_id=? AND name=?), internal/store/channels.go:36 (INSERT ... VALUES (?, ?, ?)), internal/store/channels.go:166 (ChannelMessages WHERE channel_id=? ... LIMIT ?); grep across internal/store/ found zero fmt.Sprintf in SQL",
+      "live_check_fn": "store_sql_parameterized",
+      "note": "expressed as a custom scan over all store/*.go (no Query/Exec(Sprintf|concat)) — stronger than a single-file substring.",
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "list-iterations-check-rows-err",
+      "capability": "resource-safety",
+      "kind": "invariant",
+      "family": "resource-safety",
+      "severity": "medium",
+      "requirement": "Every store list method that iterates rows.Next() must call rows.Err() after the loop and propagate it, so a partial/truncated result set caused by a mid-iteration driver error is reported rather than silently returned as success.",
+      "measure": "forall list-fn with rows.Next() loop: rows.Err() checked after loop, error returned",
+      "code_anchor": "internal/store/bots.go:ListBots",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/store/bots.go:45 (defer rows.Close()), internal/store/bots.go:47 (for rows.Next()), internal/store/bots.go:54-56 (if err := rows.Err(); err != nil { return nil, err }), internal/store/channels.go:73 + internal/store/users.go:61 (same pattern in other lists)",
+      "live_check": {
+        "file": "internal/store/bots.go",
+        "must_contain": [
+          "defer func() { _ = rows.Close() }()",
+          "for rows.Next()",
+          "if err := rows.Err(); err != nil",
+          "return nil, err"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (s *Store) ListBots("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "delete-bot-refuses-when-channels-attached",
+      "capability": "fail-closed",
+      "kind": "invariant",
+      "family": "fail-closed",
+      "severity": "medium",
+      "requirement": "DeleteBot must refuse (return an error, no deletion) when the bot still owns channels, forcing reassignment first and preventing channels from being orphaned to a missing bot_id.",
+      "measure": "DeleteBot(b) with COUNT(channels where bot_id=b)>0 => error AND no rows deleted",
+      "code_anchor": "internal/store/bots.go:DeleteBot",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/store/bots.go:79 (SELECT COUNT(*) FROM channels WHERE bot_id=?), internal/store/bots.go:82 (if count > 0 -> return error), internal/store/bots.go:83 (reassign them first), internal/store/bots.go:85 (s.db.Begin() only after guard passes)",
+      "live_check": {
+        "file": "internal/store/bots.go",
+        "must_contain": [
+          "SELECT COUNT(*) FROM channels WHERE bot_id=?",
+          "if count > 0",
+          "reassign them first",
+          "s.db.Begin()"
+        ],
+        "must_not_contain": [
+          "count >= 0 {",
+          "count < 0 {"
+        ],
+        "fn_sig": "func (s *Store) DeleteBot("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "setwebhook-blocks-ssrf-targets",
+      "capability": "ssrf-defense",
+      "kind": "invariant",
+      "family": "ssrf",
+      "severity": "critical",
+      "requirement": "setWebhook must reject webhook URLs that resolve to localhost, private, link-local, or cloud-metadata addresses before persisting them.",
+      "measure": "setWebhook(url) persists => !IsLocalURL(url)",
+      "code_anchor": "internal/bot/handler.go:setWebhook",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/bot/handler.go:452,internal/bot/handler.go:453,internal/bot/handler.go:456",
+      "live_check": {
+        "file": "internal/bot/handler.go",
+        "must_contain": [
+          "IsLocalURL(req.URL)",
+          "local URLs not allowed",
+          "return"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (h *Handler) setWebhook("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "islocalurl-blocks-all-resolved-ips",
+      "capability": "ssrf-defense",
+      "kind": "invariant",
+      "family": "ssrf",
+      "severity": "critical",
+      "requirement": "IsLocalURL must block a hostname if ANY of its resolved A/AAAA records is an internal address (DNS-rebinding A-record split protection), and must block unparsable URLs.",
+      "measure": "exists ip in LookupIP(host): IsBlockedIP(ip) => IsLocalURL(host)==true",
+      "code_anchor": "internal/bot/relay.go:IsLocalURL",
+      "enforced_by": "test",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/bot/relay.go:135,internal/bot/relay.go:139,internal/bot/relay.go:140",
+      "live_check": {
+        "file": "internal/bot/relay.go",
+        "must_contain": [
+          "net.LookupIP(host)",
+          "for _, ip := range ips",
+          "IsBlockedIP(ip)",
+          "return true"
+        ],
+        "must_not_contain": [
+          "return ips[0]"
+        ],
+        "fn_sig": "func IsLocalURL("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "isblockedip-covers-internal-ranges",
+      "capability": "ssrf-defense",
+      "kind": "invariant",
+      "family": "ssrf",
+      "severity": "critical",
+      "requirement": "IsBlockedIP must classify loopback, private, link-local (uni+multicast), and unspecified addresses as blocked SSRF destinations.",
+      "measure": "IsBlockedIP(ip) <=> ip in {loopback, private, link-local, unspecified}",
+      "code_anchor": "internal/bot/relay.go:IsBlockedIP",
+      "enforced_by": "test",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/bot/relay.go:149,internal/bot/relay.go:150,internal/bot/relay.go:151",
+      "live_check": {
+        "file": "internal/bot/relay.go",
+        "must_contain": [
+          "ip.IsLoopback()",
+          "ip.IsPrivate()",
+          "ip.IsLinkLocalUnicast()",
+          "ip.IsLinkLocalMulticast()",
+          "ip.IsUnspecified()"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func IsBlockedIP("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "ws-push-keyed-by-org",
+      "capability": "multi-tenant-isolation",
+      "kind": "invariant",
+      "family": "isolation",
+      "severity": "critical",
+      "requirement": "All WebSocket pushes to a chat/channel user must be keyed by the org store's OrgID so messages cannot leak across tenants sharing the same numeric user id.",
+      "measure": "SendToUser(key,...) => key startsWith store.OrgID + \":\"",
+      "code_anchor": "internal/bot/handler.go:pushMessageToChat",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/bot/handler.go:617,internal/bot/handler.go:618",
+      "live_check": {
+        "file": "internal/bot/handler.go",
+        "must_contain": [
+          "key := s.OrgID + \":\"",
+          "h.hub.SendToUser(key"
+        ],
+        "must_not_contain": [
+          "h.hub.SendToUser(fmt.Sprintf"
+        ],
+        "fn_sig": "func (h *Handler) pushMessageToChat("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "channel-push-fanout-org-scoped",
+      "capability": "multi-tenant-isolation",
+      "kind": "invariant",
+      "family": "isolation",
+      "severity": "critical",
+      "requirement": "Channel-message fan-out (WS broadcast and per-subscriber push) must be scoped to the originating org store's OrgID, never broadcast globally.",
+      "measure": "channelPush => SendToOrg(s.OrgID,...) AND subscriberKey startsWith s.OrgID",
+      "code_anchor": "internal/bot/handler.go:pushChannelMessage",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/bot/handler.go:653,internal/bot/handler.go:669",
+      "live_check": {
+        "file": "internal/bot/handler.go",
+        "must_contain": [
+          "h.hub.SendToOrg(s.OrgID",
+          "key := s.OrgID + \":\""
+        ],
+        "must_not_contain": [
+          "h.hub.Broadcast("
+        ],
+        "fn_sig": "func (h *Handler) pushChannelMessage("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "channel-push-fanout-panic-recovered",
+      "capability": "resource-safety",
+      "kind": "invariant",
+      "family": "resource-safety",
+      "severity": "high",
+      "requirement": "The off-request channel push fan-out goroutine must recover from panics so a single bad subscriber/provider cannot crash the process.",
+      "measure": "go func(fanout) contains defer recover()",
+      "code_anchor": "internal/bot/handler.go:pushChannelMessage",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/bot/handler.go:661,internal/bot/handler.go:663,internal/bot/handler.go:664",
+      "live_check": {
+        "file": "internal/bot/handler.go",
+        "must_contain": [
+          "go func()",
+          "defer func()",
+          "recover()",
+          "panic in channel push fan-out"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (h *Handler) pushChannelMessage("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "update-id-monotonic-on-push",
+      "capability": "write-atomicity",
+      "kind": "invariant",
+      "family": "atomicity",
+      "severity": "high",
+      "requirement": "Every queued Update must have its UpdateID overwritten with the atomic monotonic counter so long-poll offsets never collide.",
+      "measure": "Push(u) => u.UpdateID = nextID() where nextID = counter.Add(1)",
+      "code_anchor": "internal/bot/updates.go:Push",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/bot/updates.go:55,internal/bot/updates.go:38",
+      "live_check": {
+        "file": "internal/bot/updates.go",
+        "must_contain": [
+          "u.UpdateID = q.nextID()"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (q *UpdateQueue) Push("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "poll-timer-stop-no-leak",
+      "capability": "resource-safety",
+      "kind": "invariant",
+      "family": "resource-safety",
+      "severity": "high",
+      "requirement": "Long-poll Poll must use time.NewTimer with deferred Stop (not time.Tick / time.After in a loop) so timers are released and no goroutine/timer leaks per poll.",
+      "measure": "Poll uses NewTimer + defer timer.Stop()",
+      "code_anchor": "internal/bot/updates.go:Poll",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/bot/updates.go:98,internal/bot/updates.go:99,internal/bot/updates.go:117",
+      "live_check": {
+        "file": "internal/bot/updates.go",
+        "must_contain": [
+          "time.NewTimer(timeout)",
+          "defer timer.Stop()",
+          "case <-timer.C"
+        ],
+        "must_not_contain": [
+          "time.Tick(",
+          "time.After("
+        ],
+        "fn_sig": "func (q *UpdateQueue) Poll("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "debounce-ticker-stop-no-leak",
+      "capability": "resource-safety",
+      "kind": "invariant",
+      "family": "resource-safety",
+      "severity": "medium",
+      "requirement": "Debouncer cleanup loop must use time.NewTicker with deferred Stop (not time.Tick) so the cleanup goroutine's ticker is released.",
+      "measure": "Debouncer.cleanup uses NewTicker + defer ticker.Stop()",
+      "code_anchor": "internal/bot/debounce.go:cleanup",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/bot/debounce.go:43,internal/bot/debounce.go:44,internal/bot/debounce.go:45",
+      "live_check": {
+        "file": "internal/bot/debounce.go",
+        "must_contain": [
+          "time.NewTicker(d.window)",
+          "defer ticker.Stop()",
+          "for range ticker.C"
+        ],
+        "must_not_contain": [
+          "time.Tick("
+        ],
+        "fn_sig": "func (d *Debouncer) cleanup("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "debounce-sha256-ttl-dedup",
+      "capability": "fail-closed",
+      "kind": "invariant",
+      "family": "fail-closed",
+      "severity": "medium",
+      "requirement": "Webhook dedup must key on a SHA256 digest of the raw body and treat a payload as duplicate only within the configured TTL window (time.Since(t) < window).",
+      "measure": "IsDuplicate(d) <=> sha256(d) seen AND time.Since(seen) < window",
+      "code_anchor": "internal/bot/debounce.go:IsDuplicate",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/bot/debounce.go:31,internal/bot/debounce.go:35,internal/bot/debounce.go:38",
+      "live_check": {
+        "file": "internal/bot/debounce.go",
+        "must_contain": [
+          "sha256.Sum256(data)",
+          "time.Since(t) < d.window",
+          "return true",
+          "d.seen[key] = time.Now()"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (d *Debouncer) IsDuplicate("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "webhook-body-size-bounded",
+      "capability": "resource-safety",
+      "kind": "invariant",
+      "family": "resource-safety",
+      "severity": "high",
+      "requirement": "The webhook ingest path must wrap the request body in MaxBytesReader before reading it, bounding memory per request.",
+      "measure": "webhook reads body => r.Body = MaxBytesReader(.., 2MB) precedes io.ReadAll",
+      "code_anchor": "internal/bot/webhook.go:webhook",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/bot/webhook.go:88,internal/bot/webhook.go:89",
+      "live_check": {
+        "file": "internal/bot/webhook.go",
+        "must_contain": [
+          "http.MaxBytesReader(w, r.Body, 2<<20)",
+          "io.ReadAll(r.Body)"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (h *Handler) webhook("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "bot-api-body-size-bounded",
+      "capability": "resource-safety",
+      "kind": "invariant",
+      "family": "resource-safety",
+      "severity": "high",
+      "requirement": "The POST bot-API dispatcher must cap request bodies via MaxBytesReader before routing to any method handler.",
+      "measure": "dispatch => r.Body = MaxBytesReader(.., 1MB) before handler dispatch",
+      "code_anchor": "internal/bot/route.go:dispatch",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/bot/route.go:182",
+      "live_check": {
+        "file": "internal/bot/route.go",
+        "must_contain": [
+          "http.MaxBytesReader(w, r.Body, 1<<20)"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (h *Handler) dispatch("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "sendmessage-text-clamped",
+      "capability": "input-validation",
+      "kind": "invariant",
+      "family": "input-validation",
+      "severity": "medium",
+      "requirement": "sendMessage must reject empty text and text longer than 4096 chars before persisting.",
+      "measure": "sendMessage persists => 0 < len(Text) <= 4096",
+      "code_anchor": "internal/bot/handler.go:sendMessage",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/bot/handler.go:270,internal/bot/handler.go:275,internal/bot/handler.go:276",
+      "live_check": {
+        "file": "internal/bot/handler.go",
+        "must_contain": [
+          "req.Text == \"\"",
+          "len(req.Text) > 4096",
+          "text too long"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (h *Handler) sendMessage("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "template-payload-data-not-parsed",
+      "capability": "injection-defense",
+      "kind": "invariant",
+      "family": "injection",
+      "severity": "high",
+      "requirement": "Untrusted webhook payloads must only be passed as DATA to a pre-parsed template (Execute), never used as a template source (Parse), preventing template-injection; templates are parsed only from fixed const strings or local env-file paths.",
+      "measure": "Render(payload) => Execute(parsedTemplate, payload) AND no Parse(payload)",
+      "code_anchor": "internal/bot/templates.go:Render",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/bot/templates.go:165,internal/bot/templates.go:171",
+      "live_check": {
+        "file": "internal/bot/templates.go",
+        "must_contain": [
+          "t.Execute(&buf, payload)",
+          "te.templates[format]"
+        ],
+        "must_not_contain": [
+          ".Parse(payload",
+          ".Parse(string(payload",
+          ".Parse(fmt.Sprint(payload"
+        ],
+        "fn_sig": "func (te *TemplateEngine) Render("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "relay-ws-origin-checked",
+      "capability": "authorization",
+      "kind": "invariant",
+      "family": "authz",
+      "severity": "high",
+      "requirement": "The bot relay WebSocket upgrader must validate the Origin header against the request host (CSWSH protection), rejecting cross-origin Origins (only same-host/localhost/127.0.0.1 allowed; empty Origin from non-browser clients allowed).",
+      "measure": "Upgrade allowed => Origin empty OR Origin.host in {reqHost, localhost, 127.0.0.1}",
+      "code_anchor": "internal/bot/relay.go:relayUpgrader",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/bot/relay.go:20,internal/bot/relay.go:29,internal/bot/relay.go:34",
+      "live_check": {
+        "file": "internal/bot/relay.go",
+        "must_contain": [
+          "CheckOrigin: func(r *http.Request) bool",
+          "u.Hostname()",
+          "return host == reqHost"
+        ],
+        "must_not_contain": [
+          "CheckOrigin: func(r *http.Request) bool { return true }",
+          "return true\n\t},"
+        ]
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "edit-delete-requires-chat-ownership",
+      "capability": "authorization",
+      "kind": "invariant",
+      "family": "authz",
+      "severity": "high",
+      "requirement": "editMessageText and deleteMessage on a private chat must verify the bot owns the chat (ChatBotID == bot.ID) before mutating, returning 403 otherwise.",
+      "measure": "editMessage(chatID) mutates => ChatBotID(chatID) == bot.ID",
+      "code_anchor": "internal/bot/handler.go:editMessageText",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "PARTIAL",
+      "proof": "internal/bot/handler.go:358,internal/bot/handler.go:359,internal/bot/handler.go:398",
+      "live_check": {
+        "file": "internal/bot/handler.go",
+        "must_contain": [
+          "chatBotID, _ := h.db(r).ChatBotID(req.ChatID)",
+          "chatBotID != bot.ID",
+          "forbidden"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (h *Handler) editMessageText("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "servefile-requires-token",
+      "capability": "authorization",
+      "kind": "invariant",
+      "family": "authz",
+      "severity": "high",
+      "requirement": "serveFile must require a JWT or 32-hex file-token (Authorization header or ?token=) and only serve files resolved through a store lookup; missing token returns 401 and unresolved fileID returns 404.",
+      "measure": "serveFile serves path => tokenValidated AND path from store.GetFile(fileID)",
+      "code_anchor": "internal/bot/handler.go:serveFile",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/bot/handler.go:560,internal/bot/handler.go:577,internal/bot/handler.go:602",
+      "live_check": {
+        "file": "internal/bot/handler.go",
+        "must_contain": [
+          "if tokenStr == \"\"",
+          "http.StatusUnauthorized",
+          "len(tokenStr) == 32 && isHex(tokenStr)",
+          "http.NotFound(w, r)"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (h *Handler) serveFile("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "ws-hub-keyed-by-org-userid",
+      "capability": "multi-tenant-isolation",
+      "kind": "invariant",
+      "family": "isolation",
+      "severity": "critical",
+      "requirement": "Every WebSocket connection is registered in the Hub under a composite key 'orgID:userID', so connection lookup is always namespaced by org.",
+      "measure": "register(conn) => hubKey == orgID + \":\" + userID  (no key lacks org prefix)",
+      "code_anchor": "internal/ws/hub.go:Hub",
+      "enforced_by": "test",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/ws/hub.go:25, internal/ws/hub.go:22, internal/api/client_chat.go:248",
+      "live_check": {
+        "file": "internal/ws/hub.go",
+        "must_contain": [
+          "conns         map[string][]*Conn",
+          "\"orgID:userID\""
+        ],
+        "must_not_contain": [
+          "map[int64][]*Conn"
+        ],
+        "fn_sig": "type Hub struct {"
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "sendtoorg-prefix-scoped-fanout",
+      "capability": "multi-tenant-isolation",
+      "kind": "invariant",
+      "family": "isolation",
+      "severity": "critical",
+      "requirement": "SendToOrg broadcasts only to connection keys that start with 'orgID:', never to other orgs.",
+      "measure": "SendToOrg(org, evt) delivers to key k  <=>  k startsWith (org + \":\")",
+      "code_anchor": "internal/ws/hub.go:SendToOrg",
+      "enforced_by": "test",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/ws/hub.go:118, internal/ws/hub.go:123, internal/ws/hub_test.go:215",
+      "live_check": {
+        "file": "internal/ws/hub.go",
+        "must_contain": [
+          "prefix := orgID + \":\"",
+          "strings.HasPrefix(key, prefix)"
+        ],
+        "must_not_contain": [
+          "for key, conns := range h.conns {\n\t\tfor _, c := range conns"
+        ],
+        "fn_sig": "func (h *Hub) SendToOrg("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "org-slug-excludes-colon-separator",
+      "capability": "multi-tenant-isolation",
+      "kind": "invariant",
+      "family": "isolation",
+      "severity": "critical",
+      "requirement": "Org slugs are restricted to [a-z0-9-], guaranteeing no slug contains the ':' separator, so prefix-based org matching cannot be spoofed by a crafted slug.",
+      "measure": "valid(slug) => slug matches ^[a-z0-9-]+$  =>  ':' not in slug  =>  prefix(orgA+\":\") never matches keys of orgB",
+      "code_anchor": "internal/org/manager.go:Register",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/org/manager.go:166, internal/org/manager.go:167, internal/ws/hub.go:118",
+      "live_check": {
+        "file": "internal/org/manager.go",
+        "must_contain": [
+          "(c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '-'",
+          "slug must contain only lowercase letters, digits and hyphens"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (m *Manager) Register("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "push-fanout-uses-per-org-store",
+      "capability": "multi-tenant-isolation",
+      "kind": "invariant",
+      "family": "isolation",
+      "severity": "critical",
+      "requirement": "Push notifications look up subscriptions from the caller-provided org store, never a global/default store, so a user only receives pushes for subscriptions in their own org DB.",
+      "measure": "SendToUser(s, uid) reads subs only from s (the org-scoped store), not a service-held store",
+      "code_anchor": "internal/notify/push.go:SendToUser",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/notify/push.go:71, internal/notify/push.go:76, internal/bot/handler.go:620",
+      "live_check": {
+        "file": "internal/notify/push.go",
+        "must_contain": [
+          "s *store.Store",
+          "s.UserPushSubscriptions(userID)"
+        ],
+        "must_not_contain": [
+          "p.store",
+          "p.defaultStore"
+        ],
+        "fn_sig": "func (p *PushService) SendToUser("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "conn-send-nonblocking-drop",
+      "capability": "resource-safety",
+      "kind": "invariant",
+      "family": "resource-safety",
+      "severity": "high",
+      "requirement": "Conn.Send must never block: on a full per-connection buffer it drops the message instead of blocking the Hub (which holds RLock during fan-out).",
+      "measure": "Send(data) on full buffer => message dropped, caller returns immediately (no goroutine stall under hub lock)",
+      "code_anchor": "internal/ws/conn.go:Send",
+      "enforced_by": "test",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/ws/conn.go:35, internal/ws/conn.go:37, internal/ws/hub_test.go:185",
+      "live_check": {
+        "file": "internal/ws/conn.go",
+        "must_contain": [
+          "select {",
+          "case c.send <- data:",
+          "default:"
+        ],
+        "must_not_contain": [
+          "c.send <- data\n}"
+        ],
+        "fn_sig": "func (c *Conn) Send("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "conn-single-writer-writepump",
+      "capability": "resource-safety",
+      "kind": "invariant",
+      "family": "resource-safety",
+      "severity": "high",
+      "requirement": "All websocket writes go through the single WritePump goroutine reading from the send channel; Send only enqueues, never writes the socket directly.",
+      "measure": "ws.WriteMessage called only inside WritePump (single writer) — no concurrent writes to the gorilla conn",
+      "code_anchor": "internal/ws/conn.go:WritePump",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/ws/conn.go:74, internal/ws/conn.go:80, internal/ws/conn.go:35",
+      "live_check": {
+        "file": "internal/ws/conn.go",
+        "must_contain": [
+          "case msg, ok := <-c.send:",
+          "c.ws.WriteMessage(websocket.TextMessage, msg)",
+          "SetWriteDeadline"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (c *Conn) WritePump("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "conn-read-limit-and-deadline",
+      "capability": "resource-safety",
+      "kind": "invariant",
+      "family": "resource-safety",
+      "severity": "high",
+      "requirement": "ReadPump bounds inbound frame size (maxMsgSize) and sets a read deadline refreshed by pong, preventing unbounded-memory frames and dead-connection goroutine leaks.",
+      "measure": "ReadPump => SetReadLimit(maxMsgSize) set AND SetReadDeadline(pongWait) set AND defer Unregister",
+      "code_anchor": "internal/ws/conn.go:ReadPump",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/ws/conn.go:49, internal/ws/conn.go:50, internal/ws/conn.go:45",
+      "live_check": {
+        "file": "internal/ws/conn.go",
+        "must_contain": [
+          "c.ws.SetReadLimit(maxMsgSize)",
+          "SetReadDeadline",
+          "hub.Unregister(c.Key, c)"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (c *Conn) ReadPump("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "unregister-cleans-status-maps",
+      "capability": "resource-safety",
+      "kind": "invariant",
+      "family": "resource-safety",
+      "severity": "medium",
+      "requirement": "When a user's last connection is removed, Unregister deletes the per-key entries from conns, status, and activeChannel maps so stale presence/state does not accumulate or leak across reconnects.",
+      "measure": "Unregister(last conn) => delete(conns,key) AND delete(status,key) AND delete(activeChannel,key)",
+      "code_anchor": "internal/ws/hub.go:Unregister",
+      "enforced_by": "test",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/ws/hub.go:59, internal/ws/hub.go:60, internal/ws/hub.go:61",
+      "live_check": {
+        "file": "internal/ws/hub.go",
+        "must_contain": [
+          "delete(h.conns, key)",
+          "delete(h.status, key)",
+          "delete(h.activeChannel, key)",
+          "metrics.WSConnections.Dec()"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (h *Hub) Unregister("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "push-response-body-closed-both-paths",
+      "capability": "resource-safety",
+      "kind": "invariant",
+      "family": "resource-safety",
+      "severity": "high",
+      "requirement": "The Web Push HTTP response body is closed on both the error path and the success path, preventing connection/file-descriptor leaks under sustained push load.",
+      "measure": "for each sub: resp.Body.Close() reached on err!=nil branch AND on err==nil branch",
+      "code_anchor": "internal/notify/push.go:SendToUser",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/notify/push.go:103, internal/notify/push.go:118, internal/notify/push.go:120",
+      "live_check": {
+        "file": "internal/notify/push.go",
+        "must_contain": [
+          "if resp != nil && resp.Body != nil {",
+          "_ = resp.Body.Close()\n\n\t\tif resp.StatusCode >= 300"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (p *PushService) SendToUser("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "push-bounded-http-timeout",
+      "capability": "resource-safety",
+      "kind": "invariant",
+      "family": "resource-safety",
+      "severity": "high",
+      "requirement": "Push HTTP requests use a shared client with a non-zero Timeout, so a hung push provider cannot block the webhook-ingest goroutine indefinitely (webpush-go's default client has no timeout).",
+      "measure": "PushService.httpClient.Timeout == pushTimeout (>0) and is passed as Options.HTTPClient",
+      "code_anchor": "internal/notify/push.go:NewPushService",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/notify/push.go:20, internal/notify/push.go:36, internal/notify/push.go:37",
+      "live_check": {
+        "file": "internal/notify/push.go",
+        "must_contain": [
+          "Timeout: pushTimeout",
+          "httpClient: &http.Client{"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func NewPushService("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "push-not-configured-fail-closed",
+      "capability": "fail-closed",
+      "kind": "invariant",
+      "family": "fail-closed",
+      "severity": "medium",
+      "requirement": "When VAPID is not configured (empty public key), SendToUser returns immediately without attempting unauthenticated push, avoiding errors and spurious metric noise.",
+      "measure": "vapidPub == \"\" => early return, no webpush.SendNotification call",
+      "code_anchor": "internal/notify/push.go:SendToUser",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/notify/push.go:72, internal/notify/push.go:73",
+      "live_check": {
+        "file": "internal/notify/push.go",
+        "must_contain": [
+          "if p.vapidPub == \"\" {",
+          "return // push not configured"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (p *PushService) SendToUser("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "push-delivery-outcome-metrics-recorded",
+      "capability": "observability",
+      "kind": "invariant",
+      "family": "observability",
+      "severity": "medium",
+      "requirement": "Push fan-out records delivery outcome (sent/failed/stale) into PushTotal, making 'did the alert reach a recipient' observable — the platform's primary function.",
+      "measure": "SendToUser increments PushTotal{result} for each of sent, failed, stale after the send loop",
+      "code_anchor": "internal/notify/push.go:SendToUser",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/notify/push.go:138, internal/notify/push.go:139, internal/notify/push.go:140",
+      "live_check": {
+        "file": "internal/notify/push.go",
+        "must_contain": [
+          "metrics.PushTotal.WithLabelValues(\"sent\")",
+          "metrics.PushTotal.WithLabelValues(\"failed\")",
+          "metrics.PushTotal.WithLabelValues(\"stale\")"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (p *PushService) SendToUser("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "push-stale-subscription-pruned",
+      "capability": "resource-safety",
+      "kind": "invariant",
+      "family": "resource-safety",
+      "severity": "medium",
+      "requirement": "Subscriptions that the push provider reports as gone (401/403/404/410) are deleted from the org store, preventing unbounded growth of dead subscriptions and repeated failures.",
+      "measure": "resp.StatusCode in {401,403,404,410} => s.DeletePushSubscription(sub.Endpoint)",
+      "code_anchor": "internal/notify/push.go:SendToUser",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/notify/push.go:124, internal/notify/push.go:126, internal/notify/push.go:114",
+      "live_check": {
+        "file": "internal/notify/push.go",
+        "must_contain": [
+          "resp.StatusCode == 401 || resp.StatusCode == 410 || resp.StatusCode == 404 || resp.StatusCode == 403",
+          "s.DeletePushSubscription(sub.Endpoint)"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (p *PushService) SendToUser("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "org-default-undeletable",
+      "capability": "fail-closed",
+      "kind": "invariant",
+      "family": "fail-closed",
+      "severity": "medium",
+      "requirement": "The 'default' org cannot be deleted, guaranteeing the fallback tenant (used by OrgByToken backwards-compat path) always exists.",
+      "measure": "DeleteOrg(\"default\") => error, store/dir untouched",
+      "code_anchor": "internal/org/manager.go:DeleteOrg",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/org/manager.go:315, internal/org/manager.go:316, internal/org/manager.go:96",
+      "live_check": {
+        "file": "internal/org/manager.go",
+        "must_contain": [
+          "if slug == \"default\" {",
+          "cannot delete default org"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (m *Manager) DeleteOrg("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "org-token-prefix-only-logging",
+      "capability": "observability",
+      "kind": "invariant",
+      "family": "observability",
+      "severity": "high",
+      "requirement": "Bot tokens (the sole credential for /bot/<token> and /hook/<token>) are never logged in full — only an 8-char prefix is emitted.",
+      "measure": "slog calls referencing the bot token log token_prefix=botToken[:8], never the full token",
+      "code_anchor": "internal/org/manager.go:Register",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/org/manager.go:261, internal/api/admin.go:121, internal/bot/webhook.go:74",
+      "live_check": {
+        "file": "internal/org/manager.go",
+        "must_contain": [
+          "\"token_prefix\", botToken[:8]"
+        ],
+        "must_not_contain": [
+          "\"token\", botToken"
+        ],
+        "fn_sig": "func (m *Manager) Register("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "panic-recover-wraps-handler-chain",
+      "capability": "resource-safety",
+      "kind": "invariant",
+      "family": "resource-safety",
+      "severity": "critical",
+      "requirement": "The HTTP server's top-level handler must be wrapped in api.Recover so any downstream panic on the request goroutine is logged and turned into a 500 instead of dropping the connection / crashing the process.",
+      "measure": "server.Handler == Recover(...) ; panic(downstream) => log(stack) && status==500",
+      "code_anchor": "cmd/pusk/main.go:main",
+      "enforced_by": "test",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "cmd/pusk/main.go:240, internal/api/middleware.go:19, internal/api/recover_test.go:14",
+      "live_check": {
+        "file": "cmd/pusk/main.go",
+        "must_contain": [
+          "Handler:",
+          "api.Recover("
+        ],
+        "must_not_contain": [
+          "Handler:           securityHeaders(",
+          "Handler:           bot.TelegramCompat("
+        ],
+        "fn_sig": "func main("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "recover-returns-500-not-repanic",
+      "capability": "fail-closed",
+      "kind": "invariant",
+      "family": "fail-closed",
+      "severity": "high",
+      "requirement": "The Recover middleware must catch the panic, log it with a stack trace, and emit a 500 — it must not re-panic or leave the response uncommitted.",
+      "measure": "recover()!=nil => slog.Error(stack) && jsonErr(500)",
+      "code_anchor": "internal/api/middleware.go:Recover",
+      "enforced_by": "test",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/middleware.go:22, internal/api/middleware.go:23, internal/api/middleware.go:24",
+      "live_check": {
+        "file": "internal/api/middleware.go",
+        "must_contain": [
+          "recover()",
+          "debug.Stack()",
+          "jsonErr(w, \"internal error\", http.StatusInternalServerError)"
+        ],
+        "must_not_contain": [
+          "panic(rec)"
+        ],
+        "fn_sig": "func Recover("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "forward-goroutines-guard-panic",
+      "capability": "resource-safety",
+      "kind": "invariant",
+      "family": "resource-safety",
+      "severity": "critical",
+      "requirement": "Async forward functions dispatched as goroutines (forwardToBot, forwardCallback) must defer recoverLog so a panic during forwarding does not kill the whole process (net/http only recovers panics on the request goroutine).",
+      "measure": "go forwardToBot/forwardCallback => first stmt is defer recoverLog(name)",
+      "code_anchor": "internal/api/client_forward.go:forwardToBot",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/client_forward.go:98, internal/api/client_chat.go:161, internal/api/middleware.go:34",
+      "live_check": {
+        "file": "internal/api/client_forward.go",
+        "must_contain": [
+          "defer recoverLog(\"forwardToBot\")"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (a *ClientAPI) forwardToBot("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "forward-callback-goroutine-guard-panic",
+      "capability": "resource-safety",
+      "kind": "invariant",
+      "family": "resource-safety",
+      "severity": "high",
+      "requirement": "forwardCallback (dispatched via `go a.forwardCallback`) must defer recoverLog as the first statement so a panic on the callback-forward goroutine is contained.",
+      "measure": "go forwardCallback => defer recoverLog(\"forwardCallback\")",
+      "code_anchor": "internal/api/client_forward.go:forwardCallback",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "internal/api/client_forward.go:147, internal/api/client_chat.go:184, internal/api/middleware.go:34",
+      "live_check": {
+        "file": "internal/api/client_forward.go",
+        "must_contain": [
+          "defer recoverLog(\"forwardCallback\")"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (a *ClientAPI) forwardCallback("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "chat-start-forward-goroutine-unguarded",
+      "capability": "resource-safety",
+      "kind": "blind-spot",
+      "family": "resource-safety",
+      "severity": "medium",
+      "requirement": "The inline `go func()` that forwards the synthetic /start update (calls sendWebhook) is NOT guarded by recover/recoverLog, unlike forwardToBot/forwardCallback — a panic on this goroutine would crash the process (blind spot the existing detectors miss).",
+      "measure": "go func(){...sendWebhook...} SHOULD contain recover-guard but does not",
+      "code_anchor": "internal/api/client_chat.go:startChat",
+      "enforced_by": "NONE",
+      "enforced_at": "none",
+      "status": "GAP",
+      "proof": "internal/api/client_chat.go:81, internal/api/client_chat.go:92, internal/api/middleware.go:34",
+      "accepted": false,
+      "live_check": {
+        "file": "internal/api/client_chat.go",
+        "must_contain": [
+          "defer recoverLog("
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func (a *ClientAPI) startChat("
+      },
+      "note": "OPEN gap: startChat's inline forward goroutine calls sendWebhook/relay.Send with NO defer recoverLog, unlike its guarded siblings forwardToBot/forwardCallback — an unrecovered goroutine panic crashes the process. live_check asserts the recover guard in startChat -> currently False (gap confirmed).",
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "metrics-endpoint-restricts-source-ip",
+      "capability": "authorization",
+      "kind": "invariant",
+      "family": "authz",
+      "severity": "high",
+      "requirement": "The /metrics endpoint must reject requests whose RemoteAddr is not loopback or a private/Tailscale CIDR, so Prometheus internals are not exposed to the public internet.",
+      "measure": "GET /metrics from host not in {127.0.0.1,::1,10.,192.168.,172.,100.} => 403",
+      "code_anchor": "cmd/pusk/main.go:main",
+      "enforced_by": "runtime",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "cmd/pusk/main.go:184, cmd/pusk/main.go:185, cmd/pusk/main.go:187",
+      "live_check": {
+        "file": "cmd/pusk/main.go",
+        "must_contain": [
+          "GET /metrics",
+          "net.SplitHostPort(r.RemoteAddr)",
+          "http.StatusForbidden",
+          "127.0.0.1"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func main("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "graceful-shutdown-on-signals",
+      "capability": "resource-safety",
+      "kind": "invariant",
+      "family": "resource-safety",
+      "severity": "medium",
+      "requirement": "The process must trap SIGTERM/SIGINT and call srv.Shutdown with a bounded context so in-flight requests drain instead of being killed abruptly (container/systemd stop safety).",
+      "measure": "SIGTERM|SIGINT => srv.Shutdown(ctx with timeout)",
+      "code_anchor": "cmd/pusk/main.go:main",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "cmd/pusk/main.go:247, cmd/pusk/main.go:251, cmd/pusk/main.go:253",
+      "live_check": {
+        "file": "cmd/pusk/main.go",
+        "must_contain": [
+          "signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)",
+          "srv.Shutdown(ctx)",
+          "context.WithTimeout"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func main("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "server-read-header-timeout-set",
+      "capability": "resource-safety",
+      "kind": "invariant",
+      "family": "resource-safety",
+      "severity": "medium",
+      "requirement": "The http.Server must set ReadHeaderTimeout so a slow-header (Slowloris) client cannot pin a connection/goroutine indefinitely.",
+      "measure": "http.Server.ReadHeaderTimeout != 0",
+      "code_anchor": "cmd/pusk/main.go:main",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "cmd/pusk/main.go:238, cmd/pusk/main.go:241",
+      "live_check": {
+        "file": "cmd/pusk/main.go",
+        "must_contain": [
+          "http.Server{",
+          "ReadHeaderTimeout:"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func main("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "healthcheck-flag-exits-without-serving",
+      "capability": "observability",
+      "kind": "invariant",
+      "family": "observability",
+      "severity": "medium",
+      "requirement": "The -healthcheck flag must dial the listen address and os.Exit(0/1) WITHOUT starting the server, so the scratch image's HEALTHCHECK (which has no wget) can probe via the binary itself.",
+      "measure": "flag healthcheck==true => net.DialTimeout then os.Exit; never reaches ListenAndServe",
+      "code_anchor": "cmd/pusk/main.go:main",
+      "enforced_by": "grep",
+      "enforced_at": "runtime",
+      "status": "OK",
+      "proof": "cmd/pusk/main.go:57, cmd/pusk/main.go:60, cmd/pusk/main.go:71, cmd/pusk/main.go:76",
+      "live_check": {
+        "file": "cmd/pusk/main.go",
+        "must_contain": [
+          "flag.Bool(\"healthcheck\"",
+          "if *healthcheck",
+          "net.DialTimeout(\"tcp\"",
+          "os.Exit(0)"
+        ],
+        "must_not_contain": [],
+        "fn_sig": "func main("
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "container-runs-as-nonroot",
+      "capability": "build-isolation",
+      "kind": "deployment-constraint",
+      "family": "build-isolation",
+      "severity": "high",
+      "requirement": "Both container images must drop to an unprivileged user (USER pusk) before running the binary, so a compromise does not yield root inside the container.",
+      "measure": "Dockerfile contains `USER pusk` after binary copy; never runs as root",
+      "code_anchor": "Dockerfile:USER",
+      "enforced_by": "grep",
+      "enforced_at": "none",
+      "status": "OK",
+      "proof": "Dockerfile:18, Dockerfile:19, Dockerfile.scratch:24",
+      "live_check": {
+        "file": "Dockerfile",
+        "must_contain": [
+          "USER pusk"
+        ],
+        "must_not_contain": [
+          "USER root"
+        ]
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "scratch-image-minimal-nonroot-fstec",
+      "capability": "build-isolation",
+      "kind": "deployment-constraint",
+      "family": "build-isolation",
+      "severity": "high",
+      "requirement": "The FSTEC scratch image must run on `FROM scratch` (no shell/package manager) as the non-root pusk user (uid 10001) carried in via /etc/passwd, with healthcheck via the binary not wget.",
+      "measure": "scratch base && copies /etc/passwd && USER pusk && HEALTHCHECK uses /app/pusk -healthcheck",
+      "code_anchor": "Dockerfile.scratch:scratch",
+      "enforced_by": "grep",
+      "enforced_at": "none",
+      "status": "OK",
+      "proof": "Dockerfile.scratch:11, Dockerfile.scratch:14, Dockerfile.scratch:24, Dockerfile.scratch:26",
+      "live_check": {
+        "file": "Dockerfile.scratch",
+        "must_contain": [
+          "FROM scratch",
+          "COPY --from=certs /etc/passwd /etc/passwd",
+          "USER pusk",
+          "[\"/app/pusk\", \"-healthcheck\"]"
+        ],
+        "must_not_contain": [
+          "wget"
+        ]
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    },
+    {
+      "id": "demo-code-isolated-by-build-tag",
+      "capability": "build-isolation",
+      "kind": "deployment-constraint",
+      "family": "build-isolation",
+      "severity": "critical",
+      "requirement": "Demo seeding (guest user, demo bots/tokens) must live behind //go:build demo with a //go:build !demo stub, so the release binary contains no demo credentials or seed data.",
+      "measure": "demo.go has //go:build demo && demo_stub.go has //go:build !demo && release build => initDemo is no-op",
+      "code_anchor": "cmd/pusk/demo.go:initDemo",
+      "enforced_by": "grep",
+      "enforced_at": "compiler",
+      "status": "OK",
+      "proof": "cmd/pusk/demo.go:1, cmd/pusk/demo_stub.go:1, cmd/pusk/main.go:113",
+      "live_check": {
+        "file": "cmd/pusk/demo.go",
+        "must_contain": [
+          "//go:build demo"
+        ],
+        "must_not_contain": [
+          "//go:build !demo",
+          "|| !demo"
+        ]
+      },
+      "deployment": {
+        "ce": "HOLDS (single-binary, single-process)"
+      }
+    }
+  ]
+}

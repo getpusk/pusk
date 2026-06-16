@@ -2,7 +2,7 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev
 LDFLAGS = -X github.com/pusk-platform/pusk/internal/api.Version=$(VERSION)
 BINARY = pusk
 
-.PHONY: build run test lint build-demo check coherence
+.PHONY: build run test lint build-demo check coherence contracts
 
 build:
 	go build -o $(BINARY) -ldflags "$(LDFLAGS)" ./cmd/pusk/
@@ -25,6 +25,9 @@ lint:
 coherence:
 	@bash scripts/coherence-check.sh
 
-check: lint coherence test
+contracts:
+	@python3 scripts/contracts/pusk_contract_gate.py
+
+check: lint coherence contracts test
 	@bash scripts/lint-pusk.sh
 	@echo "All checks passed"

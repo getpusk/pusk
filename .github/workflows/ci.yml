@@ -62,6 +62,9 @@ jobs:
       - name: Coherence check
         run: bash scripts/coherence-check.sh
 
+      - name: Contract registry gate
+        run: python3 scripts/contracts/pusk_contract_gate.py
+
   security:
     name: Security
     runs-on: ubuntu-latest
