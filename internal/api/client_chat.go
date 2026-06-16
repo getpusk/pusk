@@ -79,6 +79,7 @@ func (a *ClientAPI) startChat(w http.ResponseWriter, r *http.Request) {
 			"message":   startMsg,
 		}
 		go func() {
+			defer recoverLog("startChat")
 			// Push to update queue for getUpdates long polling
 			if a.updates != nil {
 				a.updates.Push(b.ID, bot.Update{
