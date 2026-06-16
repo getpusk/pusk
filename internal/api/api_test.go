@@ -823,6 +823,7 @@ func TestChannelRead_RequiresMembership(t *testing.T) {
 		{"GET", base + "/info", nil},
 		{"GET", base + "/readers", nil},
 		{"POST", base + "/ack", map[string]interface{}{"message_id": 1, "action": "ack"}},
+		{"POST", base + "/mark-read", nil},
 	}
 	for _, c := range cases {
 		rec := env.authedRequest(c.method, c.path, c.body, token)

@@ -225,6 +225,11 @@ func (a *ClientAPI) markChannelRead(w http.ResponseWriter, r *http.Request) {
 	channelID, _ := strconv.ParseInt(r.PathValue("channelID"), 10, 64)
 	s := a.db(r)
 
+	if !s.IsSubscribed(channelID, userID) {
+		jsonErr(w, "not subscribed", 403)
+		return
+	}
+
 	var req struct {
 		LastReadID int64 `json:"last_read_id"`
 	}
