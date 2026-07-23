@@ -6,6 +6,15 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "deps"
+    # Bundle minor/patch into one PR (avoids go.mod conflicts across PRs);
+    # majors stay separate for manual review.
+    groups:
+      go-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -13,6 +22,13 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "ci"
+    groups:
+      actions-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "npm"
     directory: "/tests/e2e"
