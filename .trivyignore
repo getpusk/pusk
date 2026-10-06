@@ -1,0 +1,8 @@
+# Accepted findings for the release image scan (.github/workflows/release.yml).
+# Every entry needs a reason and an expiry date; Trivy reports it again after expiry.
+
+# GO-2026-5932: golang.org/x/crypto/openpgp is unmaintained. The advisory covers every
+# x/crypto version and has no fixed release. Pusk does not import openpgp: the build
+# graph uses only x/crypto/bcrypt, blowfish and hkdf (go list -deps ./cmd/...), and
+# govulncheck reports 0 reachable vulnerabilities at the symbol level.
+GO-2026-5932 exp:2027-01-04
