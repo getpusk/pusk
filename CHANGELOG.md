@@ -1,5 +1,40 @@
 # Changelog
 
+## v0.8.0 (2026-10-06)
+
+### Before you upgrade
+- **Set `PUSK_ADMIN_TOKEN`.** Creating organizations now requires the global admin token (#161). Without it, organization registration is disabled in production mode; demo mode (`PUSK_DEMO=1`) is unchanged.
+- **Back up the database before the first start.** The SQLite store now actually runs in WAL mode with foreign keys enforced (#160). On first start the database switches to WAL and gets `-wal`/`-shm` files next to it, so the data directory must be writable and on a local filesystem. The server refuses to start if WAL or foreign keys cannot be enabled.
+- Channel history, info, readers and ACK are now available only to channel subscribers (#166). Members who read channels without subscribing get `403`.
+
+### Security
+- Require the admin token to create organizations — closes pre-auth org creation with an admin JWT (#161)
+- Require channel membership to read messages, info, readers and to ACK (#166)
+- Validate the outbound webhook target IP at connect time and on every redirect, check all resolved addresses (SSRF, DNS rebinding) (#164)
+- Reject tokens whose organization no longer exists (#168)
+- Log only a bot-token prefix on organization creation (#165)
+
+### Fixes
+- SQLite pragmas applied to every pooled connection via DSN, foreign keys enforced, startup check (#160)
+- Recover from panics in the request chain and in forward goroutines (#171, #181)
+- Bound Web Push requests with an HTTP client timeout; channel push fan-out no longer blocks the request (#162, #163)
+- Clamp the lower bound of `?limit` (#167); check `rows.Err()` after every list iteration (#169)
+- Webhook routes alerts to the bot's first channel before creating them (#123)
+- Rename collision returns `409`; cascade delete runs in a transaction (#122)
+- Low-severity cleanup — tests, store/org correctness (#174)
+
+### Added
+- Delivery-outcome Prometheus metrics (#170)
+- Channel info endpoint, sidebar panel and WebSocket broadcast on rename (#121, #124)
+
+### Build
+- Go 1.27 and Alpine 3.24 in container images; RED OS and Astra images share one Dockerfile (#173)
+- Dependency updates (Dependabot), including `modernc.org/sqlite`, `golang.org/x/crypto`, `prometheus/client_golang`
+
+## v0.7.9 – v0.7.12 (2026-04-21 – 2026-04-25)
+
+Not recorded here at release time; see the GitHub releases. Highlights: bot management — rename and delete (#97, #99), notification actions Open / Dismiss All (#96), unread badge and message order fix (#101), role change without re-login (#92).
+
 ## v0.7.8 (2026-04-19)
 
 ### Security
