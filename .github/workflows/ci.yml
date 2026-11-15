@@ -261,9 +261,13 @@ jobs:
           echo "coverage=$TOTAL" >> $GITHUB_OUTPUT
           echo "## Go Coverage: $TOTAL" >> $GITHUB_STEP_SUMMARY
 
+      # The badge is cosmetic: a broken gist token must not turn main red
+      # while tests pass. A failure is still reported as a warning below.
       - name: Coverage badge
+        id: badge
         uses: schneegans/dynamic-badges-action@28b0fa8bdeb46170ac397105ece0c1fe58f68910 # v1.9.0
         if: github.ref == 'refs/heads/main'
+        continue-on-error: true
         with:
           auth: ${{ secrets.GIST_TOKEN }}
           gistID: ${{ vars.COVERAGE_GIST_ID }}
@@ -273,3 +277,9 @@ jobs:
           valColorRange: ${{ steps.cover.outputs.coverage }}
           minColorRange: 30
           maxColorRange: 80
+
+      - name: Coverage badge status
+        if: steps.badge.outcome == 'failure'
+        run: |
+          echo "::warning title=Coverage badge not updated::Gist update failed; check the GIST_TOKEN secret and COVERAGE_GIST_ID variable."
+          echo "> Coverage badge not updated: gist update failed (check \`GIST_TOKEN\`)." >> "$GITHUB_STEP_SUMMARY"
