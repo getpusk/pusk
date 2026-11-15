@@ -11,6 +11,8 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"sync"
 
 	_ "modernc.org/sqlite"
@@ -61,6 +63,14 @@ func NewManager(dataDir string) (*Manager, error) {
 	// Load existing orgs
 	if data, err := os.ReadFile(m.masterFn); err == nil {
 		_ = json.Unmarshal(data, &m.orgs)
+	}
+	// Entries with a malformed slug stay in the registry so a hand-edited
+	// master.json loses nothing on the next save, but Get and DeleteOrg refuse
+	// them (see orgPath), so they never reach the filesystem.
+	for _, o := range m.orgs {
+		if err := validSlug(o.Slug); err != nil {
+			slog.Warn("invalid org slug in master.json, org is not served", "slug", o.Slug, "err", err)
+		}
 	}
 
 	// Ensure "default" org exists
@@ -114,6 +124,38 @@ func (m *Manager) hasOrg(slug string) bool {
 	return false
 }
 
+var slugChars = regexp.MustCompile(`^[a-z0-9-]+$`)
+
+// validSlug checks an org slug: 2-32 characters of [a-z0-9-] with at least
+// one letter or digit. Every slug must pass it before it is used in a path.
+func validSlug(slug string) error {
+	if len(slug) < 2 || len(slug) > 32 {
+		return fmt.Errorf("slug must be 2-32 characters")
+	}
+	if !slugChars.MatchString(slug) {
+		return fmt.Errorf("slug must contain only lowercase letters, digits and hyphens")
+	}
+	// EDGE-4: slug must have at least one alphanumeric character
+	if strings.Trim(slug, "-") == "" {
+		return fmt.Errorf("slug must contain at least one letter or digit")
+	}
+	return nil
+}
+
+// orgPath returns the data directory of an org (data/orgs/<slug>). It is the
+// only place an org path is built: the slug is validated and the result is
+// checked to be a direct child of m.dir.
+func (m *Manager) orgPath(slug string) (string, error) {
+	if err := validSlug(slug); err != nil {
+		return "", err
+	}
+	p := filepath.Join(m.dir, slug)
+	if rel, err := filepath.Rel(m.dir, p); err != nil || rel != slug {
+		return "", fmt.Errorf("org path outside data dir: %q", slug)
+	}
+	return p, nil
+}
+
 func (m *Manager) save() error {
 	data, _ := json.MarshalIndent(m.orgs, "", "  ")
 	return os.WriteFile(m.masterFn, data, 0o600)
@@ -141,11 +183,14 @@ func (m *Manager) Get(slug string) (*store.Store, error) {
 		return nil, fmt.Errorf("org not found: %s", slug)
 	}
 
-	orgDir := filepath.Join(m.dir, filepath.Base(slug))
+	orgDir, err := m.orgPath(slug)
+	if err != nil {
+		return nil, fmt.Errorf("open org %q: %w", slug, err)
+	}
 	_ = os.MkdirAll(orgDir, 0o750)
 	dbPath := filepath.Join(orgDir, "pusk.db")
 
-	s, err := store.New(dbPath)
+	s, err = store.New(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("open org db %s: %w", slug, err)
 	}
@@ -158,25 +203,9 @@ func (m *Manager) Get(slug string) (*store.Store, error) {
 // Register creates a new organization with admin user.
 // If bypassLimit is true, the org limit check is skipped (admin token callers).
 func (m *Manager) Register(slug, name, adminUser, adminPin string, bypassLimit bool) error {
-	// Validate slug: alphanumeric + hyphens, 2-32 chars, no leading dot/slash
-	if len(slug) < 2 || len(slug) > 32 {
-		return fmt.Errorf("slug must be 2-32 characters")
-	}
-	for _, c := range slug {
-		if (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '-' {
-			return fmt.Errorf("slug must contain only lowercase letters, digits and hyphens")
-		}
-	}
-	// EDGE-4: slug must have at least one alphanumeric character
-	hasAlphaNum := false
-	for _, c := range slug {
-		if (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') {
-			hasAlphaNum = true
-			break
-		}
-	}
-	if !hasAlphaNum {
-		return fmt.Errorf("slug must contain at least one letter or digit")
+	orgDir, err := m.orgPath(slug)
+	if err != nil {
+		return err
 	}
 
 	m.mu.Lock()
@@ -195,7 +224,6 @@ func (m *Manager) Register(slug, name, adminUser, adminPin string, bypassLimit b
 	}
 
 	// Create org directory and database
-	orgDir := filepath.Join(m.dir, filepath.Base(slug))
 	_ = os.MkdirAll(orgDir, 0o750)
 	dbPath := filepath.Join(orgDir, "pusk.db")
 
@@ -317,6 +345,12 @@ func (m *Manager) DeleteOrg(slug string) error {
 	if slug == "default" {
 		return fmt.Errorf("cannot delete default org")
 	}
+	// Refuse before touching the registry: a malformed slug from master.json
+	// must not be removed from the list or reach os.RemoveAll.
+	orgDir, err := m.orgPath(slug)
+	if err != nil {
+		return fmt.Errorf("delete org %q: %w", slug, err)
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -346,7 +380,6 @@ func (m *Manager) DeleteOrg(slug string) error {
 	_, _ = m.tokDB.Exec("DELETE FROM tokens WHERE org = ?", slug)
 
 	// Remove data directory
-	orgDir := filepath.Join(m.dir, slug)
 	if err := os.RemoveAll(orgDir); err != nil {
 		slog.Warn("failed to remove org dir", "slug", slug, "err", err)
 	}
