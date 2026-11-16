@@ -147,16 +147,16 @@ jobs:
         run: |
           TOKEN=$(curl -sf http://localhost:9999/api/auth -X POST \
             -H 'Content-Type: application/json' \
-            -d '{"username":"guest","pin":"guest"}' | python3 -c "import sys,json;print(json.load(sys.stdin)['token'])")
+            -d '{"username":"guest","pin":"guest"}' | jq -er '.token')
           echo "TOKEN=$TOKEN" >> $GITHUB_ENV
 
       - name: Bot API — sendMessage + getMe
         run: |
-          curl -sf http://localhost:9999/bot/demo-bot-token/getMe | python3 -c "import sys,json;assert json.load(sys.stdin)['result']['username']=='DemoBot'"
-          CHAT=$(curl -sf http://localhost:9999/api/bots/1/start -X POST -H "Authorization: $TOKEN" | python3 -c "import sys,json;print(json.load(sys.stdin)['id'])")
+          curl -sf http://localhost:9999/bot/demo-bot-token/getMe | jq -e '.result.username == "DemoBot"' >/dev/null
+          CHAT=$(curl -sf http://localhost:9999/api/bots/1/start -X POST -H "Authorization: $TOKEN" | jq -er '.id')
           curl -sf http://localhost:9999/bot/demo-bot-token/sendMessage -X POST \
             -H 'Content-Type: application/json' \
-            -d "{\"chat_id\":$CHAT,\"text\":\"CI test\"}" | python3 -c "import sys,json;assert json.load(sys.stdin)['ok']==True"
+            -d "{\"chat_id\":$CHAT,\"text\":\"CI test\"}" | jq -e '.ok == true' >/dev/null
           echo "Bot API OK"
 
       - name: Webhooks — Alertmanager + Zabbix + Grafana
@@ -177,8 +177,8 @@ jobs:
           ORG=$(curl -sf http://localhost:9999/api/org/register -X POST \
             -H 'Content-Type: application/json' \
             -d '{"slug":"ci-test","name":"CI","username":"admin","pin":"ci-test-password"}')
-          ORG_TOKEN=$(echo "$ORG" | python3 -c "import sys,json;print(json.load(sys.stdin)['token'])")
-          BOTS=$(curl -sf http://localhost:9999/api/bots -H "Authorization: $ORG_TOKEN" | python3 -c "import sys,json;print(len(json.load(sys.stdin)))")
+          ORG_TOKEN=$(echo "$ORG" | jq -er '.token')
+          BOTS=$(curl -sf http://localhost:9999/api/bots -H "Authorization: $ORG_TOKEN" | jq -e 'length')
           [ "$BOTS" = "1" ] && echo "Isolation OK (1 system bot)" || (echo "FAIL: expected 1 bot, got $BOTS" && exit 1)
 
       - name: Security — unauth blocked
