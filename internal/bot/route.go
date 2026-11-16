@@ -93,8 +93,18 @@ func trackBotAuthFail(r *http.Request) {
 	if f.count >= 50 {
 		f.blocked = now
 		slog.Warn("bot auth rate limit triggered",
-			"ip", botIPFromRequest(r), "token", token, "failures", f.count)
+			"ip", botIPFromRequest(r), "token_prefix", tokenPrefix(token), "failures", f.count)
 	}
+}
+
+// tokenPrefix returns at most the first 8 bytes of a bot token for logs. The
+// full token is the credential for /bot/<token> and /hook/<token>; this one
+// comes from the request, so it may be shorter than 8 bytes.
+func tokenPrefix(token string) string {
+	if len(token) > 8 {
+		return token[:8]
+	}
+	return token
 }
 
 // Route registers Bot API endpoints with token extraction middleware

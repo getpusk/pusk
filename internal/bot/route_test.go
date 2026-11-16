@@ -3,7 +3,10 @@
 package bot
 
 import (
+	"bytes"
+	"log/slog"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -70,6 +73,39 @@ func TestTrackBotAuthFail_Records(t *testing.T) {
 	// Should not panic and should record
 	if checkBotAuthRL(req, "track-fail-tok") {
 		t.Error("single failure should not trigger rate limit")
+	}
+}
+
+// The rate-limit warning must not carry the full X-Bot-Token: a valid token
+// also lands here when the store lookup fails, and logs are shipped around.
+func TestTrackBotAuthFail_LogsTokenPrefixOnly(t *testing.T) {
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+	defer slog.SetDefault(prev)
+
+	cases := []struct{ remote, tok, prefix string }{
+		{"198.51.100.60:1234", "0123456789abcdef0123456789abcdef", "token_prefix=01234567"},
+		{"198.51.100.61:1234", "abc", "token_prefix=abc"}, // shorter than the prefix: no panic
+	}
+	for _, c := range cases {
+		buf.Reset()
+		req := httptest.NewRequest("GET", "/", nil)
+		req.RemoteAddr = c.remote
+		req.Header.Set("X-Bot-Token", c.tok)
+		for i := 0; i < 50; i++ {
+			trackBotAuthFail(req)
+		}
+		out := buf.String()
+		if !strings.Contains(out, "bot auth rate limit triggered") {
+			t.Fatalf("token %q: warning not logged: %q", c.tok, out)
+		}
+		if len(c.tok) > 8 && strings.Contains(out, c.tok) {
+			t.Errorf("full token in log: %q", out)
+		}
+		if !strings.Contains(out, c.prefix) {
+			t.Errorf("want %s in log: %q", c.prefix, out)
+		}
 	}
 }
 

@@ -43,13 +43,7 @@ func securityHeaders(next http.Handler) http.Handler {
 
 func main() {
 	// Structured logging
-	var handler slog.Handler
-	if os.Getenv("PUSK_LOG_FORMAT") == "json" {
-		handler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
-	} else {
-		handler = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
-	}
-	slog.SetDefault(slog.New(handler))
+	slog.SetDefault(slog.New(newLogHandler(os.Getenv("PUSK_LOG_FORMAT"), os.Stdout)))
 
 	addr := flag.String("addr", ":8443", "listen address")
 	filesDir := flag.String("files", "data/files", "uploaded files directory")
